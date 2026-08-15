@@ -72,6 +72,12 @@ export interface AiBaseRequest {
   knowledgeBaseIds?: string[]
   requestOptions?: AiTransportOptions
   /**
+   * Force-enable the web tool group for this request regardless of (or in the
+   * absence of) assistant settings. Set by the temporary-chat provider for
+   * selection-assistant explain turns.
+   */
+  enableWebSearchOverride?: boolean
+  /**
    * Main-internal context ownership. Omitted means Cherry-managed; caller-owned
    * requests bypass Cherry's history truncation, pruning, and compaction.
    * This field is intentionally absent from renderer IPC schemas.

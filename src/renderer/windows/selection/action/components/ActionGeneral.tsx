@@ -149,9 +149,13 @@ const ActionGeneral: FC<Props> = React.memo(({ action, scrollToBottom }) => {
     setRequestStartedAt(new Date().toISOString())
     setIsPreparing(true)
     // topicId comes from useChat id; Main resolves assistant/model from topic.assistantId.
-    // No body fields are read by IpcChatTransport for this codepath.
-    void sendMessage({ text: promptContent })
-  }, [chosenAssistantId, promptContent, ready, sendMessage, temporaryTopicId, waitingForConfiguredAssistant])
+    // `enableWebSearch` is the one body field IpcChatTransport forwards here: the explain
+    // action always requests the web tool group so it can ground explanations in live results.
+    void sendMessage(
+      { text: promptContent },
+      action.id === 'explain' ? { body: { enableWebSearch: true } } : undefined
+    )
+  }, [action.id, chosenAssistantId, promptContent, ready, sendMessage, temporaryTopicId, waitingForConfiguredAssistant])
 
   useEffect(() => {
     // Kick the result-renderer chunk off immediately — rendering waits for the

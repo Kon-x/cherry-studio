@@ -218,7 +218,8 @@ export const aiRequestSchemas = {
           retryMessageId: z.never().optional(),
           appendToLiveGroupMessageId: z.never().optional(),
           reasoningEffort: ReasoningEffortOptionSchema.optional(),
-          fastMode: z.boolean().optional()
+          fastMode: z.boolean().optional(),
+          enableWebSearch: z.boolean().optional()
         }),
         z.object({
           ...aiStreamRegenerateShape,

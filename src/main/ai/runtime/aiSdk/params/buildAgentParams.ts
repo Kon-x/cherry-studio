@@ -170,7 +170,8 @@ export async function buildAgentParams(input: BuildAgentParamsInput): Promise<Bu
         Object.keys(request.callOverrides?.tools ?? {}).length > 0 ||
         assistant?.settings.enableGenerateImage === true
       : false,
-    reasoningEffort: request.reasoningEffort ?? assistant?.settings.reasoning_effort
+    reasoningEffort: request.reasoningEffort ?? assistant?.settings.reasoning_effort,
+    webSearchOverride: request.enableWebSearchOverride
   })
   const { tools, deferredEntries, hasCitableTools, mcpToolIds } = toolSignals
     ? await resolveTools(
@@ -433,12 +434,13 @@ async function resolveRequestWebToolRoutes(
     endpointType: EndpointType | undefined
     hasFunctionToolSignals: boolean
     reasoningEffort: string | undefined
+    webSearchOverride?: boolean
   }
 ): Promise<WebToolRoutes> {
-  if (!assistant) return NO_WEB_TOOL_ROUTES
+  if (!assistant && !requestContext.webSearchOverride) return NO_WEB_TOOL_ROUTES
 
   const preferenceService = application.get('PreferenceService')
-  const clientWebToolsEnabled = assistant.settings.enableWebSearch === true
+  const clientWebToolsEnabled = requestContext.webSearchOverride === true || assistant?.settings.enableWebSearch === true
   const [clientSearchAvailable, clientFetchAvailable] = clientWebToolsEnabled
     ? await Promise.all([
         resolveClientWebCapabilityAvailability('searchKeywords'),

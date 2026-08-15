@@ -31,6 +31,8 @@ export interface AiChatRequestBody extends AssistantTurnOptions {
   userMessageParts?: CherryMessagePart[]
   /** Uploaded file metadata. */
   files?: Array<{ id: string; name: string; type: string; size: number; url: string }>
+  /** Force-enable the web tool group for this turn regardless of assistant settings (selection explain). */
+  enableWebSearch?: boolean
 }
 
 // ── Push payloads (Main → Renderer) ─────────────────────────────────
@@ -202,6 +204,8 @@ export type AiStreamOpenRequest = {
       reasoningEffort?: ReasoningEffortOption
       /** Whether to request Fast processing for this turn. */
       fastMode?: boolean
+      /** Force-enable the web tool group for this turn regardless of assistant settings (selection explain). */
+      enableWebSearch?: boolean
     }
   | ({
       /** Re-run the assistant under an existing user msg. */

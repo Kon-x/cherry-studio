@@ -162,6 +162,19 @@ describe('ActionGeneral', () => {
     expect(state.temporaryTopicOptions.at(-1)).toEqual({ enabled: true, assistantId: undefined })
   })
 
+  it('requests web search for the explain action only', async () => {
+    render(<ActionGeneral action={createAction({ id: 'explain', assistantId: '' })} />)
+
+    await waitFor(() => expect(state.sendMessage).toHaveBeenCalledTimes(1))
+    expect(state.sendMessage.mock.calls[0][1]).toEqual({ body: { enableWebSearch: true } })
+
+    state.sendMessage.mockClear()
+    render(<ActionGeneral action={createAction({ id: 'summary', assistantId: '' })} />)
+
+    await waitFor(() => expect(state.sendMessage).toHaveBeenCalledTimes(1))
+    expect(state.sendMessage.mock.calls[0][1]).toBeUndefined()
+  })
+
   it('waits for a configured assistant before leasing and sending', async () => {
     const action = createAction({ assistantId: 'assistant-1' })
     const { rerender } = render(<ActionGeneral action={action} />)
