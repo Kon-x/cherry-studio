@@ -1,0 +1,87 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Windows x64
+        run: pnpm build:win:x64
+        env:
+          ELECTRON_BUILDER_7Z_FILTER: BCJ
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p out-artifacts
+          find dist -maxdepth 1 -name "*-x64-setup.exe" -exec cp {} out-artifacts/ \;
+          find dist -maxdepth 1 -name "*-x64-portable.exe" -exec cp {} out-artifacts/ \;
+          cp dist/latest*.yml out-artifacts/ 2>/dev/null || true
+          ls -la out-artifacts
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          cd out-artifacts
+          "# SHA256 checksums - $(Get-Date -Format 'yyyy-MM-dd')" | Out-File -Encoding utf8 SHA256SUMS.txt
+          Get-ChildItem -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 $_.Name).Hash.ToLower()
+            Add-Content -Path SHA256SUMS.txt -Value "$hash  $($_.Name)"
+          }
+          Get-Content SHA256SUMS.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: cherry-studio-win-x64-${{ github.ref_name }}-${{ github.run_number }}
+          path: out-artifacts/*
+          retention-days: 14
+          compression-level: 8
+
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out-artifacts/*
+          draft: false
+          generate_release_notes: true
