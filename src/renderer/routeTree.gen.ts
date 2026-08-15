@@ -30,9 +30,7 @@ import { Route as SettingsFileProcessingRouteImport } from './routes/settings/fi
 import { Route as SettingsDependenciesRouteImport } from './routes/settings/dependencies'
 import { Route as SettingsDataRouteImport } from './routes/settings/data'
 import { Route as SettingsCodeExecutionRouteImport } from './routes/settings/code-execution'
-import { Route as SettingsChannelsRouteImport } from './routes/settings/channels'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
-import { Route as SettingsApiGatewayRouteImport } from './routes/settings/api-gateway'
 import { Route as SettingsAboutRouteImport } from './routes/settings/about'
 import { Route as AppTranslateRouteImport } from './routes/app/translate'
 import { Route as AppReleaseNotesRouteImport } from './routes/app/release-notes'
@@ -165,19 +163,9 @@ const SettingsCodeExecutionRoute = SettingsCodeExecutionRouteImport.update({
   path: '/code-execution',
   getParentRoute: () => SettingsRoute,
 } as any)
-const SettingsChannelsRoute = SettingsChannelsRouteImport.update({
-  id: '/channels',
-  path: '/channels',
-  getParentRoute: () => SettingsRoute,
-} as any)
 const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   id: '/appearance',
   path: '/appearance',
-  getParentRoute: () => SettingsRoute,
-} as any)
-const SettingsApiGatewayRoute = SettingsApiGatewayRouteImport.update({
-  id: '/api-gateway',
-  path: '/api-gateway',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsAboutRoute = SettingsAboutRouteImport.update({
@@ -323,9 +311,7 @@ export interface FileRoutesByFullPath {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/translate': typeof AppTranslateRoute
   '/settings/about': typeof SettingsAboutRoute
-  '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/channels': typeof SettingsChannelsRoute
   '/settings/code-execution': typeof SettingsCodeExecutionRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/dependencies': typeof SettingsDependenciesRoute
@@ -373,9 +359,7 @@ export interface FileRoutesByTo {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/translate': typeof AppTranslateRoute
   '/settings/about': typeof SettingsAboutRoute
-  '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/channels': typeof SettingsChannelsRoute
   '/settings/code-execution': typeof SettingsCodeExecutionRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/dependencies': typeof SettingsDependenciesRoute
@@ -423,9 +407,7 @@ export interface FileRoutesById {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/translate': typeof AppTranslateRoute
   '/settings/about': typeof SettingsAboutRoute
-  '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/channels': typeof SettingsChannelsRoute
   '/settings/code-execution': typeof SettingsCodeExecutionRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/dependencies': typeof SettingsDependenciesRoute
@@ -476,9 +458,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/translate'
     | '/settings/about'
-    | '/settings/api-gateway'
     | '/settings/appearance'
-    | '/settings/channels'
     | '/settings/code-execution'
     | '/settings/data'
     | '/settings/dependencies'
@@ -526,9 +506,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/translate'
     | '/settings/about'
-    | '/settings/api-gateway'
     | '/settings/appearance'
-    | '/settings/channels'
     | '/settings/code-execution'
     | '/settings/data'
     | '/settings/dependencies'
@@ -575,9 +553,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/translate'
     | '/settings/about'
-    | '/settings/api-gateway'
     | '/settings/appearance'
-    | '/settings/channels'
     | '/settings/code-execution'
     | '/settings/data'
     | '/settings/dependencies'
@@ -767,25 +743,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCodeExecutionRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/settings/channels': {
-      id: '/settings/channels'
-      path: '/channels'
-      fullPath: '/settings/channels'
-      preLoaderRoute: typeof SettingsChannelsRouteImport
-      parentRoute: typeof SettingsRoute
-    }
     '/settings/appearance': {
       id: '/settings/appearance'
       path: '/appearance'
       fullPath: '/settings/appearance'
       preLoaderRoute: typeof SettingsAppearanceRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/api-gateway': {
-      id: '/settings/api-gateway'
-      path: '/api-gateway'
-      fullPath: '/settings/api-gateway'
-      preLoaderRoute: typeof SettingsApiGatewayRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/about': {
@@ -1046,9 +1008,7 @@ const SettingsScheduledTasksRouteWithChildren =
 
 interface SettingsRouteChildren {
   SettingsAboutRoute: typeof SettingsAboutRoute
-  SettingsApiGatewayRoute: typeof SettingsApiGatewayRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
-  SettingsChannelsRoute: typeof SettingsChannelsRoute
   SettingsCodeExecutionRoute: typeof SettingsCodeExecutionRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsDependenciesRoute: typeof SettingsDependenciesRoute
@@ -1072,9 +1032,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAboutRoute: SettingsAboutRoute,
-  SettingsApiGatewayRoute: SettingsApiGatewayRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
-  SettingsChannelsRoute: SettingsChannelsRoute,
   SettingsCodeExecutionRoute: SettingsCodeExecutionRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsDependenciesRoute: SettingsDependenciesRoute,

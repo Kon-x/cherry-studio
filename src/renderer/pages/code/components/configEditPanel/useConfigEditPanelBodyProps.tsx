@@ -148,7 +148,7 @@ export function useConfigEditPanelBodyProps({
     provider,
     providerName,
     providerIcon,
-    providerSettingsPath: isGateway ? '/settings/api-gateway' : `/settings/provider?id=${provider.id}`,
+    providerSettingsPath: isGateway ? '/settings/provider' : `/settings/provider?id=${provider.id}`,
     theme,
     isClaudeTool,
     claudeModelMode,

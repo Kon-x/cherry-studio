@@ -153,7 +153,7 @@ describe('CodeBlock', () => {
       expect(screen.getByTestId('clickable-file-path')).toBeInTheDocument()
     })
 
-    it.each(['/settings/skills', '/settings/channels'])(
+    it.each(['/settings/skills', '/settings/data'])(
       'should render known settings route %s as a navigation entry',
       (path) => {
         render(<CodeBlock {...defaultProps} className={undefined} children={path} />)

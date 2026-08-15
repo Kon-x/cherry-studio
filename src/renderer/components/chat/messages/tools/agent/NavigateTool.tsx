@@ -32,7 +32,6 @@ const ROUTE_LABELS: Record<string, { icon: string; labelKey: string }> = {
   '/settings/data': { icon: '💾', labelKey: 'settings.data.title' },
   '/settings/mcp': { icon: '🔌', labelKey: 'agent.settings.toolsMcp.mcp.tab' },
   '/settings/websearch': { icon: '🔍', labelKey: 'settings.tool.websearch.title' },
-  '/settings/api-gateway': { icon: '🌐', labelKey: 'apiGateway.title' },
   '/settings/file-processing': {
     icon: '📄',
     labelKey: 'settings.tool.file_processing.features.document_to_markdown.title'
@@ -42,7 +41,6 @@ const ROUTE_LABELS: Record<string, { icon: string; labelKey: string }> = {
   '/settings/quick-assistant': { icon: '🪟', labelKey: 'settings.quickAssistant.title' },
   '/settings/selection-assistant': { icon: '✂️', labelKey: 'selection.name' },
   '/settings/about': { icon: 'ℹ️', labelKey: 'settings.about.label' },
-  '/settings/channels': { icon: '📡', labelKey: 'settings.channels.title' },
   '/settings/code-execution': { icon: '⚙️', labelKey: 'chat.settings.code_execution.title' },
   '/settings/dependencies': { icon: '🛠️', labelKey: 'settings.dependencies.title' },
   '/settings/scheduled-tasks': { icon: '⏰', labelKey: 'settings.scheduledTasks.title' },

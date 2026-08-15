@@ -24,6 +24,9 @@ type AdapterFactory<T extends AgentChannelType = AgentChannelType> = (
 ) => ChannelAdapter
 const adapterFactories = new Map<AgentChannelType, AdapterFactory>()
 
+/** Fork: channels feature is removed from the UI; adapters must never connect. */
+const CHANNEL_CONNECTIONS_DISABLED: boolean = true
+
 export function registerAdapterFactory<T extends AgentChannelType>(type: T, factory: AdapterFactory<T>): void {
   // A factory is always stored under, and looked up by, its own channel type
   // (see `connectChannelFromRow`), so the row handed to it is guaranteed to be
@@ -93,25 +96,10 @@ export class ChannelManager extends BaseService {
   }
 
   async start(): Promise<void> {
-    let channels: Awaited<ReturnType<typeof channelService.listChannels>>
-    try {
-      channels = channelService.listChannels()
-    } catch (error) {
-      logger.error('Failed to list channels during startup', {
-        error: error instanceof Error ? error.message : String(error)
-      })
-      return
-    }
-
-    const activeChannels = channels.filter((ch) => ch.isActive && ch.agentId)
-
-    // Lazy-load only the adapter modules needed for active channels
-    const neededTypes = [...new Set(activeChannels.map((ch) => ch.type))]
-    await Promise.all(neededTypes.map((type) => ensureAdapterLoaded(type)))
-
-    await Promise.all(activeChannels.map((channel) => this.connectChannelFromRow(channel)))
-
-    logger.info('Channel manager started', { adapterCount: this.adapters.size })
+    // Fork: the channels feature is removed from the UI; never connect any
+    // adapter so configured bots stay dead even if rows survive in the DB.
+    logger.info('Channel manager disabled in this fork — no adapters started')
+    return
   }
 
   async stop(): Promise<void> {
@@ -286,6 +274,12 @@ export class ChannelManager extends BaseService {
   }
 
   private async connectChannelFromRow(row: ChannelRow, options: { awaitConnect?: boolean } = {}): Promise<void> {
+    // Fork: channels are removed — refuse every connection path (startup sync,
+    // workflow syncChannel, agent autonomy tools), not just the startup scan.
+    if (CHANNEL_CONNECTIONS_DISABLED) {
+      logger.info('Channel connections disabled in this fork', { channelId: row.id, type: row.type })
+      return
+    }
     const agentId = row.agentId
     if (!agentId) return
 

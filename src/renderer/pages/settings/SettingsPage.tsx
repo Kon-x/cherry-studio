@@ -1,5 +1,4 @@
 import { MenuDivider, MenuItem, MenuList, PageHeader } from '@cherrystudio/ui'
-import { GatewayIcon } from '@renderer/components/icons/GatewayIcon'
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
 import Scrollbar from '@renderer/components/Scrollbar'
 import useMacTransparentWindow from '@renderer/hooks/useMacTransparentWindow'
@@ -25,7 +24,6 @@ import {
   Package,
   Palette,
   PictureInPicture2,
-  Radio,
   ScanText,
   Search,
   Settings2,
@@ -84,14 +82,6 @@ const SettingsPage: FC = () => {
                 label={t('settings.dependencies.localModels.title')}
                 active={isActive('/settings/local-models')}
                 onClick={() => go('/settings/local-models')}
-              />
-              <MenuItem
-                className={settingsSubmenuItemClassName}
-                labelClassName={settingsSubmenuItemLabelClassName}
-                icon={<GatewayIcon />}
-                label={t('apiGateway.title')}
-                active={isActive('/settings/api-gateway')}
-                onClick={() => go('/settings/api-gateway')}
               />
               <MenuDivider className={settingsSubmenuDividerClassName} />
               <div className={settingsSubmenuSectionTitleClassName}>{t('settings.menuGroups.capabilities')}</div>
@@ -171,14 +161,6 @@ const SettingsPage: FC = () => {
               />
               <MenuDivider className={settingsSubmenuDividerClassName} />
               <div className={settingsSubmenuSectionTitleClassName}>{t('settings.menuGroups.automation')}</div>
-              <MenuItem
-                className={settingsSubmenuItemClassName}
-                labelClassName={settingsSubmenuItemLabelClassName}
-                icon={<Radio />}
-                label={t('settings.channels.title')}
-                active={isActive('/settings/channels')}
-                onClick={() => go('/settings/channels')}
-              />
               <MenuItem
                 className={settingsSubmenuItemClassName}
                 labelClassName={settingsSubmenuItemLabelClassName}
