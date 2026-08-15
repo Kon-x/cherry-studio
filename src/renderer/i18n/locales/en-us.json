@@ -7979,9 +7979,12 @@
       },
       "batch": {
         "button_title": "Batch manage",
-        "delete_content": "This will delete the {{count}} selected providers and all of their models. This cannot be undone.",
-        "delete_failed": "Failed to delete {{count}} providers",
-        "delete_selected": "Delete ({{count}})",
+        "delete_content_one": "This will delete the selected provider and all of its models. This cannot be undone.",
+        "delete_content_other": "This will delete the {{count}} selected providers and all of their models. This cannot be undone.",
+        "delete_failed_one": "Failed to delete {{count}} provider",
+        "delete_failed_other": "Failed to delete {{count}} providers",
+        "delete_selected_one": "Delete ({{count}})",
+        "delete_selected_other": "Delete ({{count}})",
         "delete_title": "Delete Selected Providers",
         "select_all": "Select all / none"
       },
