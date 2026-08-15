@@ -1,12 +1,12 @@
 /**
- * Regression tests for ProviderService.delete — preset provider protection boundary.
+ * Regression tests for ProviderService.delete — preset deletion + tombstone.
  *
- * Regression: The guard `provider.presetProviderId === providerId` was previously
- * absent, allowing canonical preset providers ('openai', 'anthropic', etc.) to be
- * deleted directly. User-created copies that inherit from a preset must still be
- * deletable.
+ * Preset (seeded) providers are deletable in this fork; the deleted id is
+ * tombstoned in app_state so a later seeding pass (batchUpsertTx) does not
+ * re-insert it. User-created copies behave as before.
  */
 
+import { appStateTable } from '@data/db/schemas/appState'
 import { pinTable } from '@data/db/schemas/pin'
 import { userModelTable } from '@data/db/schemas/userModel'
 import { userProviderTable } from '@data/db/schemas/userProvider'
@@ -30,7 +30,7 @@ describe('ProviderService.delete — preset protection boundary', () => {
     vi.restoreAllMocks()
   })
 
-  it('should throw when deleting a canonical preset provider (providerId === presetProviderId)', async () => {
+  it('deletes a canonical preset provider and tombstones it against re-seeding', async () => {
     await dbh.db.insert(userProviderTable).values({
       providerId: 'openai',
       presetProviderId: 'openai',
@@ -38,11 +38,24 @@ describe('ProviderService.delete — preset protection boundary', () => {
       orderKey: generateOrderKeyBetween(null, null)
     })
 
-    expect(() => providerService.delete('openai')).toThrow(/Cannot delete preset provider/)
+    expect(providerService.delete('openai')).toBeUndefined()
 
-    // Verify row is still present
     const rows = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'openai'))
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(0)
+
+    // A later seeding pass must not resurrect the deleted preset.
+    const inserted = dbh.db.transaction((tx) =>
+      providerService.batchUpsertTx(tx, [{ providerId: 'openai', presetProviderId: 'openai', name: 'OpenAI' }])
+    )
+    expect(inserted).toBe(0)
+    const reseeded = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'openai'))
+    expect(reseeded).toHaveLength(0)
+
+    const [state] = await dbh.db
+      .select()
+      .from(appStateTable)
+      .where(eq(appStateTable.key, 'providers:deletedPresetIds'))
+    expect((state?.value as { ids: string[] }).ids).toContain('openai')
   })
 
   it('should NOT throw when deleting a user-created provider that inherits from a preset', async () => {
@@ -59,10 +72,9 @@ describe('ProviderService.delete — preset protection boundary', () => {
     expect(rows).toHaveLength(0)
   })
 
-  it('should throw when deleting a canonical preset that groups under another preset (zai → zhipu)', async () => {
-    // zai is a registry row whose presetProviderId is 'zhipu' (grouping),
-    // so the providerId === presetProviderId guard alone would let it be
-    // deleted. The registry check must still protect it.
+  it('deletes a grouped canonical preset (zai → zhipu) and tombstones it', async () => {
+    // zai is a registry row whose presetProviderId is 'zhipu' (grouping); the
+    // registry check must classify it as seeded so the tombstone is written.
     vi.spyOn(providerRegistryService, 'isRegistryProvider').mockImplementation((id) => id === 'zai')
 
     await dbh.db.insert(userProviderTable).values({
@@ -72,9 +84,15 @@ describe('ProviderService.delete — preset protection boundary', () => {
       orderKey: generateOrderKeyBetween(null, null)
     })
 
-    expect(() => providerService.delete('zai')).toThrow(/Cannot delete preset provider/)
+    expect(providerService.delete('zai')).toBeUndefined()
     const rows = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'zai'))
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(0)
+
+    const [state] = await dbh.db
+      .select()
+      .from(appStateTable)
+      .where(eq(appStateTable.key, 'providers:deletedPresetIds'))
+    expect((state?.value as { ids: string[] }).ids).toContain('zai')
   })
 
   it('should NOT throw when deleting a user clone whose presetProviderId points at a grouped preset', async () => {

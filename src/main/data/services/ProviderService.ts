@@ -7,6 +7,7 @@
  */
 
 import { application } from '@application'
+import { appStateTable } from '@data/db/schemas/appState'
 import { providerLogoFileRefTable } from '@data/db/schemas/fileRelations'
 import { userModelTable } from '@data/db/schemas/userModel'
 import type { InsertUserProviderRow, UserProviderRow } from '@data/db/schemas/userProvider'
@@ -28,6 +29,7 @@ import { DataApiError, DataApiErrorFactory, ErrorCode } from '@shared/data/api/e
 import type { OrderBatchRequest, OrderRequest } from '@shared/data/api/schemas/_endpointHelpers'
 import type { CreateProviderDto, ListProvidersQuery, UpdateProviderDto } from '@shared/data/api/schemas/providers'
 import { isManagedCherryAiProviderId } from '@shared/data/presets/cherryai'
+import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 import type { EndpointType } from '@shared/data/types/model'
 import type {
   ApiKeyEntry,
@@ -46,6 +48,37 @@ import { v4 as uuidv4 } from 'uuid'
 const logger = loggerService.withContext('DataApi:ProviderService')
 
 type NewUserProviderInput = Omit<InsertUserProviderRow, 'orderKey'>
+
+/** app_state key listing preset provider ids the user deleted; seeding must not re-insert them. */
+const DELETED_PRESET_PROVIDERS_KEY = 'providers:deletedPresetIds'
+
+type TombstoneTx = Pick<DbType, 'select' | 'insert'>
+
+function readDeletedPresetProviderIds(tx: TombstoneTx): Set<string> {
+  const [row] = tx
+    .select({ value: appStateTable.value })
+    .from(appStateTable)
+    .where(eq(appStateTable.key, DELETED_PRESET_PROVIDERS_KEY))
+    .limit(1)
+    .all()
+  const ids = (row?.value as { ids?: string[] } | undefined)?.ids
+  return new Set(Array.isArray(ids) ? ids : [])
+}
+
+function writeDeletedPresetProviderIds(tx: TombstoneTx, ids: Set<string>): void {
+  const value = { ids: [...ids] }
+  tx.insert(appStateTable)
+    .values({
+      key: DELETED_PRESET_PROVIDERS_KEY,
+      value,
+      description: 'Preset providers deleted by the user; seeding skips these ids'
+    })
+    .onConflictDoUpdate({
+      target: appStateTable.key,
+      set: { value, updatedAt: Date.now() }
+    })
+    .run()
+}
 
 /**
  * Internal update input. `logo` is NOT part of the PATCH DTO (logo edits go
@@ -351,6 +384,11 @@ class ProviderService {
           const logoCols = reconcileLogoSlotTx(tx, providerLogoFileRefTable, dto.providerId, dto.logo) ?? {
             logoKey: null
           }
+          // A deliberate re-create lifts the deletion tombstone for this id.
+          const tombstones = readDeletedPresetProviderIds(tx)
+          if (tombstones.delete(dto.providerId)) {
+            writeDeletedPresetProviderIds(tx, tombstones)
+          }
           const values: NewUserProviderInput = {
             providerId: dto.providerId,
             presetProviderId: dto.presetProviderId ?? null,
@@ -505,7 +543,11 @@ class ProviderService {
   batchUpsertTx(tx: Pick<DbType, 'select' | 'insert'>, providers: NewUserProviderInput[]): number {
     const existing = tx.select({ providerId: userProviderTable.providerId }).from(userProviderTable).all()
     const existingIds = new Set(existing.map((row) => row.providerId))
-    const newProviders = providers.filter((provider) => !existingIds.has(provider.providerId))
+    // User-deleted preset ids stay deleted across seeding passes.
+    const tombstonedIds = readDeletedPresetProviderIds(tx)
+    const newProviders = providers.filter(
+      (provider) => !existingIds.has(provider.providerId) && !tombstonedIds.has(provider.providerId)
+    )
 
     if (newProviders.length === 0) return 0
 
@@ -809,10 +851,17 @@ class ProviderService {
   }
 
   /**
-   * Delete a provider. Canonical preset providers (where providerId === presetProviderId)
-   * cannot be deleted. User-created providers that inherit from a preset can be deleted.
+   * Delete a provider. Preset (seeded) providers are deletable too: their id is
+   * tombstoned in app_state so seeding does not re-insert them. Only the managed
+   * CherryAI and local embedding providers (hidden from the settings list, other
+   * subsystems assume they exist) remain protected.
    */
   delete(providerId: string): void {
+    assertManagedCherryAiProviderMutationAllowed(providerId, `delete provider ${providerId}`)
+    if (providerId === LOCAL_EMBEDDING_PROVIDER_ID) {
+      throw DataApiErrorFactory.invalidOperation(`Cannot delete the managed local embedding provider`)
+    }
+
     const deletedModelCount = application.get('DbService').withWriteTx((tx) => {
       const [provider] = tx
         .select({ presetProviderId: userProviderTable.presetProviderId })
@@ -825,16 +874,16 @@ class ProviderService {
         throw DataApiErrorFactory.notFound('Provider', providerId)
       }
 
-      // Block deletion of canonical preset rows. `presetProviderId === providerId`
-      // covers presets that group under themselves; the registry check also
-      // covers presets that group under a different preset (e.g. zai → zhipu,
-      // minimax-global → minimax) whose presetProviderId no longer equals their id.
+      // Seeded rows resurrect on the next seeding pass (batchUpsertTx re-inserts any
+      // missing preset id), so record the deletion in the tombstone list first.
       const providerRegistryService = getDataService('ProviderRegistryService')
-      if (
-        (provider.presetProviderId && provider.presetProviderId === providerId) ||
+      const isSeededPresetRow =
+        (provider.presetProviderId != null && provider.presetProviderId === providerId) ||
         (provider.presetProviderId !== null && providerRegistryService.isRegistryProvider(providerId))
-      ) {
-        throw DataApiErrorFactory.invalidOperation(`Cannot delete preset provider '${providerId}'`)
+      if (isSeededPresetRow) {
+        const tombstones = readDeletedPresetProviderIds(tx)
+        tombstones.add(providerId)
+        writeDeletedPresetProviderIds(tx, tombstones)
       }
 
       const models = tx
