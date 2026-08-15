@@ -6,7 +6,7 @@ import { application } from '@application'
 import { modelService } from '@data/services/ModelService'
 import { providerService } from '@data/services/ProviderService'
 import { loggerService } from '@logger'
-import { BaseService, DependsOn, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
+import { BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 import { isWin } from '@main/core/platform'
 import { crossPlatformSpawn } from '@main/utils/processRunner'
 import { getRawShellEnv, refreshShellEnv } from '@main/utils/shellEnv'
@@ -14,7 +14,6 @@ import { parseUniqueModelId, type UniqueModelId, UniqueModelIdSchema } from '@sh
 import type { BinaryAvailability } from '@shared/types/binary'
 import type { DeepSeekHarnessPermissionMode, DeepSeekHarnessSettings } from '@shared/types/codeCli'
 import { AbsoluteFilePathSchema } from '@shared/types/file'
-import { formatGatewayModelId } from '@shared/utils/apiGateway'
 import { isNonChatModel } from '@shared/utils/model'
 import { isLoginBasedProvider } from '@shared/utils/provider'
 import { Mutex } from 'async-mutex'
@@ -38,8 +37,6 @@ const FORCE_STOP_TIMEOUT_MS = 1000
 const OUTPUT_CAPTURE_LIMIT = 32 * 1024
 const DIAGNOSTIC_LIMIT = 2000
 const NO_KEY_PLACEHOLDER = 'no-key-required'
-const GATEWAY_ROUTE = 'cherry-studio-codemate-gateway'
-const GATEWAY_CREDENTIAL_REF = 'CHERRY_STUDIO_CODEMATE_GATEWAY_API_KEY'
 const MANAGED_CREDENTIAL_ENV = /^CHERRY_STUDIO_CODEMATE_(?:[A-F0-9]{12}|GATEWAY)_API_KEY$/i
 
 type DeepSeekHarnessStatus = 'stopped' | 'starting' | 'running' | 'error'
@@ -56,7 +53,6 @@ interface DeepSeekHarnessRuntime {
 
 @Injectable('DeepSeekHarnessService')
 @ServicePhase(Phase.WhenReady)
-@DependsOn(['ApiGatewayService'])
 export class DeepSeekHarnessService extends BaseService {
   private readonly operationMutex = new Mutex()
   private status: DeepSeekHarnessStatus = 'stopped'
@@ -212,21 +208,8 @@ export class DeepSeekHarnessService extends BaseService {
     if (isNonChatModel(model)) throw new Error('The selected DeepSeek Harness model must support chat')
 
     if (input.mode === 'gateway') {
-      const gateway = application.get('ApiGatewayService')
-      await gateway.start()
-      const credentialValue = await gateway.ensureValidApiKey()
-      const { host, port } = gateway.getCurrentConfig()
-      return {
-        route: GATEWAY_ROUTE,
-        credentialRef: GATEWAY_CREDENTIAL_REF,
-        credentialValue,
-        displayName: 'Cherry Studio Unified Gateway',
-        protocol: 'openai-completions',
-        baseUrl: `${gatewayOrigin(host, port)}/v1`,
-        model,
-        modelId: formatGatewayModelId(providerId, model.apiModelId ?? modelId),
-        agentPreset: input.agentPreset
-      }
+      // Fork: the API gateway is removed — only direct-provider connections work.
+      throw new Error('The Unified Gateway was removed from this build; use a direct provider connection')
     }
 
     if (isLoginBasedProvider(provider)) {
@@ -318,11 +301,6 @@ export class DeepSeekHarnessService extends BaseService {
   }
 }
 
-function gatewayOrigin(host: string, port: number): string {
-  const reachableHost = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host
-  const formattedHost = reachableHost.includes(':') ? `[${reachableHost}]` : reachableHost
-  return `http://${formattedHost}:${port}`
-}
 
 function appendBounded(current: string, chunk: Buffer | string): string {
   return `${current}${chunk.toString()}`.slice(-OUTPUT_CAPTURE_LIMIT)

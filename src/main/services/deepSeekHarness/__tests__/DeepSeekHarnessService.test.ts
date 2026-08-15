@@ -283,8 +283,7 @@ describe('DeepSeekHarnessService', () => {
     expect(mocks.spawn).not.toHaveBeenCalled()
   })
 
-  it('starts the global gateway and projects its current address, key, and gateway model id', async () => {
-    spawnChild((child) => child.stdout.write('dsh web: http://127.0.0.1:43123\n'))
+  it('rejects gateway mode now that the API gateway is removed', async () => {
     const service = new DeepSeekHarnessService()
     await expect(
       service.start({
@@ -293,23 +292,8 @@ describe('DeepSeekHarnessService', () => {
         agentPreset: 'code',
         permissionMode: 'read-only'
       })
-    ).resolves.toMatchObject({ success: true })
-
-    expect(mocks.gatewayStart).toHaveBeenCalledOnce()
-    expect(mocks.writeConfig).toHaveBeenCalledWith(
-      '/mock/home/.dsh',
-      expect.objectContaining({
-        route: 'cherry-studio-codemate-gateway',
-        credentialRef: 'CHERRY_STUDIO_CODEMATE_GATEWAY_API_KEY',
-        credentialValue: 'gateway-key',
-        protocol: 'openai-completions',
-        baseUrl: 'http://127.0.0.1:23333/v1',
-        modelId: 'anthropic:claude-sonnet',
-        agentPreset: 'code'
-      })
-    )
-    await service.stop()
-    expect(mocks.gatewayStart).toHaveBeenCalledOnce()
+    ).resolves.toMatchObject({ success: false, message: expect.stringContaining('Unified Gateway was removed') })
+    expect(mocks.gatewayStart).not.toHaveBeenCalled()
   })
 
   it('rolls back configuration and redacts credentials when the child exits before readiness', async () => {

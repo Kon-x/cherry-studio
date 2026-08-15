@@ -1,36 +1,4 @@
-import { clampSurrogateBoundary } from '@shared/utils/text'
-
-/**
- * Split a long message into chunks that respect paragraph/line boundaries.
- * Used by all channel adapters — each passes its own platform max length.
- */
-export function splitMessage(text: string, maxLength: number): string[] {
-  if (text.length <= maxLength) return [text]
-
-  const chunks: string[] = []
-  let remaining = text
-
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLength) {
-      chunks.push(remaining)
-      break
-    }
-
-    let splitIndex = remaining.lastIndexOf('\n\n', maxLength)
-    if (splitIndex <= 0) splitIndex = remaining.lastIndexOf('\n', maxLength)
-    if (splitIndex <= 0) splitIndex = remaining.lastIndexOf(' ', maxLength)
-    // No whitespace boundary within maxLength (e.g. CJK text, which has no
-    // spaces): fall back to a hard cut, but never split a surrogate pair.
-    if (splitIndex <= 0) splitIndex = clampSurrogateBoundary(remaining, maxLength)
-
-    chunks.push(remaining.slice(0, splitIndex))
-    remaining = remaining.slice(splitIndex).replace(/^\n+/, '').trimStart()
-  }
-
-  return chunks
-}
-
-/** Common MIME type lookup by file extension. */
+/** File-extension → MIME lookup used by the local file resolver's attachment typing. */
 export const FILE_EXTENSION_MIME_MAP: Record<string, string> = {
   pdf: 'application/pdf',
   doc: 'application/msword',
