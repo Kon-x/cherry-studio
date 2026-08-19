@@ -26,7 +26,6 @@ import type { Model, UniqueModelId } from '@shared/data/types/model'
 import { ENDPOINT_TYPE, parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type { ReasoningEffortOption } from '@shared/types/aiSdk'
-import { API_GATEWAY_REQUIRED_I18N_KEY } from '@shared/types/apiGateway'
 import { formatApiHost, withoutTrailingApiVersion } from '@shared/utils/api'
 import {
   isExternalCliProvider,
@@ -37,6 +36,7 @@ import {
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
 import { getExtraHeaders } from '../../utils/provider'
+import { ApiGatewayNotRunningError, resolveApiGatewayRuntime } from '../agentApiGateway'
 import type { AgentSessionUsageCapture } from '../types'
 import {
   createAgentProxyEnvironmentFingerprint,
@@ -824,33 +824,6 @@ function usesAnthropicMessagesEndpoint(ref: RuntimeModelRef): boolean {
     resolveEffectiveEndpoint(ref.provider, ref.model, ENDPOINT_TYPE.ANTHROPIC_MESSAGES).endpointType ===
     ENDPOINT_TYPE.ANTHROPIC_MESSAGES
   )
-}
-
-/**
- * The route needs Cherry's local gateway to bridge the model, but the user keeps the gateway
- * disabled. Raised on the persisted intent only — a gateway that is enabled but not yet listening
- * is a convergence problem, not a consent one, and surfaces its own bind error. `i18nKey` survives
- * `serializeError`, so the turn's error block renders localized copy; the connection driver
- * additionally turns this into a prompt offering to enable it.
- */
-export class ApiGatewayNotRunningError extends Error {
-  readonly i18nKey = API_GATEWAY_REQUIRED_I18N_KEY
-  constructor() {
-    super('API Gateway is disabled')
-    this.name = 'ApiGatewayNotRunningError'
-  }
-}
-
-async function resolveApiGatewayRuntime(sessionId: string): Promise<{
-  baseUrl: string
-  apiKey: string
-  stateTag: string
-  usageHeaders: Record<string, string>
-  internalRequestToken: string
-}> {
-  // Fork: the API gateway is removed — gateway-routed sessions can never start.
-  void sessionId
-  throw new ApiGatewayNotRunningError()
 }
 
 function resolveAnthropicBaseUrl(provider: Provider, baseUrl: string) {

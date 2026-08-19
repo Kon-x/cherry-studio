@@ -108,9 +108,8 @@ vi.mock('../settingsBuilder', () => ({
   getClaudeCodeLoginShellEnvironment: mocks.getClaudeCodeLoginShellEnvironment
 }))
 
-const { ApiGatewayNotRunningError, buildClaudeCodeQueryRequestForAgentSession, deriveConnectionConfig } = await import(
-  '../agentSessionWarmup'
-)
+const { buildClaudeCodeQueryRequestForAgentSession, deriveConnectionConfig } = await import('../agentSessionWarmup')
+const { ApiGatewayNotRunningError } = await import('../../agentApiGateway')
 
 function resolveTestEffectiveEndpoint(provider: Provider, model: Model, preferredEndpointType?: EndpointType) {
   const preferred =
@@ -789,10 +788,6 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     expect(mocks.apiGatewayEnsureRunning).not.toHaveBeenCalled()
     expect(mocks.apiGatewayEnsureKey).not.toHaveBeenCalled()
   })
-
-
-
-
 
   it('pins cross-provider plan/small models onto the primary for an external-cli (claude-code) agent instead of routing through the gateway', async () => {
     mocks.getAgent.mockReturnValue({
