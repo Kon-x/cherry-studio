@@ -46,7 +46,12 @@ const isProd = process.env.NODE_ENV === 'production'
 // rollup. Pure-JS server stacks belong in `devDependencies` for exactly this reason —
 // they bundle cleanly, while a `dependencies` entry would be externalized and then
 // pruned from production packages, failing at runtime with MODULE_NOT_FOUND.
-const mainExternalDependencies = Object.keys(pkg.dependencies)
+const mainExternalDependencies = [
+  ...Object.keys(pkg.dependencies),
+  // optionalDependencies too: platform-gated natives (e.g. node-mac-permissions) are real import
+  // targets, not napi sub-packages, so rollup would fail on the .node; production keeps them installed.
+  ...Object.keys(pkg.optionalDependencies ?? {})
+]
 const mainExternalModules = ['bufferutil', 'utf-8-validate', 'electron', ...mainExternalDependencies]
 
 export const isMainExternalModule = (id: string) => {
@@ -63,8 +68,6 @@ export default defineConfig({
         '@data': resolve('src/main/data'),
         '@shared': resolve('src/shared'),
         '@logger': resolve('src/main/core/logger/LoggerService'),
-        '@mcp-trace/trace-core': resolve('packages/mcp-trace/trace-core'),
-        '@mcp-trace/trace-node': resolve('packages/mcp-trace/trace-node'),
         '@cherrystudio/ai-core/provider': resolve('packages/aiCore/src/core/providers'),
         '@cherrystudio/ai-core/built-in/plugins': resolve('packages/aiCore/src/core/plugins/built-in'),
         '@cherrystudio/ai-core': resolve('packages/aiCore/src'),
@@ -109,8 +112,7 @@ export default defineConfig({
     ],
     resolve: {
       alias: {
-        '@shared': resolve('src/shared'),
-        '@mcp-trace/trace-core': resolve('packages/mcp-trace/trace-core')
+        '@shared': resolve('src/shared')
       }
     },
     build: {
@@ -157,7 +159,6 @@ export default defineConfig({
         '@shared': resolve('src/shared'),
         '@logger': resolve('src/renderer/services/LoggerService'),
         '@data': resolve('src/renderer/data'),
-        '@mcp-trace/trace-core': resolve('packages/mcp-trace/trace-core'),
         '@cherrystudio/ai-core/provider': resolve('packages/aiCore/src/core/providers'),
         '@cherrystudio/ai-core/built-in/plugins': resolve('packages/aiCore/src/core/plugins/built-in'),
         '@cherrystudio/ai-core': resolve('packages/aiCore/src'),
@@ -190,7 +191,8 @@ export default defineConfig({
           selectionAction: resolve(__dirname, 'src/renderer/windows/selection/action/index.html'),
           migrationV2: resolve(__dirname, 'src/renderer/windows/migrationV2/index.html'),
           userDataRelocation: resolve(__dirname, 'src/renderer/windows/userDataRelocation/index.html'),
-          subWindow: resolve(__dirname, 'src/renderer/windows/subWindow/index.html')
+          subWindow: resolve(__dirname, 'src/renderer/windows/subWindow/index.html'),
+          screenshot: resolve(__dirname, 'src/renderer/windows/screenshot/index.html')
         },
         onwarn(warning, warn) {
           if (warning.code === 'COMMONJS_VARIABLE_IN_ESM') return
