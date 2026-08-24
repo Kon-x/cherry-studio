@@ -1,87 +1,193 @@
 name: Build Windows x64
 
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
+    inputs:
+      version:
+        description: Exact package.json version to release
+        required: true
+        type: string
 
 concurrency:
   group: build-windows-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: windows-2022
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Check out Git repository
+      - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Read package version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Validate manual release request
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          if ('${{ github.ref }}' -ne 'refs/heads/main') {
+            throw 'Releases may be dispatched only from main'
+          }
+          if ($env:REQUESTED_VERSION -ne $env:VERSION) {
+            throw "Input version '$env:REQUESTED_VERSION' does not match package.json '$env:VERSION'"
+          }
+
+      - name: Require successful Checks for release SHA
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'checks.yml',
+              head_sha: context.sha,
+              status: 'completed',
+              per_page: 100
+            })
+            const passed = data.workflow_runs.some(
+              (run) => run.head_branch === 'main' && run.conclusion === 'success'
+            )
+            if (!passed) core.setFailed(`Checks has not succeeded on main for ${context.sha}`)
 
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: '.node-version'
+          node-version-file: .node-version
 
       - name: Install pnpm
         uses: pnpm/action-setup@v5
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
       - name: Cache pnpm dependencies
         uses: actions/cache@v5
         with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+          path: ${{ runner.temp }}/pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Configure pnpm store
+        shell: pwsh
+        run: pnpm config set store-dir '${{ runner.temp }}/pnpm-store'
 
-      - name: Build Windows x64
-        run: pnpm build:win:x64
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows x64 without publishing
+        shell: pwsh
         env:
           ELECTRON_BUILDER_7Z_FILTER: BCJ
           NODE_OPTIONS: --max-old-space-size=8192
-
-      - name: Collect artifacts
-        shell: bash
         run: |
-          mkdir -p out-artifacts
-          find dist -maxdepth 1 -name "*-x64-setup.exe" -exec cp {} out-artifacts/ \;
-          find dist -maxdepth 1 -name "*-x64-portable.exe" -exec cp {} out-artifacts/ \;
-          cp dist/latest*.yml out-artifacts/ 2>/dev/null || true
-          ls -la out-artifacts
+          pnpm build
+          pnpm exec electron-builder --win --x64 --publish never
+
+      - name: Collect and validate release artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path out-artifacts | Out-Null
+          $setup = @(Get-ChildItem dist -File -Filter '*-x64-setup.exe')
+          $portable = @(Get-ChildItem dist -File -Filter '*-x64-portable.exe')
+          $updateManifest = @(Get-ChildItem dist -File -Filter 'latest.yml')
+          if ($setup.Count -ne 1) { throw "Expected one setup installer, found $($setup.Count)" }
+          if ($portable.Count -ne 1) { throw "Expected one portable executable, found $($portable.Count)" }
+          if ($updateManifest.Count -ne 1) { throw "Expected one latest.yml, found $($updateManifest.Count)" }
+          Copy-Item $setup[0].FullName, $portable[0].FullName, $updateManifest[0].FullName -Destination out-artifacts
+          Copy-Item resources/cherry-studio/release-history.json -Destination out-artifacts
+          pnpm exec tsx scripts/validate-windows-release.ts out-artifacts $env:VERSION
 
       - name: Generate SHA256 checksums
         shell: pwsh
         run: |
-          cd out-artifacts
-          "# SHA256 checksums - $(Get-Date -Format 'yyyy-MM-dd')" | Out-File -Encoding utf8 SHA256SUMS.txt
-          Get-ChildItem -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | ForEach-Object {
-            $hash = (Get-FileHash -Algorithm SHA256 $_.Name).Hash.ToLower()
-            Add-Content -Path SHA256SUMS.txt -Value "$hash  $($_.Name)"
-          }
+          Push-Location out-artifacts
+          # Materialize the file list before writing: streaming the pipeline straight into
+          # Out-File makes Get-FileHash reach the half-written SHA256SUMS.txt itself.
+          $lines = @(Get-ChildItem -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          })
+          $lines | Out-File -Encoding utf8 SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
+          Pop-Location
 
-      - name: Upload artifacts
+      - name: Upload Windows x64 artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: cherry-studio-win-x64-${{ github.ref_name }}-${{ github.run_number }}
+          name: cherry-studio-windows-x64-${{ steps.version.outputs.version }}
           path: out-artifacts/*
+          if-no-files-found: error
           retention-days: 14
           compression-level: 8
 
-      - name: Create GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v6
+
+      - name: Download validated artifacts
+        uses: actions/download-artifact@v8
         with:
-          files: out-artifacts/*
-          draft: false
-          generate_release_notes: true
+          name: cherry-studio-windows-x64-${{ needs.build.outputs.version }}
+          path: out-artifacts
+
+      - name: Recheck immutable artifact set
+        shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(find out-artifacts -maxdepth 1 -type f | wc -l)" -eq 5
+          test -f "out-artifacts/Cherry-Studio-$VERSION-x64-setup.exe"
+          test -f "out-artifacts/Cherry-Studio-$VERSION-x64-portable.exe"
+          test -f out-artifacts/latest.yml
+          test -f out-artifacts/release-history.json
+          test -f out-artifacts/SHA256SUMS.txt
+          cd out-artifacts
+          sha256sum --check SHA256SUMS.txt
+
+      - name: Create normal Latest Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          notes="docs/releases/$tag.md"
+          test -f "$notes"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; published tags are never overwritten" >&2
+            exit 1
+          fi
+          gh release create "$tag" out-artifacts/* \
+            --target "$GITHUB_SHA" \
+            --title "$tag" \
+            --notes-file "$notes" \
+            --latest
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)" = "$GITHUB_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .draft)" = false
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .prerelease)" = false
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "$tag"

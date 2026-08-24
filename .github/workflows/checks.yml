@@ -1,50 +1,58 @@
 name: Checks
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  typecheck-and-test:
+  checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
-      - name: Check out Git repository
+      - name: Check out repository
         uses: actions/checkout@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: '.node-version'
+          node-version-file: .node-version
 
       - name: Install pnpm
         uses: pnpm/action-setup@v5
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
       - name: Cache pnpm dependencies
         uses: actions/cache@v5
         with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+          path: ${{ runner.temp }}/pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Configure pnpm store
+        run: pnpm config set store-dir "${{ runner.temp }}/pnpm-store"
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Main tests
-        run: pnpm test:main
+      - name: Check fork invariants
+        run: pnpm fork:check
 
-      - name: Renderer tests
-        run: pnpm test:renderer
+      - name: Run build checks
+        run: pnpm build:check
+
+      - name: Run CI lint gate
+        run: pnpm test:lint
+
+      - name: Check database migrations
+        run: pnpm db:migrations:check
+
+      - name: Require a clean generated tree
+        run: git diff --exit-code

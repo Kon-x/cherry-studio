@@ -26,7 +26,7 @@ const logger = loggerService.withContext('AppUpdaterService')
 
 type ReleaseRegion = 'cn' | 'global'
 
-const RELEASE_HISTORY_URL = 'https://releases.cherry-ai.com/release-history.json'
+const RELEASE_HISTORY_URL = 'https://github.com/Kon-x/cherry-studio/releases/latest/download/release-history.json'
 const RELEASE_HISTORY_TIMEOUT_MS = 10_000
 const RELEASE_HISTORY_MAX_BYTES = 1024 * 1024
 
@@ -104,18 +104,6 @@ export class AppUpdaterService extends BaseService {
       ;(autoUpdater as NsisUpdater).installDirectory = application.getPath('app.install')
     }
 
-    // Cancel an in-flight download when the test plan or channel changes — the
-    // download targets the previously selected channel. The v2 settings UI
-    // writes these preferences directly (no IPC), so react to the change here
-    // rather than in a now-removed `App_SetTestPlan`/`App_SetTestChannel` handler.
-    this.registerDisposable(
-      application
-        .get('PreferenceService')
-        .subscribeMultipleChanges(['app.dist.test_plan.enabled', 'app.dist.test_plan.channel'], () =>
-          this.cancelDownload()
-        )
-    )
-
     // Stop the scheduled check when this service stops (it depends on
     // SchedulerService, so SchedulerService is still alive at this point).
     this.registerDisposable(() => application.get('SchedulerService').unregister(AUTO_UPDATE_SCHEDULE_ID))
@@ -173,22 +161,18 @@ export class AppUpdaterService extends BaseService {
 
   private async getUpdateRequest() {
     const currentVersion = app.getVersion()
-    const testPlan = application.get('PreferenceService').get('app.dist.test_plan.enabled')
-    const requestedChannel = testPlan
-      ? application.get('PreferenceService').get('app.dist.test_plan.channel') || UpgradeChannel.RC
-      : UpgradeChannel.LATEST
+    const requestedChannel = UpgradeChannel.LATEST
 
     const ipCountry = await regionService.getCountry()
     const region: ReleaseRegion = ipCountry.toLowerCase() === 'cn' ? 'cn' : 'global'
 
     const updateHeaders = getUpdateHeaders(region)
 
-    return { currentVersion, ipCountry, region, requestedChannel, testPlan, updateHeaders }
+    return { currentVersion, ipCountry, region, requestedChannel, updateHeaders }
   }
 
   private async configureUpdaterForCheck() {
-    const { currentVersion, ipCountry, region, requestedChannel, testPlan, updateHeaders } =
-      await this.getUpdateRequest()
+    const { currentVersion, ipCountry, region, requestedChannel, updateHeaders } = await this.getUpdateRequest()
 
     autoUpdater.requestHeaders = {
       ...autoUpdater.requestHeaders,
@@ -196,7 +180,7 @@ export class AppUpdaterService extends BaseService {
     }
 
     logger.info(
-      `Using managed update feed for version ${currentVersion}, testPlan: ${testPlan}, channel: ${requestedChannel}, region: ${region} (IP country: ${ipCountry})`
+      `Using fork update feed for version ${currentVersion}, channel: ${requestedChannel}, region: ${region} (IP country: ${ipCountry})`
     )
     autoUpdater.channel = requestedChannel
 

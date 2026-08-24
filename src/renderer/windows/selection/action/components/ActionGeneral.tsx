@@ -148,13 +148,9 @@ const ActionGeneral: FC<Props> = React.memo(({ action, scrollToBottom }) => {
     setCompletionError(null)
     setRequestStartedAt(new Date().toISOString())
     setIsPreparing(true)
-    // topicId comes from useChat id; Main resolves assistant/model from topic.assistantId.
-    // `enableWebSearch` is the one body field IpcChatTransport forwards here: the explain
-    // action always requests the web tool group so it can ground explanations in live results.
-    void sendMessage(
-      { text: promptContent },
-      action.id === 'explain' ? { body: { enableWebSearch: true } } : undefined
-    )
+    // Main resolves assistant/model from the temporary topic. Explanations always request
+    // web tools so their answers can use current sources.
+    void sendMessage({ text: promptContent }, action.id === 'explain' ? { body: { enableWebSearch: true } } : undefined)
   }, [action.id, chosenAssistantId, promptContent, ready, sendMessage, temporaryTopicId, waitingForConfiguredAssistant])
 
   useEffect(() => {

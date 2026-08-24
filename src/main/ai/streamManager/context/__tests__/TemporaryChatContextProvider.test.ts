@@ -188,6 +188,7 @@ describe('TemporaryChatContextProvider', () => {
     const prepared = await provider.prepareDispatch(subscriber, openReq(), { hasLiveStream: false })
 
     expect(prepared.topicId).toBe('1')
+    expect(provider.isPersistentConversation).toBe(false)
 
     // user message was appended (service allocates the id)
     expect(appendMessageMock).toHaveBeenCalledTimes(1)
@@ -233,5 +234,13 @@ describe('TemporaryChatContextProvider', () => {
     )
 
     expect(prepared.models[0].request.knowledgeBaseIds).toEqual(['kb-1', 'kb-2'])
+  })
+
+  it('forces web search for a selection explanation request', async () => {
+    const prepared = await provider.prepareDispatch(makeSubscriber(), openReq({ enableWebSearch: true }), {
+      hasLiveStream: false
+    })
+
+    expect(prepared.models[0].request.enableWebSearchOverride).toBe(true)
   })
 })

@@ -82,4 +82,21 @@ describe('AboutSettings diagnostics entry', () => {
     await user.click(diagnostics)
     expect(screen.getByText('diagnostic-dialog-open')).toBeInTheDocument()
   })
+
+  it('exposes only stable fork release links', async () => {
+    const user = userEvent.setup()
+    render(<AboutSettings />)
+    await screen.findByText('v2.0.0')
+
+    expect(screen.queryByText('settings.general.test_plan.title')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'settings.about.repository' }))
+    expect(mocks.request).toHaveBeenCalledWith('system.shell.open_website', 'https://github.com/Kon-x/cherry-studio')
+
+    await user.click(screen.getByRole('button', { name: 'settings.about.releases.title' }))
+    expect(mocks.request).toHaveBeenCalledWith(
+      'system.shell.open_website',
+      'https://github.com/Kon-x/cherry-studio/releases'
+    )
+  })
 })

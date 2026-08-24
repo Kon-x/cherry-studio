@@ -2,6 +2,7 @@ import { toast } from '@renderer/services/toast'
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProviderList } from '../ProviderList'
@@ -89,7 +90,17 @@ vi.mock('../ProviderList/useProviderDelete', () => ({
 }))
 
 vi.mock('../ProviderList/ProviderListItemWithContextMenu', () => ({
-  default: ({ provider, selected, onSelect, onDelete, showManagementActions, onSetListItemRef }: any) => (
+  default: ({
+    provider,
+    selected,
+    onSelect,
+    onDelete,
+    showManagementActions,
+    onSetListItemRef,
+    selectionMode,
+    checked,
+    onToggleChecked
+  }: any) => (
     <div
       data-testid={`provider-list-item-${provider.id}`}
       data-selected={selected ? 'true' : 'false'}
@@ -107,12 +118,17 @@ vi.mock('../ProviderList/ProviderListItemWithContextMenu', () => ({
 
         onSetListItemRef(provider.id, element)
       }}>
-      <button type="button" onClick={onSelect}>
+      <button
+        type="button"
+        aria-pressed={selectionMode ? checked : undefined}
+        onClick={selectionMode ? onToggleChecked : onSelect}>
         {provider.name}
       </button>
-      <button type="button" data-testid={`provider-list-delete-${provider.id}`} onClick={onDelete}>
-        delete
-      </button>
+      {!selectionMode && (
+        <button type="button" data-testid={`provider-list-delete-${provider.id}`} onClick={onDelete}>
+          delete
+        </button>
+      )}
       <span data-testid={`provider-list-manage-${provider.id}`}>{showManagementActions ? 'true' : 'false'}</span>
     </div>
   )
@@ -465,5 +481,19 @@ describe('ProviderList', () => {
     fireEvent.click(screen.getByTestId('provider-list-delete-openai'))
 
     await vi.waitFor(() => expect(deleteProviderMock).toHaveBeenCalledWith('openai'))
+  })
+
+  it('deletes every provider selected for a confirmed batch', async () => {
+    const user = userEvent.setup()
+    render(<ProviderList selectedProviderId="openai" onSelectProvider={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: '批量管理' }))
+    await user.click(screen.getByRole('button', { name: 'OpenAI' }))
+    await user.click(screen.getByRole('button', { name: 'Anthropic' }))
+    await user.click(screen.getByRole('button', { name: '删除 (2)' }))
+
+    await waitFor(() => {
+      expect(deleteProviderMock.mock.calls).toEqual([['openai'], ['anthropic']])
+    })
   })
 })

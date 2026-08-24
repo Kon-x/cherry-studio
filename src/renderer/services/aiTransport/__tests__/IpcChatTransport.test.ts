@@ -161,6 +161,18 @@ describe('IpcChatTransport', () => {
     expect(mock.listeners.error).toHaveLength(0)
   })
 
+  it('forwards the selection explanation web-search override to main', async () => {
+    const stream = await transport.sendMessages({
+      ...baseOptions,
+      body: { enableWebSearch: true }
+    })
+
+    expect(mock.mockApi.streamOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ topicId, trigger: 'submit-message', enableWebSearch: true })
+    )
+    await stream.cancel()
+  })
+
   it('filters chunks by topicId', async () => {
     const stream = await transport.sendMessages(baseOptions)
     const reader = stream.getReader()

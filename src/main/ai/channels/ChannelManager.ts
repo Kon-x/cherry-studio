@@ -1,3 +1,5 @@
+// Stub parameters preserve the compatibility surface used by existing consumers.
+/* oxlint-disable no-unused-vars */
 import { loggerService } from '@logger'
 import { BaseService, type Disposable, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 
