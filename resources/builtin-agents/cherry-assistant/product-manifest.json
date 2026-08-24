@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "package": {
     "name": "CherryStudio",
-    "version": "2.0.7",
+    "version": "2.0.7-kx.1",
     "description": "A powerful AI assistant for producer.",
-    "homepage": "https://github.com/CherryHQ/cherry-studio"
+    "homepage": "https://github.com/Kon-x/cherry-studio"
   },
   "routes": {
     "primary": [
@@ -59,9 +59,7 @@
       "/app/release-notes",
       "/app/translate",
       "/settings/about",
-      "/settings/api-gateway",
       "/settings/appearance",
-      "/settings/channels",
       "/settings/code-execution",
       "/settings/data",
       "/settings/dependencies",

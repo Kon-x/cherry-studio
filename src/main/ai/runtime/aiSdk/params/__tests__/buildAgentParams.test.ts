@@ -582,6 +582,28 @@ describe('buildAgentParams web-tool routing', () => {
     }
   )
 
+  it('force-enables an available web tool without assistant settings', async () => {
+    const preferences = new Map<string, unknown>([
+      ['app.developer_mode.enabled', false],
+      ['chat.web_search.client_tools_preferred', true],
+      ['chat.web_search.default_search_keywords_provider', 'exa-mcp'],
+      ['chat.web_search.provider_overrides', {}],
+      ['chat.web_search.max_results', 5],
+      ['chat.web_search.exclude_domains', []]
+    ])
+    preferenceGetMock.mockImplementation((key: string) => preferences.get(key) ?? null)
+    registry.register(clientSearchEntry)
+
+    const result = await buildAgentParams({
+      request: { enableWebSearchOverride: true },
+      signal: undefined,
+      provider,
+      model
+    })
+
+    expect(result.tools?.web_search).toBe(clientSearchEntry.tool)
+  })
+
   it.each([
     { endpointType: ENDPOINT_TYPE.OPENAI_RESPONSES, runtimeProviderId: 'openai', expectedRoute: 'server' },
     {

@@ -440,7 +440,8 @@ async function resolveRequestWebToolRoutes(
   if (!assistant && !requestContext.webSearchOverride) return NO_WEB_TOOL_ROUTES
 
   const preferenceService = application.get('PreferenceService')
-  const clientWebToolsEnabled = requestContext.webSearchOverride === true || assistant?.settings.enableWebSearch === true
+  const clientWebToolsEnabled =
+    requestContext.webSearchOverride === true || assistant?.settings.enableWebSearch === true
   const [clientSearchAvailable, clientFetchAvailable] = clientWebToolsEnabled
     ? await Promise.all([
         resolveClientWebCapabilityAvailability('searchKeywords'),

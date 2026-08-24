@@ -5,10 +5,10 @@
 | Document | Description |
 |----------|-------------|
 | [Development Setup](./guides/development.md) | Development environment setup |
+| [Fork Release](./guides/fork-release.md) | Stable upstream sync and Windows x64 release workflow |
 | [Linux Packaging](./guides/linux-packaging.md) | Linux package builds and native dependency prebuilds |
 | [Contributing](./guides/contributing.md) | How to contribute code |
 | [Branching Strategy](./guides/branching-strategy.md) | Git branching workflow |
-| [Test Plan](./guides/test-plan.md) | Test plan and release channels |
 | [i18n Guide](./guides/i18n.md) | Internationalization guide |
 | [Logging Guide](./guides/logging.md) | How to use the logger service |
 | [Middleware](./guides/middleware.md) | How to write AI Provider middleware |

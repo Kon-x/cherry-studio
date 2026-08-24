@@ -51,11 +51,33 @@ describe('ProviderService.delete — preset protection boundary', () => {
     const reseeded = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'openai'))
     expect(reseeded).toHaveLength(0)
 
-    const [state] = await dbh.db
-      .select()
-      .from(appStateTable)
-      .where(eq(appStateTable.key, 'providers:deletedPresetIds'))
-    expect((state?.value as { ids: string[] }).ids).toContain('openai')
+    const [state] = dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'providers:deletedPresetIds')).all()
+    expect(state).toBeDefined()
+    expect((state?.value as { ids: string[] } | undefined)?.ids).toContain('openai')
+  })
+
+  it('clears the tombstone when the user deliberately recreates the same provider id', () => {
+    dbh.db
+      .insert(userProviderTable)
+      .values({
+        providerId: 'openai',
+        presetProviderId: 'openai',
+        name: 'OpenAI',
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+    providerService.delete('openai')
+
+    const recreated = providerService.create({
+      providerId: 'openai',
+      presetProviderId: 'openai',
+      name: 'OpenAI Restored'
+    })
+
+    expect(recreated.name).toBe('OpenAI Restored')
+    const [state] = dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'providers:deletedPresetIds')).all()
+    expect(state).toBeDefined()
+    expect((state?.value as { ids: string[] } | undefined)?.ids).not.toContain('openai')
   })
 
   it('should NOT throw when deleting a user-created provider that inherits from a preset', async () => {
@@ -88,11 +110,9 @@ describe('ProviderService.delete — preset protection boundary', () => {
     const rows = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'zai'))
     expect(rows).toHaveLength(0)
 
-    const [state] = await dbh.db
-      .select()
-      .from(appStateTable)
-      .where(eq(appStateTable.key, 'providers:deletedPresetIds'))
-    expect((state?.value as { ids: string[] }).ids).toContain('zai')
+    const [state] = dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'providers:deletedPresetIds')).all()
+    expect(state).toBeDefined()
+    expect((state?.value as { ids: string[] } | undefined)?.ids).toContain('zai')
   })
 
   it('should NOT throw when deleting a user clone whose presetProviderId points at a grouped preset', async () => {

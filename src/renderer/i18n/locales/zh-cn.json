@@ -8038,7 +8038,7 @@
       },
       "batch": {
         "button_title": "批量管理",
-        "delete_content_one": "将删除所选的 {{count}} 个服务商及其全部模型，此操作不可恢复。",
+        "delete_content_one": "将删除所选服务商及其全部模型，此操作不可恢复。",
         "delete_content_other": "将删除所选的 {{count}} 个服务商及其全部模型，此操作不可恢复。",
         "delete_failed_one": "有 {{count}} 个服务商删除失败",
         "delete_failed_other": "有 {{count}} 个服务商删除失败",
