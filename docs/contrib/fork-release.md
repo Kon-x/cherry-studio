@@ -18,9 +18,25 @@ Do not merge `upstream/main`, beta tags, or RC tags into `main`.
 - Preset providers can be deleted, deleted presets stay tombstoned until recreated manually, and providers support
   batch deletion.
 - Selection Assistant explanations always use web grounding.
+- PDF (BabelDOC) translation talks to the selected provider's own OpenAI-compatible endpoint instead of the removed
+  gateway, and rejects providers that do not expose one.
 - `.github/workflows` contains only the fork checks and Windows x64 build/release workflows.
 
 Run `pnpm fork:check` after every upstream merge. It fails if any protected deletion or dependency returns.
+
+## Recurring Merge Conflicts
+
+Each upstream sync hits the same shapes:
+
+- Deleted-by-us gateway/channel files reappear as `DU` conflicts — `git rm` them all.
+- Any new upstream code that calls `application.get('ApiGatewayService')` must be rerouted to a direct provider
+  connection or made to reject; `pnpm fork:check` catches every call site.
+- `docs/README.md` is generated — resolve with the upstream side and re-run `pnpm docs:index`. Removing a docs
+  domain also means removing it from `REFERENCE_DOMAINS` in `scripts/verify-doc-structure.ts` and the label map in
+  `scripts/gen-doc-index.ts`.
+- Locale catalogs lose the fork's own keys during the merge: run `pnpm i18n:sync`, then translate every
+  `[to be translated]:` marker — `pnpm i18n:check` rejects the markers.
+- `pnpm-lock.yaml`: resolve with the upstream side, then regenerate with `pnpm install --lockfile-only`.
 
 ## Signing Setup
 
