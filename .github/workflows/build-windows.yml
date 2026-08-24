@@ -115,10 +115,13 @@ jobs:
         shell: pwsh
         run: |
           Push-Location out-artifacts
-          Get-ChildItem -File | Sort-Object Name | ForEach-Object {
+          # Materialize the file list before writing: streaming the pipeline straight into
+          # Out-File makes Get-FileHash reach the half-written SHA256SUMS.txt itself.
+          $lines = @(Get-ChildItem -File | Sort-Object Name | ForEach-Object {
             $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
             "$hash  $($_.Name)"
-          } | Out-File -Encoding utf8 SHA256SUMS.txt
+          })
+          $lines | Out-File -Encoding utf8 SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
           Pop-Location
 
