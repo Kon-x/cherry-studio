@@ -11,8 +11,8 @@ if (!artifactsArgument || !expectedVersion) {
 
 const artifactsDirectory = path.resolve(artifactsArgument)
 const artifactNames = fs.readdirSync(artifactsDirectory)
-const expectedSetup = `Cherry-Studio-${expectedVersion}-x64-setup.exe`
-const expectedPortable = `Cherry-Studio-${expectedVersion}-x64-portable.exe`
+const expectedSetup = `Cherry-Studio-${expectedVersion}-win-x64-setup.exe`
+const expectedPortable = `Cherry-Studio-${expectedVersion}-win-x64-portable.exe`
 
 function requireOnlyOne(pattern: RegExp, expectedName: string): void {
   const matches = artifactNames.filter((name) => pattern.test(name))
