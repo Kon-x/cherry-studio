@@ -65,7 +65,7 @@ vi.mock('@renderer/components/icons/LogoAvatar', () => ({
 
 import { AboutSettings } from '..'
 
-const REPOSITORY_URL = 'https://github.com/CherryHQ/cherry-studio'
+const REPOSITORY_URL = 'https://github.com/Kon-x/cherry-studio'
 
 async function renderAboutSettings() {
   render(<AboutSettings />)
@@ -101,7 +101,7 @@ describe('AboutSettings diagnostics entry', () => {
 
     expect(screen.queryByText('settings.general.test_plan.title')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'settings.about.repository' }))
+    await user.click(screen.getAllByRole('button', { name: 'settings.about.repository' })[0])
     expect(mocks.request).toHaveBeenCalledWith('system.shell.open_website', 'https://github.com/Kon-x/cherry-studio')
 
     await user.click(screen.getByRole('button', { name: 'settings.about.releases.title' }))
