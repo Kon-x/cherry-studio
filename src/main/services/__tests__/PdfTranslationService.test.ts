@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   appGet: vi.fn(),
   createFileTx: vi.fn(),
   getBinaryPath: vi.fn(),
+  isInChina: vi.fn(),
   modelGetByKey: vi.fn(),
   notifyDataApiDataChange: vi.fn(),
   providerGetApiKeys: vi.fn(),
@@ -28,6 +29,8 @@ vi.mock('@application', () => ({
       if (key === 'feature.pdf_translation.temp') return filename ? path.join(TEST_ROOT, filename) : TEST_ROOT
       if (key === 'feature.pdf_translation.babeldoc') return path.join(TEST_ROOT, 'runtime')
       if (key === 'feature.binary.data') return path.join(TEST_ROOT, 'binary')
+      if (key === 'feature.binary.data.isolated.rustup') return path.join(TEST_ROOT, 'binary', 'rustup')
+      if (key === 'feature.binary.data.isolated.cargo') return path.join(TEST_ROOT, 'binary', 'cargo')
       throw new Error(`Unexpected path key: ${key}`)
     })
   }
@@ -42,6 +45,7 @@ vi.mock('@data/services/TranslateHistoryService', () => ({
   translateHistoryService: { createFileTx: mocks.createFileTx }
 }))
 vi.mock('@main/utils/binaryResolver', () => ({ getBinaryPath: mocks.getBinaryPath }))
+vi.mock('@main/services/RegionService', () => ({ regionService: { isInChina: mocks.isInChina } }))
 vi.mock('@main/utils/processRunner', () => ({
   crossPlatformSpawn: mocks.spawn,
   killProcessTree: (child: { kill: () => void }) => child.kill()
@@ -129,6 +133,7 @@ describe('PdfTranslationService', () => {
     dbService.withWriteTx.mockImplementation((fn: (handle: unknown) => unknown) => fn(tx))
     mocks.createFileTx.mockReturnValue({ id: HISTORY_ID })
     mocks.getBinaryPath.mockResolvedValue(MANAGED_BINARY)
+    mocks.isInChina.mockResolvedValue(false)
     mocks.modelGetByKey.mockReturnValue({
       id: 'openai::gpt-4.1-internal',
       providerId: 'openai',
@@ -141,7 +146,7 @@ describe('PdfTranslationService', () => {
       'babeldoc-stream': {
         name: 'babeldoc-stream',
         availability: { source: 'mise', path: MANAGED_BINARY },
-        application: { status: 'applied', version: '0.6.4.post2' }
+        application: { status: 'applied', version: '0.6.4.post4' }
       }
     })
     mocks.providerGetByProviderId.mockReturnValue(openAiProvider())
@@ -879,6 +884,14 @@ describe('PdfTranslationService', () => {
       const env = await spawnedEnv()
 
       expect(env.NO_PROXY).toBe('127.0.0.1')
+    })
+
+    it('pins BabelDOC assets to ModelScope for China without changing the public translate request', async () => {
+      mocks.isInChina.mockResolvedValue(true)
+
+      const env = await spawnedEnv()
+
+      expect(env.BABELDOC_ASSET_UPSTREAM).toBe('modelscope')
     })
 
     it('strips the brackets an IPv6 provider host carries', async () => {

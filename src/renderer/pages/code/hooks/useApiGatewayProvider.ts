@@ -9,8 +9,10 @@ export interface ApiGatewayProviderBundle {
   provider: Provider
   /** Current persisted gateway key; `null` before the gateway has ever started (main generates it lazily). */
   apiKey: string | null
-  /** Start the gateway if needed (generating the key on first start) and resolve the freshest key. */
-  ensureReady: () => Promise<string>
+  /** Start the gateway if needed and confirm it is running. */
+  ensureRunning: () => Promise<void>
+  /** Read the persisted key for a CLI config-file write. */
+  getApiKey: () => Promise<string>
 }
 
 export function useApiGatewayProvider(): ApiGatewayProviderBundle | null {

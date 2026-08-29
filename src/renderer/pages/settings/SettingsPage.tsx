@@ -30,7 +30,8 @@ import {
   Settings2,
   Terminal,
   TextCursorInput,
-  ToolCase
+  ToolCase,
+  Zap
 } from 'lucide-react'
 import type { CSSProperties, FC } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -101,6 +102,14 @@ const SettingsPage: FC = () => {
                 label={t('settings.skills.title')}
                 active={isActive('/settings/skills')}
                 onClick={() => go('/settings/skills')}
+              />
+              <MenuItem
+                className={settingsSubmenuItemClassName}
+                labelClassName={settingsSubmenuItemLabelClassName}
+                icon={<Zap />}
+                label={t('settings.prompts.title')}
+                active={isActive('/settings/prompts')}
+                onClick={() => go('/settings/prompts')}
               />
               <MenuItem
                 className={settingsSubmenuItemClassName}
