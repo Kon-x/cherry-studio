@@ -160,8 +160,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(find out-artifacts -maxdepth 1 -type f | wc -l)" -eq 5
-          test -f "out-artifacts/Cherry-Studio-$VERSION-x64-setup.exe"
-          test -f "out-artifacts/Cherry-Studio-$VERSION-x64-portable.exe"
+          test -f "out-artifacts/Cherry-Studio-$VERSION-win-x64-setup.exe"
+          test -f "out-artifacts/Cherry-Studio-$VERSION-win-x64-portable.exe"
           test -f out-artifacts/latest.yml
           test -f out-artifacts/release-history.json
           test -f out-artifacts/SHA256SUMS.txt

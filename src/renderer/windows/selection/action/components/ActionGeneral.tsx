@@ -70,7 +70,7 @@ const ActionGeneral: FC<Props> = React.memo(({ action, scrollToBottom }) => {
         }
 
         if (action.prompt.includes('{{text}}')) {
-          userContent = action.prompt.replaceAll('{{text}}', action.selectedText!)
+          userContent = action.prompt.replaceAll('{{text}}', () => action.selectedText!)
           break
         }
 
@@ -150,7 +150,8 @@ const ActionGeneral: FC<Props> = React.memo(({ action, scrollToBottom }) => {
     setIsPreparing(true)
     // Main resolves assistant/model from the temporary topic. Explanations always request
     // web tools so their answers can use current sources.
-    void sendMessage({ text: promptContent }, action.id === 'explain' ? { body: { enableWebSearch: true } } : undefined)
+    if (action.id === 'explain') void sendMessage({ text: promptContent }, { body: { enableWebSearch: true } })
+    else void sendMessage({ text: promptContent })
   }, [action.id, chosenAssistantId, promptContent, ready, sendMessage, temporaryTopicId, waitingForConfiguredAssistant])
 
   useEffect(() => {

@@ -2,8 +2,7 @@
   "schemaVersion": 1,
   "package": {
     "name": "CherryStudio",
-    "version": "2.0.8-kx.1",
-    "description": "A powerful AI assistant for producer.",
+    "version": "2.0.10-kx.1",    "description": "A powerful AI assistant for producer.",
     "homepage": "https://github.com/Kon-x/cherry-studio"
   },
   "routes": {
@@ -70,6 +69,7 @@
       "/settings/model",
       "/settings/notifications",
       "/settings/ocr",
+      "/settings/prompts",
       "/settings/provider",
       "/settings/quick-assistant",
       "/settings/scheduled-tasks",
@@ -104,7 +104,8 @@
         "defaultBinding": [
           "Escape"
         ],
-        "editable": false
+        "editable": false,
+        "when": "!webview.focused"
       }
     },
     {
@@ -357,6 +358,18 @@
       }
     },
     {
+      "id": "topic.clear_messages",
+      "titleKey": "chat.topics.clear.title",
+      "categoryKey": "settings.shortcuts.topic",
+      "scope": "renderer",
+      "keybinding": {
+        "defaultBinding": [
+          "CommandOrControl",
+          "L"
+        ]
+      }
+    },
+    {
       "id": "topic.create",
       "titleKey": "settings.shortcuts.new_topic",
       "categoryKey": "settings.shortcuts.topic",
@@ -432,8 +445,8 @@
     }
   ],
   "providers": {
-    "version": "7dd1ae83c85245f9",
-    "count": 62,
+    "version": "b3b73ceeb452801e",
+    "count": 61,
     "entries": [
       {
         "id": "cherryin",
@@ -558,10 +571,6 @@
       {
         "id": "vertexai",
         "name": "VertexAI"
-      },
-      {
-        "id": "github",
-        "name": "Github Models"
       },
       {
         "id": "copilot",
@@ -770,11 +779,13 @@
         "openclaw",
         "deepseek-harness",
         "gemini-cli",
+        "antigravity-cli",
         "qwen-code",
         "kimi-code",
         "qoder-cli",
         "github-copilot-cli",
-        "pi"
+        "pi",
+        "hermes"
       ]
     }
   }

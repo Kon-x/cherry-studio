@@ -180,7 +180,6 @@ vi.mock('@renderer/components/chat/messages/messageListProviderBuilder', () => (
 
 vi.mock('@renderer/services/EventService', () => ({
   EVENT_NAMES: {
-    CLEAR_MESSAGES: 'CLEAR_MESSAGES',
     COPY_TOPIC_IMAGE: 'COPY_TOPIC_IMAGE',
     EDIT_MESSAGE: 'EDIT_MESSAGE',
     EXPORT_TOPIC_IMAGE: 'EXPORT_TOPIC_IMAGE',
@@ -371,8 +370,10 @@ describe('useHomeMessageListProviderValue topic image actions', () => {
     render(<MessageListAdapterHarness topic={createTopic('topic-a')} />)
 
     const options = useMessageErrorActionsMock.mock.calls.at(-1)?.[0] as {
+      diagnosticReport: { location: string }
       persistDiagnosis: (partId: string, diagnosis: { summary: string }) => Promise<void>
     }
+    expect(options.diagnosticReport).toEqual({ location: 'error.diagnostic_report.locations.home' })
     await options.persistDiagnosis('message-1-part-0', { summary: 'Provider failed' })
 
     expect(dataApiService.get).toHaveBeenCalledWith('/messages/message-1')
@@ -524,6 +525,10 @@ describe('useHomeMessageListProviderValue topic image actions', () => {
       />
     )
 
+    expect(useMessageErrorActionsMock.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ diagnosticReport: undefined })
+    )
+
     const runtime: MessageListRuntime = {
       copyTopicImage: vi.fn().mockResolvedValue(undefined),
       exportTopicImage: vi.fn(),
@@ -541,7 +546,6 @@ describe('useHomeMessageListProviderValue topic image actions', () => {
     expect(commandHandlerMock).toHaveBeenCalledWith('chat.message.edit_last_user', expect.any(Function), {
       enabled: false
     })
-    expect(eventMocks.on).not.toHaveBeenCalledWith('CLEAR_MESSAGES', expect.any(Function))
     expect(eventMocks.on).not.toHaveBeenCalledWith('COPY_TOPIC_IMAGE', expect.any(Function))
     expect(eventMocks.on).not.toHaveBeenCalledWith('EXPORT_TOPIC_IMAGE', expect.any(Function))
     expect(value?.actions.getMessageDeleteAvailability).toBeUndefined()

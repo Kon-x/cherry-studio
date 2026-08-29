@@ -22,6 +22,8 @@ export const REFERENCE_DOMAINS: readonly string[] = [
   'lan-transfer',
   'lifecycle',
   'logging',
+  'memory',
+  'mini-app',
   'provider-model',
   'security',
   'testing',
