@@ -26,6 +26,11 @@ const logger = loggerService.withContext('MainWindowService')
 // Create nativeImage for Linux window icon (required for Wayland)
 const linuxIcon = isLinux ? nativeImage.createFromPath(iconPath) : undefined
 
+// A duplicate OS login launch races our own login item, so its 'second-instance'
+// lands within seconds of process start. Beyond this, a relaunch is a real user
+// gesture (double-clicked the icon) and must raise the window.
+const DUPLICATE_LAUNCH_GRACE_SECONDS = 10
+
 @Injectable('MainWindowService')
 @ServicePhase(Phase.WhenReady)
 export class MainWindowService extends BaseService {
@@ -126,7 +131,11 @@ export class MainWindowService extends BaseService {
     // WindowManager reads this override when the first Main window is created
     // (in createWindow's trailing updateDockVisibility), so the Dock is hidden
     // from the moment the app finishes launching.
-    const isLaunchToTray = application.get('PreferenceService').get('app.tray.on_launch')
+    // Requires the tray too: without a tray icon, hiding the only window leaves
+    // the app unreachable. The settings UI couples the two, but the v1 migration
+    // maps them independently, so a migrated profile can carry on_launch without it.
+    const preferenceService = application.get('PreferenceService')
+    const isLaunchToTray = preferenceService.get('app.tray.on_launch') && preferenceService.get('app.tray.enabled')
     if (isLaunchToTray) {
       application.get('WindowManager').behavior.setMacShowInDockByType(WindowType.Main, false)
       // Suppress only the process-launch window; runtime rebuilds must show.
@@ -152,7 +161,7 @@ export class MainWindowService extends BaseService {
   private registerActivateHandler() {
     // showMainWindow's fallback re-opens via WindowManager when the previous window
     // has been destroyed; reuse path falls through to focus + restore.
-    const handler = () => this.showMainWindow()
+    const handler = () => this.showMainWindowOnRelaunch()
     app.on('activate', handler)
     this.registerDisposable(() => app.removeListener('activate', handler))
   }
@@ -161,9 +170,39 @@ export class MainWindowService extends BaseService {
     // Protocol URL dispatch is handled by ProtocolService on the same event.
     // Multiple listeners on 'second-instance' are intentional: ProtocolService
     // dispatches the URL, MainWindowService restores the window.
-    const handler = () => this.showMainWindow()
+    const handler = () => this.showMainWindowOnRelaunch()
     app.on('second-instance', handler)
     this.registerDisposable(() => app.removeListener('second-instance', handler))
+  }
+
+  /**
+   * True when a relaunch-driven show request is really a duplicate OS login launch
+   * (Windows restart manager, a startup-folder shortcut, a stale Run entry) racing
+   * our own login item while launch-to-tray is on.
+   *
+   * Anchored on process uptime rather than instance state: ServiceContainer.get()
+   * lazily constructs on demand, so a relaunch arriving before onReady could be
+   * answered by an instance whose onReady never ran — its fields would read as
+   * disarmed. Preferences are read at call time for the same reason.
+   */
+  private isDuplicateLaunchRelaunch(): boolean {
+    if (process.uptime() > DUPLICATE_LAUNCH_GRACE_SECONDS) return false
+    const preferenceService = application.get('PreferenceService')
+    return preferenceService.get('app.tray.on_launch') && preferenceService.get('app.tray.enabled')
+  }
+
+  /**
+   * Show request triggered by launching the app again ('second-instance' / macOS
+   * 'activate'), as opposed to a deliberate gesture. A duplicate login launch is
+   * swallowed here — it would otherwise defeat launch-to-tray. Tray clicks and
+   * notification clicks call showMainWindow() directly and are unaffected.
+   */
+  public showMainWindowOnRelaunch(): void {
+    if (this.isDuplicateLaunchRelaunch()) {
+      logger.info('Ignoring duplicate launch show request during launch-to-tray grace window')
+      return
+    }
+    this.showMainWindow()
   }
 
   private registerIpcHandlers() {

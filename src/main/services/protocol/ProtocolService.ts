@@ -69,15 +69,16 @@ export class ProtocolService extends BaseService {
     //    - argv carries `cherrystudio://...` → dispatch to URL handler; each handler
     //      self-routes focus (mcp / navigate raise Main, providers / oauth do not),
     //      so we never raise Main behind their backs.
-    //    - argv carries no URL → plain re-launch (user double-clicked the icon while
-    //      the app is running); surface the main window. MainWindowService is
-    //      WhenReady, fully alive by the time any 'second-instance' can fire.
+    //    - argv carries no URL → plain re-launch; surface the main window through
+    //      showMainWindowOnRelaunch, which swallows a duplicate OS login launch so
+    //      it cannot defeat launch-to-tray. MainWindowService is WhenReady, fully
+    //      alive by the time any 'second-instance' can fire.
     const secondInstanceHandler = (_event: Electron.Event, argv: string[]) => {
       const url = argv.find((arg) => arg.startsWith(`${CHERRY_STUDIO_PROTOCOL}://`))
       if (url) {
         this.handleProtocolUrl(url)
       } else {
-        application.get('MainWindowService').showMainWindow()
+        application.get('MainWindowService').showMainWindowOnRelaunch()
       }
     }
     app.on('second-instance', secondInstanceHandler)

@@ -32,7 +32,8 @@ const {
     broadcast: vi.fn()
   }
   const mainWindowServiceMock = {
-    showMainWindow: vi.fn()
+    showMainWindow: vi.fn(),
+    showMainWindowOnRelaunch: vi.fn()
   }
   const mcpServerServiceMock = {
     createMany: vi.fn()
@@ -386,7 +387,7 @@ describe('ProtocolService', () => {
 
       handler({}, ['/path/to/electron', '.', 'cherrystudio://oauth/callback?code=abc'])
 
-      expect(mainWindowServiceMock.showMainWindow).not.toHaveBeenCalled()
+      expect(mainWindowServiceMock.showMainWindowOnRelaunch).not.toHaveBeenCalled()
       expect(oauthRuntimeServiceMock.handleDeepLinkCallback).toHaveBeenCalledTimes(1)
       const url = oauthRuntimeServiceMock.handleDeepLinkCallback.mock.calls[0][0] as URL
       expect(url.href).toBe('cherrystudio://oauth/callback?code=abc')
@@ -399,7 +400,9 @@ describe('ProtocolService', () => {
 
       handler({}, ['/path/to/electron', '.'])
 
-      expect(mainWindowServiceMock.showMainWindow).toHaveBeenCalledTimes(1)
+      // Routed through the relaunch entry point, which applies the duplicate-login
+      // guard; the guard's own contract is covered in MainWindowService's tests.
+      expect(mainWindowServiceMock.showMainWindowOnRelaunch).toHaveBeenCalledTimes(1)
       expect(ipcApiServiceMock.broadcast).not.toHaveBeenCalled()
     })
   })
