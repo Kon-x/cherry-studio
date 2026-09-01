@@ -174,9 +174,10 @@ artifactBuildCompleted: scripts/artifact-build-completed.js
 releaseInfo:
   releaseNotes: |
     <!--LANG:en-->
-    Cherry Studio 2.0.10-kx.2 - Kon-x stable fork based on upstream 2.0.10
+    Cherry Studio 2.0.10-kx.3 - Kon-x stable fork based on upstream 2.0.10
 
     🍒 Fork Release
+    - [Network] Connectivity no longer stays broken until restart when the network path is rebuilt underneath the app (a VPN or game accelerator raising/dropping its virtual adapter, a Wi-Fi/Ethernet switch, waking from sleep). The proxy is now force-applied on an interface change and on resume, dropping the stale connections and DNS cache that Chromium kept. Requests in flight at that moment are cancelled and need a retry.
     - [Startup] Launch on boot no longer defeats "minimize to tray on launch". A duplicate launch at sign-in (Windows restart-apps, a leftover startup-folder shortcut, a stale registry Run entry) used to surface the main window on the page left open at shutdown.
     - [Startup] "Minimize to tray on launch" is honoured only when the tray itself is enabled, so a profile migrated from v1 cannot start with neither a window nor a tray icon.
     - Track only official upstream stable tags while preserving upstream Git ancestry.
@@ -294,9 +295,10 @@ releaseInfo:
     - [Files] File type filters paginate matching rows directly instead of scanning and hydrating unrelated file pages.
 
     <!--LANG:zh-CN-->
-    Cherry Studio 2.0.10-kx.2 - 基于上游 2.0.10 的 Kon-x 稳定定制版
+    Cherry Studio 2.0.10-kx.3 - 基于上游 2.0.10 的 Kon-x 稳定定制版
 
     🍒 定制版发布
+    - [网络] 底层网络路径被重建后（VPN 或游戏加速器启用/关闭虚拟网卡、Wi-Fi 与有线切换、睡眠唤醒）不再需要重启才能恢复联网。现在网卡变化和系统唤醒会强制重新应用代理，并丢弃 Chromium 持有的陈旧连接与 DNS 缓存。此时正在进行的请求会被中断，需要重试。
     - [启动] 开机自启不再击穿"启动时最小化到托盘"。登录时的重复启动（Windows"重启应用"、启动文件夹残留快捷方式、过期注册表 Run 项）过去会把主窗口连同关机时停留的页面一起弹出。
     - [启动] "启动时最小化到托盘"仅在托盘本身已启用时生效，从 v1 迁移的配置不会再出现既无窗口也无托盘图标的情况。
     - 仅跟随上游正式稳定标签，并保留完整的上游 Git 祖先关系。
