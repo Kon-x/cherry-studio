@@ -637,8 +637,10 @@ describe('MainWindowService', () => {
     // the window callbacks, onReady arms the launch-to-tray flag and creates
     // the initial window. The mocked WindowManager does not replay created
     // events, so tests drive the captured callbacks manually.
-    async function bootWith(onLaunch: boolean) {
+    async function bootWith(onLaunch: boolean, trayEnabled = true) {
       prefValues['app.tray.on_launch'] = onLaunch
+      // Suppression requires a tray to exist; the outer beforeEach turns it off.
+      prefValues['app.tray.enabled'] = trayEnabled
       await (svc as any).onInit()
       await (svc as any).onReady()
       const created = (windowManagerMock.onWindowCreatedByType.mock.calls as any[])[0]?.[1]
@@ -698,6 +700,130 @@ describe('MainWindowService', () => {
       const rebuilt = rebuildAndShow(svc, created)
       rebuilt.emit('ready-to-show')
       expect(rebuilt.show).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the initial window when on_launch is set but the tray is disabled', async () => {
+      // A v1 profile migrating `launchToTray: true, tray: false` lands here. Hiding
+      // the only window with no tray icon would leave the app unreachable.
+      const { created } = await bootWith(true, false)
+
+      const initial = createMockWindow()
+      created({ window: initial })
+      initial.emit('ready-to-show')
+      expect(initial.show).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('duplicate launch relaunch guard', () => {
+    // Just past MainWindowService's DUPLICATE_LAUNCH_GRACE_SECONDS (10).
+    const AFTER_GRACE_SECONDS = 11
+
+    // Restored per-test: the shared afterEach only clears mocks, and
+    // vi.restoreAllMocks() would strip the hoisted module stubs' implementations.
+    let uptimeSpy: ReturnType<typeof vi.spyOn> | undefined
+
+    function setUptime(seconds: number) {
+      uptimeSpy = vi.spyOn(process, 'uptime').mockReturnValue(seconds)
+    }
+
+    afterEach(() => {
+      uptimeSpy?.mockRestore()
+      uptimeSpy = undefined
+    })
+
+    function getAppListener(event: string) {
+      const call = (app.on as any).mock.calls.find((c: unknown[]) => c[0] === event)
+      if (!call) throw new Error(`${event} listener not registered`)
+      return call[1] as () => void
+    }
+
+    // Boots into the launch-to-tray state: window created, ready, still hidden.
+    async function bootHiddenToTray() {
+      prefValues['app.tray.on_launch'] = true
+      prefValues['app.tray.enabled'] = true
+      await (svc as any).onInit()
+      await (svc as any).onReady()
+      const created = (windowManagerMock.onWindowCreatedByType.mock.calls as any[])[0]?.[1]
+      if (!created) throw new Error('window lifecycle callback not registered')
+      const initial = createMockWindow()
+      created({ window: initial })
+      initial.emit('ready-to-show')
+      // onReady already opened this window; reset so assertions see only new opens.
+      windowManagerMock.open.mockClear()
+      return initial
+    }
+
+    it('keeps the window hidden when a duplicate login launch fires second-instance', async () => {
+      const initial = await bootHiddenToTray()
+      expect(initial.show).not.toHaveBeenCalled()
+      setUptime(2)
+
+      getAppListener('second-instance')()
+
+      expect(initial.show).not.toHaveBeenCalled()
+      // Must not rebuild a window either — that would surface it another way.
+      expect(windowManagerMock.open).not.toHaveBeenCalled()
+    })
+
+    it('shows the window for a second-instance arriving after the grace window', async () => {
+      const initial = await bootHiddenToTray()
+      setUptime(AFTER_GRACE_SECONDS)
+
+      getAppListener('second-instance')()
+
+      expect(initial.show).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the window on second-instance when launch-to-tray is off', async () => {
+      await (svc as any).onInit()
+      await (svc as any).onReady()
+      const created = (windowManagerMock.onWindowCreatedByType.mock.calls as any[])[0]?.[1]
+      const initial = createMockWindow()
+      created({ window: initial })
+      initial.emit('ready-to-show')
+      initial.show.mockClear()
+      setUptime(2)
+
+      getAppListener('second-instance')()
+
+      expect(initial.show).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the window on a tray click inside the grace window', async () => {
+      const initial = await bootHiddenToTray()
+      setUptime(2)
+
+      // Tray click path — calls showMainWindow directly, never the relaunch entry.
+      svc.showMainWindow()
+
+      expect(initial.show).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the window on second-instance when on_launch is set but the tray is disabled', async () => {
+      prefValues['app.tray.on_launch'] = true
+      prefValues['app.tray.enabled'] = false
+      await (svc as any).onInit()
+      await (svc as any).onReady()
+      const created = (windowManagerMock.onWindowCreatedByType.mock.calls as any[])[0]?.[1]
+      const initial = createMockWindow()
+      created({ window: initial })
+      initial.emit('ready-to-show')
+      initial.show.mockClear()
+      setUptime(2)
+
+      getAppListener('second-instance')()
+
+      expect(initial.show).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps the window hidden when macOS activate fires during launch to tray', async () => {
+      platformState.isMac = true
+      const initial = await bootHiddenToTray()
+      setUptime(2)
+
+      getAppListener('activate')()
+
+      expect(initial.show).not.toHaveBeenCalled()
     })
   })
 
