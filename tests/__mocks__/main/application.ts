@@ -78,19 +78,6 @@ export const mockJobManager = {
   enqueue: vi.fn(() => ({ id: 'mock-job-id', snapshot: {}, finished: Promise.resolve({}) }))
 }
 
-/**
- * Minimal PowerService mock. Each event is a no-op subscription returning a Disposable;
- * tests that need to fire one override PowerService with their own capturing stub.
- */
-export const mockPowerService = {
-  onSuspend: vi.fn(() => ({ dispose: vi.fn() })),
-  onResume: vi.fn(() => ({ dispose: vi.fn() })),
-  onLockScreen: vi.fn(() => ({ dispose: vi.fn() })),
-  onUnlockScreen: vi.fn(() => ({ dispose: vi.fn() })),
-  onPowerSourceChange: vi.fn(() => ({ dispose: vi.fn() })),
-  getPowerSource: vi.fn(() => 'ac' as const)
-}
-
 /** Default service instances from existing mock files */
 export const defaultServiceInstances = {
   PreferenceService: MockMainPreferenceServiceExport.preferenceService,
@@ -101,8 +88,7 @@ export const defaultServiceInstances = {
   MainWindowService: mockMainWindowService,
   WindowManager: mockWindowManager,
   IpcApiService: mockIpcApiService,
-  JobManager: mockJobManager,
-  PowerService: mockPowerService
+  JobManager: mockJobManager
 } as const
 
 /** Type for per-service overrides */

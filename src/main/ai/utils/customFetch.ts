@@ -20,30 +20,6 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const SENSITIVE_REDIRECT_HEADERS = new Set(['authorization', 'cookie', 'cookie2', 'proxy-authorization'])
 
 /**
- * Network errors that warrant an immediate retry after a routing change.
- * These typically surface when the OS network path has switched (VPN/proxy
- * startup, adapter change) but Chromium's connection pool and DNS cache still
- * point to the old route.
- */
-const RETRYABLE_NET_ERRORS = new Set([
-  'net::ERR_FAILED',
-  'net::ERR_NETWORK_CHANGED',
-  'net::ERR_PROXY_CONNECTION_FAILED',
-  'net::ERR_NAME_NOT_RESOLVED',
-  'net::ERR_CONNECTION_RESET',
-  'net::ERR_CONNECTION_REFUSED'
-])
-
-function isRetryableNetworkError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
-  return RETRYABLE_NET_ERRORS.has(error.message)
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
  * Symbol-keyed slot carried on a `RequestInit` between the HTTP-trace wrapper
  * (`createHttpTraceFetch`) and this innermost fetch. Provider fetch wrappers
  * rewrite the body (DashScope web_extractor, Ark include-stripping, Codex/Grok
@@ -176,17 +152,9 @@ export const customFetch: FetchFunction = (input: RequestInfo | URL, init?: Requ
   const finalBodySlot = (init as { [HTTP_TRACE_FINAL_BODY_SLOT]?: HttpTraceFinalBodySlot } | undefined)?.[
     HTTP_TRACE_FINAL_BODY_SLOT
   ]
-  const sendRequest = async (requestTarget: string | Request, requestInit?: RequestInit) => {
+  const sendRequest = (requestTarget: string | Request, requestInit?: RequestInit) => {
     if (finalBodySlot) finalBodySlot.body = requestInit?.body ?? null
-    try {
-      return await net.fetch(requestTarget, requestInit)
-    } catch (error) {
-      if (isRetryableNetworkError(error)) {
-        await delay(1000)
-        return net.fetch(requestTarget, requestInit)
-      }
-      throw error
-    }
+    return net.fetch(requestTarget, requestInit)
   }
 
   // A custom `User-Agent` in the request headers is overwritten by Chromium's net

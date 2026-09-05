@@ -5,51 +5,27 @@ const {
   nodeProxyConfigureMock,
   nodeProxyRoutingSnapshotMock,
   nodeProxyControllerConstructorMock,
-  nodeProxyInvalidateMock,
   sessionSetProxyMock,
   webviewSetProxyMock,
   appSetProxyMock,
   getSystemProxyMock,
-  intervalRegistrations,
-  networkFingerprintMock,
-  powerResumeListeners,
-  sessionResetMocks
+  intervalRegistrations
 } = vi.hoisted(() => {
   const nodeProxyConfigureMock = vi.fn()
   const nodeProxyRoutingSnapshotMock = vi.fn()
-  const nodeProxyInvalidateMock = vi.fn()
-  const makeSessionResetMocks = () => ({
-    forceReloadProxyConfig: vi.fn().mockResolvedValue(undefined),
-    clearHostResolverCache: vi.fn().mockResolvedValue(undefined),
-    closeAllConnections: vi.fn().mockResolvedValue(undefined)
-  })
 
   return {
     nodeProxyConfigureMock,
     nodeProxyRoutingSnapshotMock,
-    nodeProxyInvalidateMock,
     nodeProxyControllerConstructorMock: vi.fn(() => ({
       configure: nodeProxyConfigureMock,
-      getRoutingSnapshot: nodeProxyRoutingSnapshotMock,
-      invalidate: nodeProxyInvalidateMock
+      getRoutingSnapshot: nodeProxyRoutingSnapshotMock
     })),
     sessionSetProxyMock: vi.fn().mockResolvedValue(undefined),
     webviewSetProxyMock: vi.fn().mockResolvedValue(undefined),
     appSetProxyMock: vi.fn().mockResolvedValue(undefined),
     getSystemProxyMock: vi.fn(),
-    intervalRegistrations: [] as Array<{
-      handler: () => void
-      dispose: ReturnType<typeof vi.fn>
-      intervalMs: number
-    }>,
-    networkFingerprintMock: vi.fn(() => 'wifi'),
-    powerResumeListeners: [] as Array<() => void>,
-    // Keyed per partition: a shared object would double every managed-session counter.
-    sessionResetMocks: {
-      default: makeSessionResetMocks(),
-      'persist:webview': makeSessionResetMocks(),
-      'html-artifact-preview': makeSessionResetMocks()
-    } as Record<string, ReturnType<typeof makeSessionResetMocks>>
+    intervalRegistrations: [] as Array<{ handler: () => void; dispose: ReturnType<typeof vi.fn> }>
   }
 })
 
@@ -66,9 +42,9 @@ vi.mock('@main/core/lifecycle', () => {
       this._disposables.push(disposable)
       return disposable
     }
-    protected registerInterval(handler: () => void, intervalMs: number) {
+    protected registerInterval(handler: () => void) {
       const dispose = vi.fn()
-      intervalRegistrations.push({ handler, dispose, intervalMs })
+      intervalRegistrations.push({ handler, dispose })
       this._disposables.push({ dispose })
       return { dispose }
     }
@@ -84,22 +60,11 @@ vi.mock('@main/core/lifecycle', () => {
 
 vi.mock('@application', async () => {
   const { mockApplicationFactory } = await import('@test-mocks/main/application')
-  return mockApplicationFactory({
-    PowerService: {
-      onResume: (listener: () => void) => {
-        powerResumeListeners.push(listener)
-        return { dispose: vi.fn() }
-      }
-    }
-  })
+  return mockApplicationFactory({})
 })
 
 vi.mock('../NodeProxyController', () => ({
   NodeProxyController: nodeProxyControllerConstructorMock
-}))
-
-vi.mock('../networkFingerprint', () => ({
-  networkInterfacesFingerprint: networkFingerprintMock
 }))
 
 vi.mock('os-proxy-config', () => ({ getSystemProxy: getSystemProxyMock }))
@@ -107,31 +72,15 @@ vi.mock('os-proxy-config', () => ({ getSystemProxy: getSystemProxyMock }))
 vi.mock('electron', () => ({
   app: { setProxy: appSetProxyMock },
   session: {
-    defaultSession: { setProxy: sessionSetProxyMock, ...sessionResetMocks.default },
-    fromPartition: vi.fn((partition: string) => ({
-      setProxy: webviewSetProxyMock,
-      ...sessionResetMocks[partition]
-    }))
+    defaultSession: { setProxy: sessionSetProxyMock },
+    fromPartition: vi.fn(() => ({ setProxy: webviewSetProxyMock }))
   }
 }))
 
 const { ProxyService, resolveProxyConfig } = await import('../ProxyService')
 
 const reconcilerOf = (manager: unknown) =>
-  (manager as { proxyReconciler: { flush: () => Promise<void>; getLastError: () => unknown } }).proxyReconciler
-
-const SYSTEM_PROXY_MONITOR_MS = 1000 * 60
-const NETWORK_WATCH_MS = 10_000
-
-/** Intervals are selected by their period: the two watchers must never be conflated. */
-const systemProxyMonitors = () => intervalRegistrations.filter((i) => i.intervalMs === SYSTEM_PROXY_MONITOR_MS)
-const networkWatcher = () => {
-  const watchers = intervalRegistrations.filter((i) => i.intervalMs === NETWORK_WATCH_MS)
-  expect(watchers).toHaveLength(1)
-  return watchers[0]
-}
-
-const allSessionResetMocks = () => Object.values(sessionResetMocks)
+  (manager as { proxyReconciler: { flush: () => Promise<void> } }).proxyReconciler
 
 describe('resolveProxyConfig', () => {
   it('maps none → direct', () => {
@@ -170,8 +119,6 @@ describe('ProxyService — preference wiring', () => {
     vi.clearAllMocks()
     MockMainPreferenceServiceUtils.resetMocks()
     intervalRegistrations.length = 0
-    powerResumeListeners.length = 0
-    networkFingerprintMock.mockReturnValue('wifi')
     getSystemProxyMock.mockResolvedValue({ proxyUrl: 'http://system:1080', noProxy: ['localhost'] })
     nodeProxyRoutingSnapshotMock.mockReturnValue({ version: 1, mode: 'direct' })
   })
@@ -291,8 +238,8 @@ describe('ProxyService — preference wiring', () => {
     await reconciler.flush()
 
     // System apply starts exactly one monitor interval.
-    expect(systemProxyMonitors()).toHaveLength(1)
-    const monitor = systemProxyMonitors()[0]
+    expect(intervalRegistrations).toHaveLength(1)
+    const monitor = intervalRegistrations[0]
     expect(monitor.dispose).not.toHaveBeenCalled()
 
     // An OS-proxy change via the monitor tick re-applies but does NOT re-register the interval.
@@ -302,7 +249,7 @@ describe('ProxyService — preference wiring', () => {
     expect(sessionSetProxyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ mode: 'system', proxyRules: 'http://system2:2' })
     )
-    expect(systemProxyMonitors()).toHaveLength(1)
+    expect(intervalRegistrations).toHaveLength(1)
 
     // An unchanged OS read is a no-op (appliedKey/isSettled suppresses the apply).
     sessionSetProxyMock.mockClear()
@@ -315,151 +262,11 @@ describe('ProxyService — preference wiring', () => {
     MockMainPreferenceServiceUtils.setPreferenceValue('app.proxy.url', 'http://custom:1')
     await reconciler.flush()
     expect(monitor.dispose).toHaveBeenCalledTimes(1)
-    expect(systemProxyMonitors()).toHaveLength(1)
+    expect(intervalRegistrations).toHaveLength(1)
 
     // custom → system restarts it.
     MockMainPreferenceServiceUtils.setPreferenceValue('app.proxy.mode', 'system')
     await reconciler.flush()
-    expect(systemProxyMonitors()).toHaveLength(2)
-  })
-})
-
-describe('ProxyService — network path recovery', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    MockMainPreferenceServiceUtils.resetMocks()
-    intervalRegistrations.length = 0
-    powerResumeListeners.length = 0
-    networkFingerprintMock.mockReturnValue('wifi')
-    nodeProxyRoutingSnapshotMock.mockReturnValue({ version: 1, mode: 'direct' })
-    // The reported bug's configuration: a local HTTP proxy in custom mode.
-    MockMainPreferenceServiceUtils.setPreferenceValue('app.proxy.mode', 'custom')
-    MockMainPreferenceServiceUtils.setPreferenceValue('app.proxy.url', 'http://127.0.0.1:7890')
-  })
-
-  /** Boot a service that has already converged on the local-proxy config. */
-  async function bootConverged() {
-    const manager = new ProxyService()
-    await (manager as any).onReady()
-    await reconcilerOf(manager).flush()
-    vi.clearAllMocks()
-    return manager
-  }
-
-  it('rebuilds both network stacks when an accelerator adapter appears, without a config change', async () => {
-    const manager = await bootConverged()
-
-    networkFingerprintMock.mockReturnValue('wifi+tun')
-    networkWatcher().handler()
-    await reconcilerOf(manager).flush()
-
-    // Node stack: the memoized config key is dropped so the agents/dispatcher are rebuilt.
-    expect(nodeProxyInvalidateMock).toHaveBeenCalledTimes(1)
-    expect(nodeProxyConfigureMock).toHaveBeenCalledWith({
-      proxyRules: 'http://127.0.0.1:7890',
-      proxyBypassRules: undefined
-    })
-    // Chromium stack: setProxy alone leaves the dead sockets and DNS entries in place.
-    for (const resets of allSessionResetMocks()) {
-      expect(resets.forceReloadProxyConfig).toHaveBeenCalledTimes(1)
-      expect(resets.clearHostResolverCache).toHaveBeenCalledTimes(1)
-      expect(resets.closeAllConnections).toHaveBeenCalledTimes(1)
-    }
-  })
-
-  it('recovers again when the adapter disappears after an earlier recovery', async () => {
-    const manager = await bootConverged()
-
-    networkFingerprintMock.mockReturnValue('wifi+tun')
-    networkWatcher().handler()
-    await reconcilerOf(manager).flush()
-
-    networkFingerprintMock.mockReturnValue('wifi')
-    networkWatcher().handler()
-    await reconcilerOf(manager).flush()
-
-    expect(sessionResetMocks.default.closeAllConnections).toHaveBeenCalledTimes(2)
-  })
-
-  it('leaves the network alone while the interfaces are unchanged', async () => {
-    const manager = await bootConverged()
-
-    networkWatcher().handler()
-    networkWatcher().handler()
-    await reconcilerOf(manager).flush()
-
-    expect(nodeProxyInvalidateMock).not.toHaveBeenCalled()
-    expect(nodeProxyConfigureMock).not.toHaveBeenCalled()
-    expect(sessionResetMocks.default.closeAllConnections).not.toHaveBeenCalled()
-  })
-
-  it('recovers on wake from sleep', async () => {
-    const manager = await bootConverged()
-    expect(powerResumeListeners).toHaveLength(1)
-
-    powerResumeListeners[0]()
-    await reconcilerOf(manager).flush()
-
-    expect(sessionResetMocks.default.closeAllConnections).toHaveBeenCalledTimes(1)
-  })
-
-  it('never tears down live connections for an ordinary settings change', async () => {
-    const manager = await bootConverged()
-
-    MockMainPreferenceServiceUtils.setPreferenceValue('app.proxy.url', 'http://127.0.0.1:1080')
-    await vi.waitFor(() =>
-      expect(nodeProxyConfigureMock).toHaveBeenCalledWith({
-        proxyRules: 'http://127.0.0.1:1080',
-        proxyBypassRules: undefined
-      })
-    )
-    await reconcilerOf(manager).flush()
-
-    // closeAllConnections would abort in-flight AI streams; only recovery may pay that cost.
-    for (const resets of allSessionResetMocks()) {
-      expect(resets.closeAllConnections).not.toHaveBeenCalled()
-      expect(resets.clearHostResolverCache).not.toHaveBeenCalled()
-      expect(resets.forceReloadProxyConfig).not.toHaveBeenCalled()
-    }
-  })
-
-  it('re-arms when the path changes again while a recovery is in flight', async () => {
-    const manager = await bootConverged()
-
-    // Gate the first recovery inside its apply, so the second change lands mid-flight rather
-    // than coalescing with the first (two changes before any apply are one recovery by design).
-    let releaseApply!: () => void
-    let applyStarted!: () => void
-    const applyReached = new Promise<void>((resolve) => (applyStarted = resolve))
-    sessionSetProxyMock.mockImplementationOnce(() => {
-      applyStarted()
-      return new Promise<void>((resolve) => (releaseApply = resolve))
-    })
-
-    networkFingerprintMock.mockReturnValue('wifi+tun')
-    networkWatcher().handler()
-    await applyReached
-
-    networkFingerprintMock.mockReturnValue('ethernet')
-    networkWatcher().handler()
-    releaseApply()
-    await reconcilerOf(manager).flush()
-
-    // The in-flight pass ends by writing appliedKey; without the forced flag in `isSettled`
-    // that write makes the loop look converged and the second change is lost.
-    expect(sessionResetMocks.default.closeAllConnections).toHaveBeenCalledTimes(2)
-  })
-
-  it('still applies the proxy when a session reset step fails', async () => {
-    const manager = await bootConverged()
-    sessionResetMocks.default.closeAllConnections.mockRejectedValueOnce(new Error('session gone'))
-
-    networkFingerprintMock.mockReturnValue('wifi+tun')
-    networkWatcher().handler()
-    await reconcilerOf(manager).flush()
-
-    expect(reconcilerOf(manager).getLastError()).toBeNull()
-    expect(sessionResetMocks['persist:webview'].closeAllConnections).toHaveBeenCalledTimes(1)
-    expect(nodeProxyConfigureMock).toHaveBeenCalledTimes(1)
+    expect(intervalRegistrations).toHaveLength(2)
   })
 })

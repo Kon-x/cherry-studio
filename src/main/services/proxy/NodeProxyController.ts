@@ -68,15 +68,6 @@ export class NodeProxyController {
     this.currentConfigKey = configKey
   }
 
-  /**
-   * Drop the applied-config memo so the next {@link configure} rebuilds the agents and
-   * dispatcher even though the proxy URL is unchanged. Needed when the network path
-   * moved under us: the config is still correct, the connection pools behind it are not.
-   */
-  invalidate(): void {
-    this.currentConfigKey = null
-  }
-
   getRoutingSnapshot(): ProxyRoutingSnapshot {
     return createProxyRoutingSnapshot(this.routingVersion, this.proxyEndpoint, this.normalizedBypassRules)
   }
