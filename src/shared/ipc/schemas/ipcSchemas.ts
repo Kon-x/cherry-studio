@@ -1,10 +1,10 @@
 import type { RouteDef } from '../define'
 import { type AiEventSchemas, aiRequestSchemas } from './ai'
-import { type ApiGatewayEventSchemas, apiGatewayRequestSchemas } from './apiGateway'
+import type { ApiGatewayEventSchemas } from './apiGateway'
 import { type AppEventSchemas, appRequestSchemas } from './app'
 import { type BackupEventSchemas, backupRequestSchemas } from './backup'
 import { type BinaryEventSchemas, binaryRequestSchemas } from './binary'
-import { type ChannelEventSchemas, channelRequestSchemas } from './channel'
+import type { ChannelEventSchemas } from './channel'
 import { type CherryCloudEventSchemas, cherryCloudRequestSchemas } from './cherryCloud'
 import { cherryinRequestSchemas } from './cherryin'
 import { citationRequestSchemas } from './citation'
@@ -48,11 +48,9 @@ import { type WindowEventSchemas, windowRequestSchemas } from './window'
  */
 export const ipcRequestSchemas = {
   ...aiRequestSchemas,
-  ...apiGatewayRequestSchemas,
   ...appRequestSchemas,
   ...backupRequestSchemas,
   ...binaryRequestSchemas,
-  ...channelRequestSchemas,
   ...cherryinRequestSchemas,
   ...cherryCloudRequestSchemas,
   ...citationRequestSchemas,

@@ -24,7 +24,7 @@ import { getRawModelId, isGatewayRoutableModel, isReasoningModel, isVisionModel 
 import { isLoginBasedProvider } from '@shared/utils/provider'
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
-import { requiresAgentGateway, resolveApiGatewayRuntime } from '../agentApiGateway'
+import { requiresAgentGateway } from '../agentApiGateway'
 import { resolveAgentContextWindow } from '../agentContextWindow'
 import { toAgentProviderHeaders } from '../agentProviderHeaders'
 import type { AgentSessionUsageCapture } from '../types'
@@ -310,9 +310,8 @@ export async function resolveDshProviderInjectionFromSnapshot(
   reasoningEffort: ReasoningEffortOption = 'default'
 ): Promise<DshProviderInjection> {
   if (usesDshGateway(provider, model)) {
-    // Shared gateway sequence: consent (ApiGatewayNotRunningError), converge, materialize key.
-    const gateway = await resolveApiGatewayRuntime(sessionId)
-    return buildDshGatewayInjection(provider, model, gateway, reasoningEffort)
+    // Fork: API Gateway removed
+    throw new Error('API Gateway has been removed from this fork')
   }
   const resolvedApiKey = providerService.resolveApiKey(provider.id)
   if (!resolvedApiKey.value.trim()) throw new DshMissingApiKeyError(provider.id)

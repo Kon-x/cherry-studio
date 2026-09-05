@@ -402,14 +402,7 @@ export class CherryCloudService extends BaseService {
         session
       }
       this.scheduleSessionExpiry(session)
-      void application
-        .get('ApiGatewayService')
-        .start()
-        .catch((error) => {
-          logger.warn('API Gateway did not start after Cherry Cloud login', {
-            reason: error instanceof Error ? error.message : String(error)
-          })
-        })
+      // Fork: API Gateway removed, no longer starting it after login
       this.emitStatus()
       void this.syncEntitledModels().catch(() => undefined)
     } catch (error) {

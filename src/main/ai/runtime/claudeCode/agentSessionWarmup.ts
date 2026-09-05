@@ -41,7 +41,7 @@ import {
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
 import { getExtraHeaders } from '../../utils/provider'
-import { requiresAgentGateway, resolveApiGatewayRuntime } from '../agentApiGateway'
+import { requiresAgentGateway } from '../agentApiGateway'
 import type { AgentSessionUsageCapture } from '../types'
 import {
   createAgentProxyEnvironmentFingerprint,
@@ -762,18 +762,9 @@ async function resolveClaudeCodeRuntimeRoute(
           frozenModels: facts.usageModels
         }
       }
-    case 'gateway': {
-      const gateway = await resolveApiGatewayRuntime(sessionId)
-      return {
-        ...facts,
-        baseUrl: gateway.baseUrl,
-        apiKey: gateway.apiKey,
-        customHeaders: gateway.usageHeaders,
-        usageCapture: { owner: 'provider-calls' },
-        internalRequestToken: gateway.internalRequestToken,
-        credentialsFingerprint: gatewayCredentialsFingerprint()
-      }
-    }
+    case 'gateway':
+      // Fork: API Gateway removed
+      throw new Error('API Gateway has been removed from this fork')
     case 'direct': {
       const resolvedApiKey = providerService.resolveApiKey(primaryProvider.id)
       const runtimeApiKey =

@@ -36,7 +36,7 @@ import { isLoginBasedProvider, resolveEndpointDialect } from '@shared/utils/prov
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
 import { getProviderTransportAdapter, type ProviderTransportAdapter } from '../../provider/runtimeTransport'
-import { requiresAgentGateway, resolveApiGatewayRuntime } from '../agentApiGateway'
+import { requiresAgentGateway } from '../agentApiGateway'
 import { resolveAgentContextWindow } from '../agentContextWindow'
 import { toAgentProviderHeaders } from '../agentProviderHeaders'
 import type { AgentSessionUsageCapture } from '../types'
@@ -326,8 +326,8 @@ export async function resolvePiProviderInjectionForSession(
     return resolvePiProviderInjectionFromSnapshot(provider, model, enabledApiKeys)
   }
 
-  const gateway = await resolveApiGatewayRuntime(sessionId)
-  return buildPiGatewayInjection(provider, model, gateway)
+  // Fork: API Gateway removed
+  throw new Error('API Gateway has been removed from this fork')
 }
 
 /**
