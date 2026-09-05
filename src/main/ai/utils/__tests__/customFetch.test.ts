@@ -227,6 +227,115 @@ describe('customFetch', () => {
     expect([...redirectHeaders.keys()].some((key) => key.startsWith('content-'))).toBe(false)
     expect(slot.body).toBeNull()
   })
+
+  describe('transient network error retry', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_FAILED', async () => {
+      vi.mocked(net.fetch).mockRejectedValueOnce(new Error('net::ERR_FAILED')).mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat', { method: 'POST' })
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_NETWORK_CHANGED', async () => {
+      vi.mocked(net.fetch)
+        .mockRejectedValueOnce(new Error('net::ERR_NETWORK_CHANGED'))
+        .mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_PROXY_CONNECTION_FAILED', async () => {
+      vi.mocked(net.fetch)
+        .mockRejectedValueOnce(new Error('net::ERR_PROXY_CONNECTION_FAILED'))
+        .mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_NAME_NOT_RESOLVED', async () => {
+      vi.mocked(net.fetch)
+        .mockRejectedValueOnce(new Error('net::ERR_NAME_NOT_RESOLVED'))
+        .mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_CONNECTION_RESET', async () => {
+      vi.mocked(net.fetch)
+        .mockRejectedValueOnce(new Error('net::ERR_CONNECTION_RESET'))
+        .mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('retries once after 1s when net.fetch throws ERR_CONNECTION_REFUSED', async () => {
+      vi.mocked(net.fetch)
+        .mockRejectedValueOnce(new Error('net::ERR_CONNECTION_REFUSED'))
+        .mockResolvedValueOnce(new Response('ok'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+      const response = await promise
+
+      expect(await response.text()).toBe('ok')
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('throws immediately on non-retryable errors', async () => {
+      vi.mocked(net.fetch).mockRejectedValue(new Error('certificate invalid'))
+
+      await expect(customFetch('https://api.test/v1/chat')).rejects.toThrow('certificate invalid')
+      expect(net.fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('throws after one retry if both attempts fail', async () => {
+      vi.mocked(net.fetch).mockRejectedValue(new Error('net::ERR_FAILED'))
+
+      const promise = customFetch('https://api.test/v1/chat')
+      await vi.advanceTimersByTimeAsync(1000)
+
+      try {
+        await promise
+        expect.fail('Should have thrown')
+      } catch (error) {
+        expect((error as Error).message).toBe('net::ERR_FAILED')
+      }
+
+      expect(net.fetch).toHaveBeenCalledTimes(2)
+    })
+  })
 })
 
 describe('installProviderUserAgentInterceptor', () => {

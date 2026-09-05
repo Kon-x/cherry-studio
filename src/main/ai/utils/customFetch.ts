@@ -1,4 +1,5 @@
 import type { FetchFunction } from '@ai-sdk/provider-utils'
+import { loggerService } from '@logger'
 import { net, session } from 'electron'
 
 /**
@@ -16,6 +17,16 @@ import { net, session } from 'electron'
  */
 const PROVIDER_USER_AGENT_HEADER = 'x-cherry-studio-user-agent'
 const MAX_REDIRECTS = 20
+const RETRYABLE_NETWORK_ERRORS = [
+  'net::ERR_FAILED',
+  'net::ERR_NETWORK_CHANGED',
+  'net::ERR_PROXY_CONNECTION_FAILED',
+  'net::ERR_NAME_NOT_RESOLVED',
+  'net::ERR_CONNECTION_RESET',
+  'net::ERR_CONNECTION_REFUSED'
+] as const
+
+const logger = loggerService.withContext('customFetch')
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const SENSITIVE_REDIRECT_HEADERS = new Set(['authorization', 'cookie', 'cookie2', 'proxy-authorization'])
 
@@ -85,45 +96,58 @@ function shouldRedirectWithGet(status: number, method: string): boolean {
   )
 }
 
-async function fetchFollowingRedirects(
+async function sendRequest(
   target: string,
   initialInit: RequestInit | undefined,
-  sendRequest: (target: string, init: RequestInit) => Promise<Response>
+  finalBodySlot: HttpTraceFinalBodySlot | undefined,
+  retryCount = 0
 ): Promise<Response> {
-  let url = target
-  let requestInit = initialInit
-  let redirectCount = 0
+  try {
+    let url = target
+    let requestInit = initialInit
+    let redirectCount = 0
 
-  while (true) {
-    const response = await sendRequest(url, { ...requestInit, redirect: 'manual' })
-    if (!REDIRECT_STATUSES.has(response.status)) return response
+    while (true) {
+      if (finalBodySlot) finalBodySlot.body = requestInit?.body ?? null
+      const response = await net.fetch(url, { ...requestInit, redirect: 'manual' })
+      if (!REDIRECT_STATUSES.has(response.status)) return response
 
-    const location = response.headers.get('location')
-    if (!location) return response
-    if (redirectCount === MAX_REDIRECTS) {
+      const location = response.headers.get('location')
+      if (!location) return response
+      if (redirectCount === MAX_REDIRECTS) {
+        await response.body?.cancel()
+        throw new Error('fetch: too many redirects')
+      }
+
+      const currentUrl = new URL(url)
+      const nextUrl = new URL(location, currentUrl)
+      if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') {
+        await response.body?.cancel()
+        throw new TypeError(`fetch: unsupported redirect protocol "${nextUrl.protocol}"`)
+      }
+
+      const method = (requestInit?.method ?? 'GET').toUpperCase()
+      const dropBody = shouldRedirectWithGet(response.status, method)
+
+      requestInit = {
+        ...requestInit,
+        body: dropBody ? undefined : requestInit?.body,
+        headers: redirectHeaders(requestInit?.headers, canPreserveSensitiveHeaders(currentUrl, nextUrl), dropBody),
+        method: dropBody ? 'GET' : method
+      }
+      url = nextUrl.href
+      redirectCount++
       await response.body?.cancel()
-      throw new Error('fetch: too many redirects')
     }
-
-    const currentUrl = new URL(url)
-    const nextUrl = new URL(location, currentUrl)
-    if (nextUrl.protocol !== 'http:' && nextUrl.protocol !== 'https:') {
-      await response.body?.cancel()
-      throw new TypeError(`fetch: unsupported redirect protocol "${nextUrl.protocol}"`)
+  } catch (error) {
+    const isRetryable =
+      error instanceof Error && RETRYABLE_NETWORK_ERRORS.some((pattern) => error.message.includes(pattern))
+    if (isRetryable && retryCount === 0) {
+      logger.info('Transient network error, retrying once after 1s', { error: error.message })
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      return sendRequest(target, initialInit, finalBodySlot, 1)
     }
-
-    const method = (requestInit?.method ?? 'GET').toUpperCase()
-    const dropBody = shouldRedirectWithGet(response.status, method)
-
-    requestInit = {
-      ...requestInit,
-      body: dropBody ? undefined : requestInit?.body,
-      headers: redirectHeaders(requestInit?.headers, canPreserveSensitiveHeaders(currentUrl, nextUrl), dropBody),
-      method: dropBody ? 'GET' : method
-    }
-    url = nextUrl.href
-    redirectCount++
-    await response.body?.cancel()
+    throw error
   }
 }
 
@@ -152,10 +176,6 @@ export const customFetch: FetchFunction = (input: RequestInfo | URL, init?: Requ
   const finalBodySlot = (init as { [HTTP_TRACE_FINAL_BODY_SLOT]?: HttpTraceFinalBodySlot } | undefined)?.[
     HTTP_TRACE_FINAL_BODY_SLOT
   ]
-  const sendRequest = (requestTarget: string | Request, requestInit?: RequestInit) => {
-    if (finalBodySlot) finalBodySlot.body = requestInit?.body ?? null
-    return net.fetch(requestTarget, requestInit)
-  }
 
   // A custom `User-Agent` in the request headers is overwritten by Chromium's net
   // stack, so smuggle it through PROVIDER_USER_AGENT_HEADER and let the default-session
@@ -166,14 +186,18 @@ export const customFetch: FetchFunction = (input: RequestInfo | URL, init?: Requ
     const headers = new Headers(init?.headers)
     headers.set(PROVIDER_USER_AGENT_HEADER, userAgent)
     const requestInit = { ...init, headers }
-    return typeof target === 'string' && (!init?.redirect || init.redirect === 'follow')
-      ? fetchFollowingRedirects(target, requestInit, sendRequest)
-      : sendRequest(target, requestInit)
+    if (typeof target === 'string' && (!init?.redirect || init.redirect === 'follow')) {
+      return sendRequest(target, requestInit, finalBodySlot)
+    }
+    if (finalBodySlot) finalBodySlot.body = requestInit?.body ?? null
+    return net.fetch(target, requestInit)
   }
 
-  return typeof target === 'string' && (!init?.redirect || init.redirect === 'follow')
-    ? fetchFollowingRedirects(target, init, sendRequest)
-    : sendRequest(target, init)
+  if (typeof target === 'string' && (!init?.redirect || init.redirect === 'follow')) {
+    return sendRequest(target, init, finalBodySlot)
+  }
+  if (finalBodySlot) finalBodySlot.body = init?.body ?? null
+  return net.fetch(target, init)
 }
 
 /**
