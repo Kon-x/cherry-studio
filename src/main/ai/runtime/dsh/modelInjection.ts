@@ -343,16 +343,15 @@ export async function assertDshProviderUsable(uniqueModelId: UniqueModelId): Pro
 
   // Provider-declared Gateway routes authenticate at materialization time, not with a provider key.
   if (requiresAgentGateway(provider.id)) {
-    if (!isGatewayRoutableModel(model)) throw new DshUnsupportedProviderError(providerId)
-    return
+    // Fork: API Gateway removed
+    throw new Error('API Gateway has been removed from this fork; cannot validate gateway routes')
   }
 
   // Unsupported beats missing-credential (parity with buildDshProviderInjection).
   if (resolveDshInjectionApi(provider, model) === undefined) {
     if (!isGatewayRoutableModel(model)) throw new DshUnsupportedProviderError(providerId)
-    // Consent only (persisted intent) — no ensureRunning/ensureValidApiKey side effects here.
-    if (!application.get('ApiGatewayService').getCurrentConfig().enabled) throw new ApiGatewayNotRunningError()
-    return
+    // Fork: API Gateway removed, gateway routes are disabled
+    throw new Error('API Gateway has been removed from this fork; cannot route through gateway')
   }
   const apiKeys = providerService.getApiKeys(providerId, { enabled: true })
   if (!apiKeys.some((entry) => entry.key.trim())) throw new DshMissingApiKeyError(providerId)

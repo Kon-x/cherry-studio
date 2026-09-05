@@ -699,23 +699,8 @@ function deriveRouteFacts(
   )
 
   if (shouldUseGateway) {
-    const apiGatewayService = application.get('ApiGatewayService')
-    const config = apiGatewayService.getCurrentConfig()
-    const host = config.host || '127.0.0.1'
-    const port = config.port || 23333
-    return {
-      branch: 'gateway',
-      baseUrl: gatewayClientOrigin(host, port),
-      credentialsFingerprint: gatewayCredentialsFingerprint(),
-      toolSearchCompatible,
-      modelIds: {
-        primary: toGatewayModelId(primaryRef),
-        opus: toGatewayModelId(opusRef),
-        sonnet: toGatewayModelId(sonnetRef),
-        haiku: toGatewayModelId(haikuRef)
-      },
-      usageModels: []
-    }
+    // Fork: API Gateway removed, routes requiring gateway are disabled
+    throw new Error('API Gateway has been removed from this fork; cannot route through gateway')
   }
 
   const anthropicBaseUrl = resolveAnthropicBaseUrl(primaryProvider, primaryBaseUrl)
