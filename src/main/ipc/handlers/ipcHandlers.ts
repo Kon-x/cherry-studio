@@ -2,9 +2,12 @@ import type { IpcRequestSchemas } from '@shared/ipc/schemas/ipcSchemas'
 import type { IpcHandlersFor } from '@shared/ipc/types'
 
 import { aiHandlers } from './ai'
+import { apiGatewayHandlers } from './apiGateway'
 import { appHandlers } from './app'
 import { backupHandlers } from './backup'
 import { binaryHandlers } from './binary'
+import { channelHandlers } from './channel'
+import { cherryCloudHandlers } from './cherryCloud'
 import { cherryinHandlers } from './cherryin'
 import { citationHandlers } from './citation'
 import { codeCliHandlers } from './codeCli'
@@ -49,10 +52,13 @@ import { windowHandlers } from './window'
  */
 export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...aiHandlers,
+  ...apiGatewayHandlers,
   ...appHandlers,
   ...backupHandlers,
   ...binaryHandlers,
+  ...channelHandlers,
   ...cherryinHandlers,
+  ...cherryCloudHandlers,
   ...citationHandlers,
   ...codeCliHandlers,
   ...deepSeekHarnessHandlers,

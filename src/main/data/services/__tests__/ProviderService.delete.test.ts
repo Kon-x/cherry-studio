@@ -14,6 +14,8 @@ import { pinService } from '@data/services/PinService'
 import { providerRegistryService } from '@data/services/ProviderRegistryService'
 import { providerService } from '@data/services/ProviderService'
 import { generateOrderKeyBetween, generateOrderKeySequence } from '@data/services/utils/orderKey'
+import { ErrorCode } from '@shared/data/api/errors'
+import { CHERRY_CLOUD_PROVIDER_ID, CHERRYAI_PROVIDER_ID } from '@shared/data/presets/cherryai'
 import { createUniqueModelId } from '@shared/data/types/model'
 import type { Pin } from '@shared/data/types/pin'
 import { setupTestDatabase } from '@test-helpers/db'
@@ -78,6 +80,29 @@ describe('ProviderService.delete — preset protection boundary', () => {
     const [state] = dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'providers:deletedPresetIds')).all()
     expect(state).toBeDefined()
     expect((state?.value as { ids: string[] } | undefined)?.ids).not.toContain('openai')
+  })
+
+  it('rejects deleting the managed Cherry Cloud provider', async () => {
+    await dbh.db.insert(userProviderTable).values({
+      providerId: CHERRY_CLOUD_PROVIDER_ID,
+      presetProviderId: CHERRYAI_PROVIDER_ID,
+      name: 'CherryAI',
+      orderKey: generateOrderKeyBetween(null, null)
+    })
+
+    let error: unknown
+    try {
+      providerService.delete(CHERRY_CLOUD_PROVIDER_ID)
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toMatchObject({ code: ErrorCode.INVALID_OPERATION, status: 400 })
+
+    const rows = await dbh.db
+      .select()
+      .from(userProviderTable)
+      .where(eq(userProviderTable.providerId, CHERRY_CLOUD_PROVIDER_ID))
+    expect(rows).toHaveLength(1)
   })
 
   it('should NOT throw when deleting a user-created provider that inherits from a preset', async () => {

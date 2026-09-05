@@ -31,6 +31,7 @@ import { ENDPOINT_TYPE, parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type { ReasoningEffortOption } from '@shared/types/aiSdk'
 import { formatApiHost, withoutTrailingApiVersion } from '@shared/utils/api'
+import { formatGatewayModelId, gatewayClientOrigin } from '@shared/utils/apiGateway'
 import { isVisionModel, supportsDynamicallyLoadedTools } from '@shared/utils/model'
 import {
   isExternalCliProvider,
@@ -41,7 +42,7 @@ import {
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
 import { getExtraHeaders } from '../../utils/provider'
-import { ApiGatewayNotRunningError, resolveApiGatewayRuntime } from '../agentApiGateway'
+import { gatewayCredentialsFingerprint, requiresAgentGateway, resolveApiGatewayRuntime } from '../agentApiGateway'
 import type { AgentSessionUsageCapture } from '../types'
 import {
   createAgentProxyEnvironmentFingerprint,
@@ -691,13 +692,30 @@ function deriveRouteFacts(
   }
 
   const shouldUseGateway = modelRefs.some(
-    (ref) => ref.providerId !== primaryProvider.id || !usesAnthropicMessagesEndpoint(ref)
+    (ref) =>
+      requiresAgentGateway(ref.providerId) ||
+      ref.providerId !== primaryProvider.id ||
+      !usesAnthropicMessagesEndpoint(ref)
   )
 
   if (shouldUseGateway) {
-    // Fork: the API gateway is removed. Models that would need bridging through it
-    // cannot serve claude-code sessions; only direct Anthropic-endpoint routes work.
-    throw new ApiGatewayNotRunningError()
+    const apiGatewayService = application.get('ApiGatewayService')
+    const config = apiGatewayService.getCurrentConfig()
+    const host = config.host || '127.0.0.1'
+    const port = config.port || 23333
+    return {
+      branch: 'gateway',
+      baseUrl: gatewayClientOrigin(host, port),
+      credentialsFingerprint: gatewayCredentialsFingerprint(),
+      toolSearchCompatible,
+      modelIds: {
+        primary: toGatewayModelId(primaryRef),
+        opus: toGatewayModelId(opusRef),
+        sonnet: toGatewayModelId(sonnetRef),
+        haiku: toGatewayModelId(haikuRef)
+      },
+      usageModels: []
+    }
   }
 
   const anthropicBaseUrl = resolveAnthropicBaseUrl(primaryProvider, primaryBaseUrl)
@@ -769,7 +787,7 @@ async function resolveClaudeCodeRuntimeRoute(
         customHeaders: gateway.usageHeaders,
         usageCapture: { owner: 'provider-calls' },
         internalRequestToken: gateway.internalRequestToken,
-        credentialsFingerprint: fingerprintCredentials([gateway.apiKey, gateway.stateTag])
+        credentialsFingerprint: gatewayCredentialsFingerprint()
       }
     }
     case 'direct': {
@@ -855,6 +873,10 @@ function usesAnthropicMessagesEndpoint(ref: RuntimeModelRef): boolean {
   )
 }
 
+function toGatewayModelId(ref: RuntimeModelRef): string {
+  return formatGatewayModelId(ref.providerId, ref.apiModelId)
+}
+
 function resolveAnthropicBaseUrl(provider: Provider, baseUrl: string) {
   // Claude SDK manages API versioning itself — ANTHROPIC_BASE_URL must not include /v1.
   const anthropicEndpointUrl = provider.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES]?.baseUrl
@@ -912,6 +934,7 @@ export async function buildClaudeCodeWarmQueryRequestForAgentSession(
     key: request.key,
     options: request.options,
     initializeTimeoutMs: request.initializeTimeoutMs,
+    connectionRebuildSignature: request.connectionConfig.rebuildSignature,
     credentialsFingerprint: request.credentialsFingerprint,
     usageCapture: request.usageCapture,
     knowledgeBaseIds: request.knowledgeBaseIds,
