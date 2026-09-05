@@ -192,6 +192,48 @@ describe('customFetch', () => {
     expect(net.fetch).toHaveBeenCalledTimes(21)
   })
 
+  it('retries once after a 1s delay when net.fetch throws net::ERR_FAILED', async () => {
+    const start = Date.now()
+    vi.mocked(net.fetch).mockRejectedValueOnce(new Error('net::ERR_FAILED')).mockResolvedValueOnce(new Response('ok'))
+
+    const response = await customFetch('https://api.test/v1/chat', { method: 'POST', body: '{}' })
+
+    expect(await response.text()).toBe('ok')
+    expect(net.fetch).toHaveBeenCalledTimes(2)
+    expect(Date.now() - start).toBeGreaterThanOrEqual(1000)
+  })
+
+  it.each([
+    'net::ERR_NETWORK_CHANGED',
+    'net::ERR_PROXY_CONNECTION_FAILED',
+    'net::ERR_NAME_NOT_RESOLVED',
+    'net::ERR_CONNECTION_RESET',
+    'net::ERR_CONNECTION_REFUSED'
+  ])('retries once when net.fetch throws %s', async (errorMessage) => {
+    vi.mocked(net.fetch).mockRejectedValueOnce(new Error(errorMessage)).mockResolvedValueOnce(new Response('recovered'))
+
+    const response = await customFetch('https://api.test/v1/models')
+
+    expect(await response.text()).toBe('recovered')
+    expect(net.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws immediately when net.fetch throws a non-retryable error', async () => {
+    vi.mocked(net.fetch).mockRejectedValue(new Error('net::ERR_CERT_AUTHORITY_INVALID'))
+
+    await expect(customFetch('https://api.test/v1/chat')).rejects.toThrow('net::ERR_CERT_AUTHORITY_INVALID')
+    expect(net.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when the retry also fails', async () => {
+    vi.mocked(net.fetch)
+      .mockRejectedValueOnce(new Error('net::ERR_FAILED'))
+      .mockRejectedValueOnce(new Error('net::ERR_FAILED'))
+
+    await expect(customFetch('https://api.test/v1/chat')).rejects.toThrow('net::ERR_FAILED')
+    expect(net.fetch).toHaveBeenCalledTimes(2)
+  })
+
   it.each([
     { method: 'POST', status: 302 },
     { method: 'PUT', status: 303 }
