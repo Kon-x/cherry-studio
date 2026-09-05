@@ -53,6 +53,13 @@ const anchorExists = (domId: string) =>
   literalAnchorIds.has(domId) || [...dynamicAnchorPrefixes].some((prefix) => domId.startsWith(`${prefix}-`))
 
 describe('settings search index', () => {
+  it('excludes removed gateway and channel pages from navigation and search', () => {
+    for (const route of ['/settings/api-gateway', '/settings/channels']) {
+      expect(settingsMenu.some((entry) => entry.route === route)).toBe(false)
+      expect(settingsSearchSections.some((section) => section.route === route)).toBe(false)
+    }
+  })
+
   it('exposes one searchable section per menu entry, in menu order', () => {
     expect(settingsSearchSections.map((s) => s.route)).toEqual(settingsMenu.map((m) => m.route))
     expect(settingsSearchSections.map((s) => s.sectionTitleKey)).toEqual(settingsMenu.map((m) => m.titleKey))

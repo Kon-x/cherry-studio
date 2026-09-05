@@ -1,8 +1,4 @@
-/**
- * Runtime-neutral local API Gateway route resolution, shared by drivers whose
- * provider policy or wire protocol requires the gateway. Owns the consent →
- * convergence → key sequence.
- */
+/** Compatibility boundary for routes requiring the gateway removed from this fork. */
 
 import { CHERRY_CLOUD_PROVIDER_ID } from '@shared/data/presets/cherryai'
 import { API_GATEWAY_REQUIRED_I18N_KEY } from '@shared/types/apiGateway'
@@ -12,14 +8,9 @@ export function requiresAgentGateway(providerId: string): boolean {
   return providerId === CHERRY_CLOUD_PROVIDER_ID
 }
 
-/**
- * Rotation-sensitive gateway identity for connection signatures: address, key, or state changes
- * rebuild the connection. Read-only by contract — this must never generate or persist a key.
- *
- * Fork: API Gateway removed, function disabled.
- */
+/** Keep snapshot capture side-effect free; unavailable routes fail during materialization. */
 export function gatewayCredentialsFingerprint(): string {
-  throw new Error('API Gateway has been removed from this fork')
+  return 'fork:api-gateway-removed'
 }
 
 /**
@@ -37,15 +28,12 @@ export class ApiGatewayNotRunningError extends Error {
   }
 }
 
-/** Consent, convergence, and key sequence in one place — every gateway route resolves through here.
- *
- * Fork: API Gateway removed, function disabled.
- */
+/** Reject gateway materialization while preserving the runtime's localized error contract. */
 export async function resolveApiGatewayRuntime(): Promise<{
   baseUrl: string
   apiKey: string
   usageHeaders: Record<string, string>
   internalRequestToken: string
 }> {
-  throw new Error('API Gateway has been removed from this fork')
+  throw new ApiGatewayNotRunningError()
 }

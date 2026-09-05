@@ -1,4 +1,3 @@
-import { GatewayIcon } from '@renderer/components/icons/GatewayIcon'
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
 import {
   Activity,
@@ -14,7 +13,6 @@ import {
   Package,
   Palette,
   PictureInPicture2,
-  Radio,
   ScanText,
   Search,
   Settings2,
@@ -50,7 +48,6 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     titleKey: 'settings.dependencies.localModels.title',
     icon: createElement(FileBox)
   },
-  { route: '/settings/api-gateway', titleKey: 'apiGateway.title', icon: createElement(GatewayIcon) },
   {
     route: '/settings/mcp',
     titleKey: 'agent.settings.toolsMcp.mcp.tab',
@@ -116,12 +113,6 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     titleKey: 'settings.usage.title',
     icon: createElement(Activity),
     groupKey: 'settings.menuGroups.personal'
-  },
-  {
-    route: '/settings/channels',
-    titleKey: 'settings.channels.title',
-    icon: createElement(Radio),
-    groupKey: 'settings.menuGroups.automation'
   },
   {
     route: '/settings/scheduled-tasks',

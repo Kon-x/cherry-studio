@@ -1,4 +1,4 @@
-import type * as AgentApiGateway from '@main/ai/runtime/agentApiGateway'
+import { ApiGatewayNotRunningError } from '@main/ai/runtime/agentApiGateway'
 import { CHERRY_CLOUD_MODEL_GROUP, CHERRY_CLOUD_PROVIDER_ID } from '@shared/data/presets/cherryai'
 import { ENDPOINT_TYPE, type Model } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
@@ -9,10 +9,7 @@ const mocks = vi.hoisted(() => ({
   resolveApiKey: vi.fn(),
   getApiKeys: vi.fn(),
   getByProviderId: vi.fn(),
-  getByKey: vi.fn(),
-  resolveApiGatewayRuntime: vi.fn(),
-  getCurrentConfig: vi.fn(),
-  ApiGatewayNotRunningError: class ApiGatewayNotRunningError extends Error {}
+  getByKey: vi.fn()
 }))
 
 vi.mock('@data/services/ProviderService', () => ({
@@ -23,19 +20,6 @@ vi.mock('@data/services/ProviderService', () => ({
   }
 }))
 vi.mock('@data/services/ModelService', () => ({ modelService: { getByKey: mocks.getByKey } }))
-vi.mock('@main/ai/runtime/agentApiGateway', async (importOriginal) => ({
-  ...(await importOriginal<typeof AgentApiGateway>()),
-  ApiGatewayNotRunningError: mocks.ApiGatewayNotRunningError,
-  resolveApiGatewayRuntime: mocks.resolveApiGatewayRuntime
-}))
-vi.mock('@application', () => ({
-  application: {
-    get: (name: string) => {
-      if (name === 'ApiGatewayService') return { getCurrentConfig: mocks.getCurrentConfig }
-      throw new Error(`unexpected service ${name}`)
-    }
-  }
-}))
 
 import { buildDshCompositionYaml } from '../compositionBuilder'
 import {
@@ -118,7 +102,6 @@ function makeCloudModel(overrides: Partial<Model> = {}): Model {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.resolveApiGatewayRuntime.mockResolvedValue(GATEWAY)
   mocks.resolveApiKey.mockReturnValue({ value: 'sk-native', apiKeySelection: { attribution: 'unknown' } })
 })
 
@@ -247,69 +230,38 @@ describe('resolveDshProviderInjectionFromSnapshot', () => {
       apiModelId: 'deepseek-chat',
       contextWindow: 128_000
     })
-    const injection = await resolveDshProviderInjectionFromSnapshot('session-1', nativeProvider, model)
+    const injection = await resolveDshProviderInjectionFromSnapshot(nativeProvider, model)
 
     expect(injection.api).toBe('openai-completions')
     expect(injection.baseUrl).toBe('https://api.deepseek.com/v1')
     expect(injection.apiKey).toBe('sk-native')
     expect(injection.usageCapture).toMatchObject({ owner: 'agent-sdk', providerId: 'deepseek' })
-    expect(mocks.resolveApiGatewayRuntime).not.toHaveBeenCalled()
   })
 
-  it('falls back to the gateway without consuming native key rotation', async () => {
-    const injection = await resolveDshProviderInjectionFromSnapshot('session-1', vertexProvider, makeModel())
-
-    expect(mocks.resolveApiGatewayRuntime).toHaveBeenCalledWith('session-1')
+  it.each([
+    [vertexProvider, makeModel()],
+    [cloudProvider, makeCloudModel()]
+  ])('rejects $0.id gateway materialization without consuming native key rotation', async (provider, model) => {
+    await expect(resolveDshProviderInjectionFromSnapshot(provider, model)).rejects.toThrow(ApiGatewayNotRunningError)
     expect(mocks.resolveApiKey).not.toHaveBeenCalled()
-    expect(injection.apiKey).toBe(GATEWAY_KEY)
-    expect(injection.headers).toEqual(GATEWAY_USAGE_HEADERS)
-    expect(injection.usageCapture).toEqual({ owner: 'provider-calls' })
-  })
-
-  it('routes Cloud through the same consented gateway runtime', async () => {
-    const injection = await resolveDshProviderInjectionFromSnapshot('session-1', cloudProvider, makeCloudModel())
-
-    expect(mocks.resolveApiGatewayRuntime).toHaveBeenCalledWith('session-1')
-    expect(mocks.resolveApiKey).not.toHaveBeenCalled()
-    expect(injection).toMatchObject({ api: 'anthropic-messages', modelId: 'cherryai-subscription:deepseek-free' })
-  })
-
-  it('propagates the disabled-gateway consent error for Cloud', async () => {
-    mocks.resolveApiGatewayRuntime.mockRejectedValue(new mocks.ApiGatewayNotRunningError())
-
-    await expect(resolveDshProviderInjectionFromSnapshot('session-1', cloudProvider, makeCloudModel())).rejects.toThrow(
-      mocks.ApiGatewayNotRunningError
-    )
   })
 })
 
 describe('assertDshProviderUsable', () => {
-  it('defers Cherry Cloud gateway consent until connection materialization', async () => {
+  it('rejects Cherry Cloud routes that require the removed gateway', async () => {
     mocks.getByProviderId.mockResolvedValue(cloudProvider)
     mocks.getByKey.mockResolvedValue(makeCloudModel())
-    mocks.getCurrentConfig.mockReturnValue({ enabled: false })
-
-    await expect(assertDshProviderUsable('cherryai-subscription::deepseek-free')).resolves.toBeUndefined()
+    await expect(assertDshProviderUsable('cherryai-subscription::deepseek-free')).rejects.toThrow(
+      ApiGatewayNotRunningError
+    )
     expect(mocks.getApiKeys).not.toHaveBeenCalled()
-    expect(mocks.getCurrentConfig).not.toHaveBeenCalled()
   })
 
-  it('accepts a gateway-routable model when the gateway is enabled, without key side effects', async () => {
+  it('rejects protocol fallback routes without consuming provider credentials', async () => {
     mocks.getByProviderId.mockResolvedValue(vertexProvider)
     mocks.getByKey.mockResolvedValue(makeModel())
-    mocks.getCurrentConfig.mockReturnValue({ enabled: true })
-
-    await expect(assertDshProviderUsable('vertexai::gemini-2.5-pro')).resolves.toBeUndefined()
+    await expect(assertDshProviderUsable('vertexai::gemini-2.5-pro')).rejects.toThrow(ApiGatewayNotRunningError)
     expect(mocks.getApiKeys).not.toHaveBeenCalled()
-    expect(mocks.resolveApiGatewayRuntime).not.toHaveBeenCalled()
-  })
-
-  it('fails closed on the persisted intent when the gateway is disabled', async () => {
-    mocks.getByProviderId.mockResolvedValue(vertexProvider)
-    mocks.getByKey.mockResolvedValue(makeModel())
-    mocks.getCurrentConfig.mockReturnValue({ enabled: false })
-
-    await expect(assertDshProviderUsable('vertexai::gemini-2.5-pro')).rejects.toThrow(mocks.ApiGatewayNotRunningError)
   })
 
   it('still reports unsupported when the model is not gateway-routable either', async () => {

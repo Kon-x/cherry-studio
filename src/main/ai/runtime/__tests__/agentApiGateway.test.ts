@@ -1,48 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CHERRY_CLOUD_PROVIDER_ID } from '@shared/data/presets/cherryai'
+import { API_GATEWAY_REQUIRED_I18N_KEY } from '@shared/types/apiGateway'
+import { describe, expect, it } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  getCurrentConfig: vi.fn(),
-  isRunning: vi.fn()
-}))
+import { ApiGatewayNotRunningError, requiresAgentGateway, resolveApiGatewayRuntime } from '../agentApiGateway'
 
-vi.mock('@application', () => ({
-  application: {
-    get: (name: string) => {
-      if (name === 'ApiGatewayService') {
-        return { getCurrentConfig: mocks.getCurrentConfig, isRunning: mocks.isRunning }
-      }
-      throw new Error(`unexpected service ${name}`)
-    }
-  }
-}))
-
-import { gatewayCredentialsFingerprint } from '../agentApiGateway'
-
-describe('gatewayCredentialsFingerprint', () => {
-  beforeEach(() => {
-    mocks.getCurrentConfig.mockReturnValue({ enabled: true, host: '127.0.0.1', port: 23333, apiKey: 'gw-key-1' })
-    mocks.isRunning.mockReturnValue(true)
+describe('agent gateway boundary', () => {
+  it('keeps Cloud behind the gateway boundary without blocking direct providers', () => {
+    expect(requiresAgentGateway(CHERRY_CLOUD_PROVIDER_ID)).toBe(true)
+    expect(requiresAgentGateway('anthropic')).toBe(false)
+    expect(requiresAgentGateway('deepseek')).toBe(false)
   })
 
-  it('changes when the gateway key rotates', () => {
-    const before = gatewayCredentialsFingerprint()
-    mocks.getCurrentConfig.mockReturnValue({ enabled: true, host: '127.0.0.1', port: 23333, apiKey: 'gw-key-2' })
-    expect(gatewayCredentialsFingerprint()).not.toBe(before)
-  })
-
-  it('changes when the gateway address or enabled/running state changes', () => {
-    const before = gatewayCredentialsFingerprint()
-    mocks.getCurrentConfig.mockReturnValue({ enabled: true, host: '127.0.0.2', port: 24444, apiKey: 'gw-key-1' })
-    expect(gatewayCredentialsFingerprint()).not.toBe(before)
-
-    mocks.getCurrentConfig.mockReturnValue({ enabled: true, host: '127.0.0.1', port: 23333, apiKey: 'gw-key-1' })
-    mocks.isRunning.mockReturnValue(false)
-    expect(gatewayCredentialsFingerprint()).not.toBe(before)
-  })
-
-  it('is stable across reads with unchanged state and never leaks the key', () => {
-    const first = gatewayCredentialsFingerprint()
-    expect(gatewayCredentialsFingerprint()).toBe(first)
-    expect(first).not.toContain('gw-key-1')
+  it('rejects gateway routes with the localized runtime error without a gateway service', async () => {
+    await expect(resolveApiGatewayRuntime()).rejects.toBeInstanceOf(ApiGatewayNotRunningError)
+    await expect(resolveApiGatewayRuntime()).rejects.toMatchObject({ i18nKey: API_GATEWAY_REQUIRED_I18N_KEY })
   })
 })

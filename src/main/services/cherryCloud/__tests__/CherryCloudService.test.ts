@@ -353,7 +353,7 @@ describe('CherryCloudService', () => {
       )
     )
     expect(await service.getStatus()).toEqual({ phase: 'signed-in', displayName: 'Sora' })
-    expect(mocks.gatewayStart).toHaveBeenCalledOnce()
+    expect(mocks.gatewayStart).not.toHaveBeenCalled()
 
     const exchangeRequest = requestCalls(`/api/v1/desktop/authorizations/${authorizationId}/exchange`)[0]
     expect(exchangeRequest[0]).toBe(`http://127.0.0.1:8084/api/v1/desktop/authorizations/${authorizationId}/exchange`)
@@ -396,12 +396,12 @@ describe('CherryCloudService', () => {
     expect(createBody.device_public_key).toBe(firstDevicePublicKey)
   })
 
-  it('keeps the Session when automatic Gateway startup fails', async () => {
+  it('signs in independently of the removed Gateway', async () => {
     mocks.gatewayStart.mockRejectedValueOnce(new Error('port is already in use'))
 
     const service = await createSignedInService()
 
-    expect(mocks.gatewayStart).toHaveBeenCalledOnce()
+    expect(mocks.gatewayStart).not.toHaveBeenCalled()
     expect(await service.getStatus()).toEqual({ phase: 'signed-in', displayName: 'Sora' })
   })
 

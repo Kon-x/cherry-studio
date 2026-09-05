@@ -41,7 +41,7 @@ import {
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
 import { getExtraHeaders } from '../../utils/provider'
-import { requiresAgentGateway } from '../agentApiGateway'
+import { ApiGatewayNotRunningError, requiresAgentGateway } from '../agentApiGateway'
 import type { AgentSessionUsageCapture } from '../types'
 import {
   createAgentProxyEnvironmentFingerprint,
@@ -497,21 +497,12 @@ export async function buildClaudeCodeQueryRequestForAgentSession(
   const pinSubModelsToPrimary = uniqueModelId !== agent.model
   const planModel = pinSubModelsToPrimary ? undefined : agent.planModel
   const smallModel = pinSubModelsToPrimary ? undefined : agent.smallModel
-  const route = await resolveClaudeCodeRuntimeRoute(
-    session.id,
-    provider,
-    model,
-    modelId,
-    baseUrl,
-    planModel,
-    smallModel,
-    {
-      type: 'agent',
-      id: agent.id,
-      name: agent.name ?? null,
-      icon: agent.configuration?.avatar ?? null
-    }
-  )
+  const route = await resolveClaudeCodeRuntimeRoute(provider, model, modelId, baseUrl, planModel, smallModel, {
+    type: 'agent',
+    id: agent.id,
+    name: agent.name ?? null,
+    icon: agent.configuration?.avatar ?? null
+  })
   const resumeSessionId =
     effectiveResume ?? agentSessionMessageService.getLastRuntimeResumeToken(session.id) ?? undefined
   const settings = mergeRuntimeSettings(
@@ -699,7 +690,7 @@ function deriveRouteFacts(
 
   if (shouldUseGateway) {
     // Fork: API Gateway removed, routes requiring gateway are disabled
-    throw new Error('API Gateway has been removed from this fork; cannot route through gateway')
+    throw new ApiGatewayNotRunningError()
   }
 
   const anthropicBaseUrl = resolveAnthropicBaseUrl(primaryProvider, primaryBaseUrl)
@@ -738,7 +729,6 @@ function deriveRouteFacts(
 
 /** Effectful half: materializes the credentials for the branch {@link deriveRouteFacts} picked. */
 async function resolveClaudeCodeRuntimeRoute(
-  sessionId: string,
   primaryProvider: Provider,
   primaryModel: Model,
   primaryModelId: string,
@@ -764,7 +754,7 @@ async function resolveClaudeCodeRuntimeRoute(
       }
     case 'gateway':
       // Fork: API Gateway removed
-      throw new Error('API Gateway has been removed from this fork')
+      throw new ApiGatewayNotRunningError()
     case 'direct': {
       const resolvedApiKey = providerService.resolveApiKey(primaryProvider.id)
       const runtimeApiKey =

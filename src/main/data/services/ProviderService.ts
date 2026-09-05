@@ -7,6 +7,7 @@
  */
 
 import { application } from '@application'
+import { appStateTable } from '@data/db/schemas/appState'
 import { providerLogoFileRefTable } from '@data/db/schemas/fileRelations'
 import { userModelTable } from '@data/db/schemas/userModel'
 import type { InsertUserProviderRow, UserProviderRow } from '@data/db/schemas/userProvider'
@@ -29,6 +30,7 @@ import { DataApiError, DataApiErrorFactory, ErrorCode } from '@shared/data/api/e
 import type { OrderBatchRequest, OrderRequest } from '@shared/data/api/schemas/_endpointHelpers'
 import type { CreateProviderDto, ListProvidersQuery, UpdateProviderDto } from '@shared/data/api/schemas/providers'
 import { isManagedCherryProviderId } from '@shared/data/presets/cherryai'
+import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 import type { EndpointType } from '@shared/data/types/model'
 import type {
   ApiKeyEntry,
@@ -68,6 +70,35 @@ function applyJsonMergePatch(target: unknown, patch: unknown): unknown {
 
 type NewUserProviderInput = Omit<InsertUserProviderRow, 'orderKey'>
 type ProviderIdentity = Pick<UserProviderRow, 'providerId' | 'presetProviderId'>
+
+const DELETED_PRESET_PROVIDERS_KEY = 'providers:deletedPresetIds'
+type TombstoneTx = Pick<DbType, 'select' | 'insert'>
+
+function readDeletedPresetProviderIds(tx: TombstoneTx): Set<string> {
+  const [row] = tx
+    .select({ value: appStateTable.value })
+    .from(appStateTable)
+    .where(eq(appStateTable.key, DELETED_PRESET_PROVIDERS_KEY))
+    .limit(1)
+    .all()
+  const ids = (row?.value as { ids?: string[] } | undefined)?.ids
+  return new Set(Array.isArray(ids) ? ids : [])
+}
+
+function writeDeletedPresetProviderIds(tx: TombstoneTx, ids: Set<string>): void {
+  const value = { ids: [...ids] }
+  tx.insert(appStateTable)
+    .values({
+      key: DELETED_PRESET_PROVIDERS_KEY,
+      value,
+      description: 'Preset providers deleted by the user; seeding skips these ids'
+    })
+    .onConflictDoUpdate({
+      target: appStateTable.key,
+      set: { value, updatedAt: Date.now() }
+    })
+    .run()
+}
 
 function isProviderAvailableInCurrentEdition(provider: Pick<Provider, 'availableInEditions'>): boolean {
   const availableInEditions = provider.availableInEditions
@@ -468,6 +499,9 @@ class ProviderService {
           const logoCols = reconcileLogoSlotTx(tx, providerLogoFileRefTable, dto.providerId, dto.logo) ?? {
             logoKey: null
           }
+          // A deliberate re-create lifts the deletion tombstone for this id.
+          const tombstones = readDeletedPresetProviderIds(tx)
+          if (tombstones.delete(dto.providerId)) writeDeletedPresetProviderIds(tx, tombstones)
           const values: NewUserProviderInput = {
             providerId: dto.providerId,
             presetProviderId: dto.presetProviderId ?? null,
@@ -610,7 +644,10 @@ class ProviderService {
   batchUpsertTx(tx: Pick<DbType, 'select' | 'insert'>, providers: NewUserProviderInput[]): number {
     const existing = tx.select({ providerId: userProviderTable.providerId }).from(userProviderTable).all()
     const existingIds = new Set(existing.map((row) => row.providerId))
-    const newProviders = providers.filter((provider) => !existingIds.has(provider.providerId))
+    const tombstones = readDeletedPresetProviderIds(tx)
+    const newProviders = providers.filter(
+      (provider) => !existingIds.has(provider.providerId) && !tombstones.has(provider.providerId)
+    )
 
     if (newProviders.length === 0) return 0
 
@@ -914,11 +951,14 @@ class ProviderService {
   }
 
   /**
-   * Delete a provider. Canonical preset providers (where providerId === presetProviderId)
-   * cannot be deleted. User-created providers that inherit from a preset can be deleted.
+   * Delete a provider, recording deleted presets so seeding cannot resurrect them.
+   * Managed Cherry and local embedding providers remain protected.
    */
   delete(providerId: string): void {
     assertManagedCherryProviderMutationAllowed(providerId, `delete provider ${providerId}`)
+    if (providerId === LOCAL_EMBEDDING_PROVIDER_ID) {
+      throw DataApiErrorFactory.invalidOperation('Cannot delete the managed local embedding provider')
+    }
 
     const deletedModelCount = application.get('DbService').withWriteTx((tx) => {
       const [provider] = tx
@@ -933,16 +973,15 @@ class ProviderService {
 
       assertProviderAvailable(provider, providerId)
 
-      // Block deletion of canonical preset rows. `presetProviderId === providerId`
-      // covers presets that group under themselves; the registry check also
-      // covers presets that group under a different preset (e.g. zai → zhipu,
-      // minimax-global → minimax) whose presetProviderId no longer equals their id.
+      // Grouped registry presets also need tombstones when their IDs differ.
       const providerRegistryService = getDataService('ProviderRegistryService')
       if (
         (provider.presetProviderId && provider.presetProviderId === providerId) ||
         (provider.presetProviderId !== null && providerRegistryService.isRegistryProvider(providerId))
       ) {
-        throw DataApiErrorFactory.invalidOperation(`Cannot delete preset provider '${providerId}'`)
+        const tombstones = readDeletedPresetProviderIds(tx)
+        tombstones.add(providerId)
+        writeDeletedPresetProviderIds(tx, tombstones)
       }
 
       const models = tx
