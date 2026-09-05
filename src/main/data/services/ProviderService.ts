@@ -7,7 +7,6 @@
  */
 
 import { application } from '@application'
-import { appStateTable } from '@data/db/schemas/appState'
 import { providerLogoFileRefTable } from '@data/db/schemas/fileRelations'
 import { userModelTable } from '@data/db/schemas/userModel'
 import type { InsertUserProviderRow, UserProviderRow } from '@data/db/schemas/userProvider'
@@ -16,6 +15,7 @@ import { type SqliteErrorHandlers, withSqliteErrors } from '@data/db/sqliteError
 import type { DbType } from '@data/db/types'
 import { getDataService, registerDataService } from '@data/services/dataServiceRegistry'
 import { pinService } from '@data/services/PinService'
+import type { ProviderDisplayMetadata } from '@data/services/ProviderRegistryService'
 import { applyMoves, insertManyWithOrderKey, insertWithOrderKey } from '@data/services/utils/orderKey'
 import {
   clearSingleFileRefTx,
@@ -24,11 +24,11 @@ import {
   reconcileLogoSlotTx
 } from '@data/services/utils/singleFileRef'
 import { loggerService } from '@logger'
+import { getAppEdition } from '@main/utils/appEdition'
 import { DataApiError, DataApiErrorFactory, ErrorCode } from '@shared/data/api/errors'
 import type { OrderBatchRequest, OrderRequest } from '@shared/data/api/schemas/_endpointHelpers'
 import type { CreateProviderDto, ListProvidersQuery, UpdateProviderDto } from '@shared/data/api/schemas/providers'
-import { isManagedCherryAiProviderId } from '@shared/data/presets/cherryai'
-import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
+import { isManagedCherryProviderId } from '@shared/data/presets/cherryai'
 import type { EndpointType } from '@shared/data/types/model'
 import type {
   ApiKeyEntry,
@@ -41,7 +41,7 @@ import type {
 import { DEFAULT_PROVIDER_SETTINGS } from '@shared/data/types/provider'
 import { maskApiKey } from '@shared/utils/api'
 import { resolveEndpointDialect } from '@shared/utils/provider'
-import { and, asc, eq, type SQLWrapper } from 'drizzle-orm'
+import { and, asc, eq, inArray, type SQLWrapper } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 
 import { isRetiredProvider } from '../retiredProviders'
@@ -69,35 +69,23 @@ function applyJsonMergePatch(target: unknown, patch: unknown): unknown {
 type NewUserProviderInput = Omit<InsertUserProviderRow, 'orderKey'>
 type ProviderIdentity = Pick<UserProviderRow, 'providerId' | 'presetProviderId'>
 
-/** app_state key listing preset provider ids the user deleted; seeding must not re-insert them. */
-const DELETED_PRESET_PROVIDERS_KEY = 'providers:deletedPresetIds'
-
-type TombstoneTx = Pick<DbType, 'select' | 'insert'>
-
-function readDeletedPresetProviderIds(tx: TombstoneTx): Set<string> {
-  const [row] = tx
-    .select({ value: appStateTable.value })
-    .from(appStateTable)
-    .where(eq(appStateTable.key, DELETED_PRESET_PROVIDERS_KEY))
-    .limit(1)
-    .all()
-  const ids = (row?.value as { ids?: string[] } | undefined)?.ids
-  return new Set(Array.isArray(ids) ? ids : [])
+function isProviderAvailableInCurrentEdition(provider: Pick<Provider, 'availableInEditions'>): boolean {
+  const availableInEditions = provider.availableInEditions
+  return !availableInEditions || availableInEditions.includes(getAppEdition())
 }
 
-function writeDeletedPresetProviderIds(tx: TombstoneTx, ids: Set<string>): void {
-  const value = { ids: [...ids] }
-  tx.insert(appStateTable)
-    .values({
-      key: DELETED_PRESET_PROVIDERS_KEY,
-      value,
-      description: 'Preset providers deleted by the user; seeding skips these ids'
-    })
-    .onConflictDoUpdate({
-      target: appStateTable.key,
-      set: { value, updatedAt: Date.now() }
-    })
-    .run()
+function getAvailableProviderMetadata(row: ProviderIdentity): ProviderDisplayMetadata | null {
+  if (isRetiredProvider(row.providerId, row.presetProviderId)) return null
+
+  const metadata = getDataService('ProviderRegistryService').getProviderDisplayMetadata(
+    row.providerId,
+    row.presetProviderId
+  )
+  return isProviderAvailableInCurrentEdition(metadata) ? metadata : null
+}
+
+function isProviderIdentityAvailable(row: ProviderIdentity): boolean {
+  return getAvailableProviderMetadata(row) !== null
 }
 
 /**
@@ -140,27 +128,27 @@ function maskApiKeyForSnapshot(key: string): string {
   return masked === key ? '****' : masked
 }
 
-function assertManagedCherryAiProviderPatchAllowed(providerId: string, dto: UpdateProviderDto): void {
-  if (!isManagedCherryAiProviderId(providerId) || Object.keys(dto).length === 0) {
+function assertManagedCherryProviderPatchAllowed(providerId: string, dto: UpdateProviderDto): void {
+  if (!isManagedCherryProviderId(providerId) || Object.keys(dto).length === 0) {
     return
   }
 
-  assertManagedCherryAiProviderMutationAllowed(providerId, `update provider ${providerId}`)
+  assertManagedCherryProviderMutationAllowed(providerId, `update provider ${providerId}`)
 }
 
-function assertManagedCherryAiProviderMutationAllowed(providerId: string, operation: string): void {
-  if (!isManagedCherryAiProviderId(providerId)) {
+function assertManagedCherryProviderMutationAllowed(providerId: string, operation: string): void {
+  if (!isManagedCherryProviderId(providerId)) {
     return
   }
 
-  throw DataApiErrorFactory.invalidOperation(operation, 'managed CherryAI provider cannot be modified')
+  throw DataApiErrorFactory.invalidOperation(operation, 'managed Cherry provider cannot be modified')
 }
 
 function assertProviderAvailable<T extends ProviderIdentity>(
   row: T | null | undefined,
   providerId: string
 ): asserts row is T {
-  if (!row || isRetiredProvider(row.providerId, row.presetProviderId)) {
+  if (!row || !isProviderIdentityAvailable(row)) {
     throw DataApiErrorFactory.notFound('Provider', providerId)
   }
 }
@@ -273,9 +261,10 @@ function projectEndpointConfigOverrides(
 /**
  * Convert database row to Provider entity
  */
-function rowToRuntimeProvider(row: UserProviderRow): Provider {
+function rowToRuntimeProvider(row: UserProviderRow, metadata?: ProviderDisplayMetadata): Provider {
   const providerRegistryService = getDataService('ProviderRegistryService')
-  const presetMetadata = providerRegistryService.getProviderDisplayMetadata(row.providerId, row.presetProviderId)
+  const presetMetadata =
+    metadata ?? providerRegistryService.getProviderDisplayMetadata(row.providerId, row.presetProviderId)
 
   // Process API keys (strip actual key values for security)
   // oxlint-disable-next-line no-unused-vars
@@ -309,6 +298,7 @@ function rowToRuntimeProvider(row: UserProviderRow): Provider {
     logoSrc: logoFileId ? application.get('FileManager').getUrl(logoFileId) : undefined,
     description: presetMetadata.description,
     websites: presetMetadata.websites,
+    availableInEditions: presetMetadata.availableInEditions,
     // Registry-owned connection facts (adapterFamily, modelsApiUrls, the
     // endpoint-type key set) resolve from the CURRENT registry at read time
     // (#17096 — the seeder is insert-only, so the row alone goes stale);
@@ -372,7 +362,65 @@ class ProviderService {
             .all()
         : db.select().from(userProviderTable).orderBy(asc(userProviderTable.orderKey)).all()
 
-    return rows.filter((row) => !isRetiredProvider(row.providerId, row.presetProviderId)).map(rowToRuntimeProvider)
+    const providers: Provider[] = []
+    for (const row of rows) {
+      const metadata = getAvailableProviderMetadata(row)
+      if (metadata) providers.push(rowToRuntimeProvider(row, metadata))
+    }
+    return providers
+  }
+
+  /** Return matching provider IDs available to runtime callers in this application edition. */
+  listAvailableProviderIds(providerIds?: Iterable<string>): Set<string> {
+    const ids = providerIds ? [...new Set(providerIds)] : undefined
+    if (ids?.length === 0) return new Set()
+
+    const rows = application
+      .get('DbService')
+      .getDb()
+      .select({
+        providerId: userProviderTable.providerId,
+        presetProviderId: userProviderTable.presetProviderId
+      })
+      .from(userProviderTable)
+      .where(ids ? inArray(userProviderTable.providerId, ids) : undefined)
+      .all()
+
+    return new Set(rows.filter(isProviderIdentityAvailable).map((row) => row.providerId))
+  }
+
+  /** Check whether a persisted provider is available to runtime callers in this application edition. */
+  isAvailableByProviderId(providerId: string): boolean {
+    const [row] = application
+      .get('DbService')
+      .getDb()
+      .select({
+        providerId: userProviderTable.providerId,
+        presetProviderId: userProviderTable.presetProviderId
+      })
+      .from(userProviderTable)
+      .where(eq(userProviderTable.providerId, providerId))
+      .limit(1)
+      .all()
+
+    return row !== undefined && isProviderIdentityAvailable(row)
+  }
+
+  /** Assert that a persisted provider is available to runtime callers in this application edition. */
+  assertAvailable(providerId: string): void {
+    const [row] = application
+      .get('DbService')
+      .getDb()
+      .select({
+        providerId: userProviderTable.providerId,
+        presetProviderId: userProviderTable.presetProviderId
+      })
+      .from(userProviderTable)
+      .where(eq(userProviderTable.providerId, providerId))
+      .limit(1)
+      .all()
+
+    assertProviderAvailable(row, providerId)
   }
 
   /**
@@ -394,7 +442,7 @@ class ProviderService {
     if (isRetiredProvider(dto.providerId, dto.presetProviderId)) {
       throw DataApiErrorFactory.invalidOperation(`create provider ${dto.providerId}`, 'provider is retired')
     }
-    assertManagedCherryAiProviderMutationAllowed(dto.providerId, `create provider ${dto.providerId}`)
+    assertManagedCherryProviderMutationAllowed(dto.providerId, `create provider ${dto.providerId}`)
 
     const endpointConfigs = projectEndpointConfigOverrides(
       dto.endpointConfigs,
@@ -405,6 +453,12 @@ class ProviderService {
       dto.providerId,
       dto.presetProviderId ?? null
     )
+    if (!isProviderAvailableInCurrentEdition(presetMetadata)) {
+      throw DataApiErrorFactory.invalidOperation(
+        `create provider ${dto.providerId}`,
+        'provider is unavailable in the current application edition'
+      )
+    }
     const defaultChatEndpoint =
       dto.defaultChatEndpoint !== presetMetadata.defaultChatEndpoint ? (dto.defaultChatEndpoint ?? null) : null
 
@@ -413,11 +467,6 @@ class ProviderService {
         application.get('DbService').withWriteTx((tx) => {
           const logoCols = reconcileLogoSlotTx(tx, providerLogoFileRefTable, dto.providerId, dto.logo) ?? {
             logoKey: null
-          }
-          // A deliberate re-create lifts the deletion tombstone for this id.
-          const tombstones = readDeletedPresetProviderIds(tx)
-          if (tombstones.delete(dto.providerId)) {
-            writeDeletedPresetProviderIds(tx, tombstones)
           }
           const values: NewUserProviderInput = {
             providerId: dto.providerId,
@@ -451,7 +500,7 @@ class ProviderService {
    * writes preserve the user's current order.
    */
   update(providerId: string, dto: UpdateProviderInput): Provider {
-    assertManagedCherryAiProviderPatchAllowed(providerId, dto)
+    assertManagedCherryProviderPatchAllowed(providerId, dto)
 
     // Read + merge + write the providerSettings JSON in ONE serialized write
     // transaction. A bare read-then-update would let two concurrent PATCHes both
@@ -561,11 +610,7 @@ class ProviderService {
   batchUpsertTx(tx: Pick<DbType, 'select' | 'insert'>, providers: NewUserProviderInput[]): number {
     const existing = tx.select({ providerId: userProviderTable.providerId }).from(userProviderTable).all()
     const existingIds = new Set(existing.map((row) => row.providerId))
-    // User-deleted preset ids stay deleted across seeding passes.
-    const tombstonedIds = readDeletedPresetProviderIds(tx)
-    const newProviders = providers.filter(
-      (provider) => !existingIds.has(provider.providerId) && !tombstonedIds.has(provider.providerId)
-    )
+    const newProviders = providers.filter((provider) => !existingIds.has(provider.providerId))
 
     if (newProviders.length === 0) return 0
 
@@ -663,7 +708,7 @@ class ProviderService {
    * Returns the updated Provider.
    */
   addApiKey(providerId: string, key: string, label?: string): Provider {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `add API key to provider ${providerId}`)
+    assertManagedCherryProviderMutationAllowed(providerId, `add API key to provider ${providerId}`)
 
     const db = application.get('DbService').getDb()
     const { provider, added } = db.transaction((tx) => {
@@ -715,7 +760,7 @@ class ProviderService {
    * Replace the full API key list via the dedicated API-key resource.
    */
   replaceApiKeys(providerId: string, apiKeys: ApiKeyEntry[]): Provider {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `replace API keys for provider ${providerId}`)
+    assertManagedCherryProviderMutationAllowed(providerId, `replace API keys for provider ${providerId}`)
 
     const db = application.get('DbService').getDb()
     const provider = db.transaction((tx) => {
@@ -763,7 +808,7 @@ class ProviderService {
       isEnabled?: boolean
     }
   ): Provider {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `update API key for provider ${providerId}`)
+    assertManagedCherryProviderMutationAllowed(providerId, `update API key for provider ${providerId}`)
 
     const db = application.get('DbService').getDb()
     const provider = db.transaction((tx) => {
@@ -833,7 +878,7 @@ class ProviderService {
    * Delete an API key by key ID and return updated provider.
    */
   deleteApiKey(providerId: string, keyId: string): Provider {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `delete API key from provider ${providerId}`)
+    assertManagedCherryProviderMutationAllowed(providerId, `delete API key from provider ${providerId}`)
 
     const db = application.get('DbService').getDb()
     const provider = db.transaction((tx) => {
@@ -869,16 +914,11 @@ class ProviderService {
   }
 
   /**
-   * Delete a provider. Preset (seeded) providers are deletable too: their id is
-   * tombstoned in app_state so seeding does not re-insert them. Only the managed
-   * CherryAI and local embedding providers (hidden from the settings list, other
-   * subsystems assume they exist) remain protected.
+   * Delete a provider. Canonical preset providers (where providerId === presetProviderId)
+   * cannot be deleted. User-created providers that inherit from a preset can be deleted.
    */
   delete(providerId: string): void {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `delete provider ${providerId}`)
-    if (providerId === LOCAL_EMBEDDING_PROVIDER_ID) {
-      throw DataApiErrorFactory.invalidOperation(`Cannot delete the managed local embedding provider`)
-    }
+    assertManagedCherryProviderMutationAllowed(providerId, `delete provider ${providerId}`)
 
     const deletedModelCount = application.get('DbService').withWriteTx((tx) => {
       const [provider] = tx
@@ -893,16 +933,16 @@ class ProviderService {
 
       assertProviderAvailable(provider, providerId)
 
-      // Seeded rows resurrect on the next seeding pass (batchUpsertTx re-inserts any
-      // missing preset id), so record the deletion in the tombstone list first.
+      // Block deletion of canonical preset rows. `presetProviderId === providerId`
+      // covers presets that group under themselves; the registry check also
+      // covers presets that group under a different preset (e.g. zai → zhipu,
+      // minimax-global → minimax) whose presetProviderId no longer equals their id.
       const providerRegistryService = getDataService('ProviderRegistryService')
-      const isSeededPresetRow =
-        (provider.presetProviderId != null && provider.presetProviderId === providerId) ||
+      if (
+        (provider.presetProviderId && provider.presetProviderId === providerId) ||
         (provider.presetProviderId !== null && providerRegistryService.isRegistryProvider(providerId))
-      if (isSeededPresetRow) {
-        const tombstones = readDeletedPresetProviderIds(tx)
-        tombstones.add(providerId)
-        writeDeletedPresetProviderIds(tx, tombstones)
+      ) {
+        throw DataApiErrorFactory.invalidOperation(`Cannot delete preset provider '${providerId}'`)
       }
 
       const models = tx
@@ -941,7 +981,8 @@ class ProviderService {
   }
 
   move(providerId: string, anchor: OrderRequest): void {
-    assertManagedCherryAiProviderMutationAllowed(providerId, `move provider ${providerId}`)
+    assertManagedCherryProviderMutationAllowed(providerId, `move provider ${providerId}`)
+    this.assertAvailable(providerId)
 
     const db = application.get('DbService').getDb()
 
@@ -959,7 +1000,8 @@ class ProviderService {
 
   reorder(moves: OrderBatchRequest['moves']): void {
     for (const move of moves) {
-      assertManagedCherryAiProviderMutationAllowed(move.id, `move provider ${move.id}`)
+      assertManagedCherryProviderMutationAllowed(move.id, `move provider ${move.id}`)
+      this.assertAvailable(move.id)
     }
 
     const db = application.get('DbService').getDb()

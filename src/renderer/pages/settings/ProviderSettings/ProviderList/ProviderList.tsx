@@ -6,19 +6,17 @@ import { useProviders } from '@renderer/hooks/useProvider'
 import { providerListClasses } from '@renderer/pages/settings/ProviderSettings/primitives/ProviderSettingsPrimitives'
 import {
   isProviderPresetInstanceSource,
-  isProviderSettingsListVisibleProvider,
   matchKeywordsInProvider
 } from '@renderer/pages/settings/ProviderSettings/utils/providerDisplay'
 import { toast } from '@renderer/services/toast'
-import { cn } from '@renderer/utils/style'
+import { isProviderSettingsListVisibleProvider } from '@renderer/utils/providerSettings'
 import type { Provider } from '@shared/data/types/provider'
 import { canManageProvider } from '@shared/utils/provider'
-import { ListChecks, Plus, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useOvmsSupport } from '../hooks/useOvmsSupport'
-import ProviderEditorDrawer from './ProviderEditorDrawer'
 import type { ProviderFilterMode } from './providerFilterMode'
 import { getGroupedPresetIds } from './providerGrouping'
 import ProviderListContent, { type ProviderListContentItemState } from './ProviderListContent'
@@ -27,6 +25,8 @@ import ProviderListItemWithContextMenu from './ProviderListItemWithContextMenu'
 import ProviderListSearchField from './ProviderListSearchField'
 import { useProviderDelete } from './useProviderDelete'
 import { type ProviderCreationContext, type SubmitProviderEditorParams, useProviderEditor } from './useProviderEditor'
+
+const ProviderEditorDrawer = lazy(() => import('./ProviderEditorDrawer'))
 
 export interface ProviderListProps {
   selectedProviderId?: string
@@ -54,8 +54,6 @@ export default function ProviderList({
   const [dragging, setDragging] = useState(false)
   const [contextProviderId, setContextProviderId] = useState<string | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
-  const [selectionMode, setSelectionMode] = useState(false)
-  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(new Set())
 
   const handleToggleGroup = useCallback((presetProviderId: string) => {
     setExpandedGroups((prev) => ({ ...prev, [presetProviderId]: !prev[presetProviderId] }))
@@ -81,6 +79,25 @@ export default function ProviderList({
     cancel: cancelEditor,
     submit: submitEditor
   } = useProviderEditor({ onProviderCreated: handleProviderCreated })
+  const [editorActivated, setEditorActivated] = useState(false)
+  const openProviderEditor = useCallback(() => {
+    setEditorActivated(true)
+    startAdd()
+  }, [startAdd])
+  const openProviderEditorFrom = useCallback(
+    (provider: Provider) => {
+      setEditorActivated(true)
+      startAddFrom(provider)
+    },
+    [startAddFrom]
+  )
+  const openProviderEditorForEdit = useCallback(
+    (provider: Provider) => {
+      setEditorActivated(true)
+      startEdit(provider)
+    },
+    [startEdit]
+  )
 
   const { deleteProvider } = useProviderDelete()
 
@@ -131,6 +148,7 @@ export default function ProviderList({
   }, [allModels, searchText])
 
   const filteredProviders = useMemo(() => {
+    const keywords = searchText.toLowerCase().split(/\s+/).filter(Boolean)
     return providers.filter((provider) => {
       if (!isProviderSettingsListVisibleProvider(provider)) {
         return false
@@ -144,7 +162,6 @@ export default function ProviderList({
       if (filterMode === 'disabled' && provider.isEnabled) {
         return false
       }
-      const keywords = searchText.toLowerCase().split(/\s+/).filter(Boolean)
       return matchKeywordsInProvider(keywords, provider, providerModelsIndex?.get(provider.id))
     })
   }, [filterMode, isOvmsSupported, providers, providerModelsIndex, searchText])
@@ -264,51 +281,6 @@ export default function ProviderList({
     [deleteProvider, t]
   )
 
-  const exitSelectionMode = useCallback(() => {
-    setSelectionMode(false)
-    setCheckedIds(new Set())
-  }, [])
-
-  const toggleChecked = useCallback((providerId: string) => {
-    setCheckedIds((prev) => {
-      const next = new Set(prev)
-      if (!next.delete(providerId)) next.add(providerId)
-      return next
-    })
-  }, [])
-
-  const toggleSelectAllVisible = useCallback(() => {
-    setCheckedIds((prev) => {
-      if (prev.size === filteredProviders.length) return new Set()
-      return new Set(filteredProviders.map((provider) => provider.id))
-    })
-  }, [filteredProviders])
-
-  const handleBatchDelete = useCallback(async () => {
-    const targetIds = [...checkedIds]
-    if (targetIds.length === 0) return
-    await ConfirmActionPopup.show({
-      title: t('settings.provider.batch.delete_title'),
-      content: t('settings.provider.batch.delete_content', { count: targetIds.length }),
-      danger: true,
-      okText: t('common.delete'),
-      action: async () => {
-        let failed = 0
-        for (const providerId of targetIds) {
-          try {
-            await deleteProvider(providerId)
-          } catch {
-            failed += 1
-          }
-        }
-        if (failed > 0) {
-          toast.error(t('settings.provider.batch.delete_failed', { count: failed }))
-        }
-        exitSelectionMode()
-      }
-    })
-  }, [checkedIds, deleteProvider, exitSelectionMode, t])
-
   const renderProviderItem = (provider: Provider, _index: number, state: ProviderListContentItemState) => {
     const showManagementActions = (providerCounts.get(provider.id) ?? 0) > 1 || canManageProvider(provider)
     const selected = provider.id === selectedProviderId
@@ -320,69 +292,31 @@ export default function ProviderList({
         contextOpen={contextProviderId === provider.id}
         onContextOpenChange={(open) => setContextProviderId(open ? provider.id : null)}
         onSelect={() => onSelectProvider(provider.id)}
-        onEdit={() => startEdit(provider)}
+        onEdit={() => openProviderEditorForEdit(provider)}
         onDelete={() => handleDeleteProvider(provider.id)}
         onDuplicate={
           provider.presetProviderId && !groupedPresetIds.has(provider.presetProviderId)
-            ? () => startAddFrom(provider)
+            ? () => openProviderEditorFrom(provider)
             : undefined
         }
         showManagementActions={showManagementActions}
         listState={state}
         onSetListItemRef={setProviderItemRef}
-        selectionMode={selectionMode}
-        checked={checkedIds.has(provider.id)}
-        onToggleChecked={() => toggleChecked(provider.id)}
       />
     )
   }
 
-  const handleAddAnother = useCallback((template: Provider) => startAddFrom(template), [startAddFrom])
+  const handleAddAnother = openProviderEditorFrom
   const addProviderButton = (
     <button
       type="button"
       aria-label={t('settings.provider.add.button_title')}
       disabled={dragging}
-      onClick={startAdd}
-      className={cn(providerListClasses.addButton, 'flex-1')}>
+      onClick={openProviderEditor}
+      className={providerListClasses.addButton}>
       <Plus size={14} strokeWidth={2.5} />
       <span>{t('settings.provider.add.button_title')}</span>
     </button>
-  )
-
-  const footerContent = selectionMode ? (
-    <div className="flex w-full items-center gap-1.5">
-      <button
-        type="button"
-        onClick={toggleSelectAllVisible}
-        className={cn(providerListClasses.addButton, 'w-auto flex-1')}>
-        {t('settings.provider.batch.select_all')}
-      </button>
-      <button
-        type="button"
-        disabled={checkedIds.size === 0}
-        onClick={handleBatchDelete}
-        className={cn(providerListClasses.addButton, 'w-auto flex-1 text-error hover:text-error')}>
-        <Trash2 size={13} />
-        <span>{t('settings.provider.batch.delete_selected', { count: checkedIds.size })}</span>
-      </button>
-      <button type="button" onClick={exitSelectionMode} className={cn(providerListClasses.addButton, 'w-auto flex-1')}>
-        {t('common.cancel')}
-      </button>
-    </div>
-  ) : (
-    <div className="flex w-full items-center gap-1.5">
-      {addProviderButton}
-      <button
-        type="button"
-        aria-label={t('settings.provider.batch.button_title')}
-        title={t('settings.provider.batch.button_title')}
-        disabled={dragging}
-        onClick={() => setSelectionMode(true)}
-        className={cn(providerListClasses.addButton, 'w-auto shrink-0 px-2.5')}>
-        <ListChecks size={14} />
-      </button>
-    </div>
   )
 
   return (
@@ -415,16 +349,20 @@ export default function ProviderList({
         onReorderError={handleReorderError}
         renderItem={renderProviderItem}
       />
-      <div className={providerListClasses.addFooter}>{footerContent}</div>
-      <ProviderEditorDrawer
-        open={editorOpen}
-        mode={editorMode}
-        initialLogo={initialLogo}
-        presetSources={presetSources}
-        onClose={cancelEditor}
-        onSelectPreset={startAddFrom}
-        onSubmit={handleSubmitEditor}
-      />
+      <div className={providerListClasses.addFooter}>{addProviderButton}</div>
+      {editorActivated ? (
+        <Suspense fallback={null}>
+          <ProviderEditorDrawer
+            open={editorOpen}
+            mode={editorMode}
+            initialLogo={initialLogo}
+            presetSources={presetSources}
+            onClose={cancelEditor}
+            onSelectPreset={startAddFrom}
+            onSubmit={handleSubmitEditor}
+          />
+        </Suspense>
+      ) : null}
     </aside>
   )
 }
