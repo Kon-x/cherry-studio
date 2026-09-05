@@ -90,7 +90,7 @@ async function requestBatchedFileRecords<Route extends FileBatchRoute>(
       }
     })
   )
-  return Object.assign({}, ...results) as OutputFor<Route>
+  return Object.assign({}, ...results)
 }
 
 async function requestBatchedFileMutation(

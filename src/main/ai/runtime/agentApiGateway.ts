@@ -3,12 +3,9 @@
  * provider policy or wire protocol requires the gateway. Owns the consent →
  * convergence → key sequence.
  */
-import { createHash } from 'node:crypto'
 
-import { application } from '@application'
 import { CHERRY_CLOUD_PROVIDER_ID } from '@shared/data/presets/cherryai'
 import { API_GATEWAY_REQUIRED_I18N_KEY } from '@shared/types/apiGateway'
-import { gatewayClientOrigin } from '@shared/utils/apiGateway'
 
 /** Whether Agent traffic for this provider must pass through Cherry's local API Gateway. */
 export function requiresAgentGateway(providerId: string): boolean {
@@ -44,7 +41,7 @@ export class ApiGatewayNotRunningError extends Error {
  *
  * Fork: API Gateway removed, function disabled.
  */
-export async function resolveApiGatewayRuntime(sessionId: string): Promise<{
+export async function resolveApiGatewayRuntime(): Promise<{
   baseUrl: string
   apiKey: string
   usageHeaders: Record<string, string>
