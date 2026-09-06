@@ -185,12 +185,7 @@ export class PiRuntimeConnection implements AgentRuntimeConnection {
   async start(): Promise<this> {
     const resolveInjection = async (snapshot: PiConnectionSnapshot): Promise<PiProviderInjection> => {
       try {
-        return await resolvePiProviderInjectionForSession(
-          this.input.sessionId,
-          snapshot.provider,
-          snapshot.model,
-          snapshot.enabledApiKeys
-        )
+        return await resolvePiProviderInjectionForSession(snapshot.provider, snapshot.model, snapshot.enabledApiKeys)
       } catch (error) {
         if (error instanceof ApiGatewayNotRunningError) {
           application.get('IpcApiService').broadcast('api_gateway.required', { sessionId: this.input.sessionId })

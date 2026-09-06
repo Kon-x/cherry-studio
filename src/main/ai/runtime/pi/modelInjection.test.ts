@@ -1,4 +1,4 @@
-import type * as AgentApiGateway from '@main/ai/runtime/agentApiGateway'
+import { ApiGatewayNotRunningError } from '@main/ai/runtime/agentApiGateway'
 import { CHERRY_CLOUD_MODEL_GROUP, CHERRY_CLOUD_PROVIDER_ID } from '@shared/data/presets/cherryai'
 import type { Model } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
@@ -9,8 +9,7 @@ const serviceMocks = vi.hoisted(() => ({
   getApiKeys: vi.fn(),
   resolveApiKey: vi.fn(),
   getByKey: vi.fn(),
-  hasToken: vi.fn(),
-  resolveApiGatewayRuntime: vi.fn()
+  hasToken: vi.fn()
 }))
 
 vi.mock('@data/services/ProviderService', () => ({
@@ -27,10 +26,6 @@ vi.mock('@application', async () => {
     OAuthRuntimeService: { hasToken: serviceMocks.hasToken }
   } as never)
 })
-vi.mock('@main/ai/runtime/agentApiGateway', async (importOriginal) => ({
-  ...(await importOriginal<typeof AgentApiGateway>()),
-  resolveApiGatewayRuntime: serviceMocks.resolveApiGatewayRuntime
-}))
 
 import {
   assertPiProviderUsable,
@@ -548,14 +543,8 @@ describe('Cherry Cloud Pi injection', () => {
     expect(injection.usageCapture).toEqual({ owner: 'provider-calls' })
   })
 
-  it('requires the enabled local gateway before materializing the Cloud route', async () => {
-    serviceMocks.resolveApiGatewayRuntime.mockResolvedValue(GATEWAY)
-
-    await expect(resolvePiProviderInjectionForSession('session-1', provider, model)).resolves.toMatchObject({
-      modelId: 'cherryai-subscription:deepseek-free',
-      apiKey: GATEWAY_KEY
-    })
-    expect(serviceMocks.resolveApiGatewayRuntime).toHaveBeenCalledWith('session-1')
+  it('rejects Cloud materialization without consuming provider credentials', async () => {
+    await expect(resolvePiProviderInjectionForSession(provider, model)).rejects.toThrow(ApiGatewayNotRunningError)
     expect(serviceMocks.resolveApiKey).not.toHaveBeenCalled()
   })
 })
@@ -581,7 +570,6 @@ function stubGrokCliServices(): void {
 describe('modelInjection service resolution', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    serviceMocks.resolveApiGatewayRuntime.mockResolvedValue(GATEWAY)
     serviceMocks.getByProviderId.mockResolvedValue({
       id: 'p',
       name: 'P',

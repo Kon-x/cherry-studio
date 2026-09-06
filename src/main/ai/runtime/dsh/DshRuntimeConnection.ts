@@ -221,7 +221,6 @@ export class DshRuntimeConnection implements AgentRuntimeConnection {
     const resolveInjection = async (snapshot: DshConnectionSnapshot): Promise<DshProviderInjection> => {
       try {
         return await resolveDshProviderInjectionFromSnapshot(
-          this.input.sessionId,
           snapshot.provider,
           snapshot.model,
           snapshot.enabledApiKeys,

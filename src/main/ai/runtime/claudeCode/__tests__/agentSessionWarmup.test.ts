@@ -654,7 +654,7 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     expect(mocks.apiGatewayStart).not.toHaveBeenCalled()
   })
 
-  it('routes an OpenCode Go OpenAI-compatible model through the gateway despite its Anthropic endpoint', async () => {
+  it('rejects OpenCode models that require the removed gateway', async () => {
     mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'opencode::deepseek-v4-pro' })
     mocks.getProviderByProviderId.mockReturnValue({
       id: 'opencode',
@@ -671,15 +671,10 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     })
     mocks.getLastRuntimeResumeToken.mockReturnValue(null)
 
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-
-    expect(mocks.apiGatewayEnsureKey).toHaveBeenCalled()
-    expect(request?.sdkModelId).toBe('opencode:deepseek-v4-pro')
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:23333',
-      ANTHROPIC_MODEL: 'opencode:deepseek-v4-pro'
-    })
-    expect(request?.usageCapture).toEqual({ owner: 'provider-calls' })
+    await expect(buildClaudeCodeQueryRequestForAgentSession('session-1')).rejects.toBeInstanceOf(
+      ApiGatewayNotRunningError
+    )
+    expect(mocks.resolveApiKey).not.toHaveBeenCalled()
   })
 
   it('routes a model that declares Anthropic Messages behind another dialect directly', async () => {
@@ -715,7 +710,7 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     })
   })
 
-  it('routes Cherry Cloud models through the local gateway regardless of endpoint type', async () => {
+  it('rejects Cherry Cloud models that require the removed gateway', async () => {
     mocks.getAgent.mockReturnValue({ id: 'agent-1', model: `${CHERRY_CLOUD_PROVIDER_ID}::deepseek-free` })
     mocks.getProviderByProviderId.mockReturnValue({
       id: CHERRY_CLOUD_PROVIDER_ID,
@@ -739,17 +734,9 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     mocks.apiGatewayIsRunning.mockReturnValue(false)
     mocks.apiGatewayEnsureRunning.mockImplementation(async () => mocks.apiGatewayIsRunning.mockReturnValue(true))
 
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-    const current = await deriveConnectionConfig('session-1')
-
-    if (!current.ok) throw new Error('expected ok derive')
-    expect(mocks.apiGatewayEnsureKey).toHaveBeenCalled()
-    expect(mocks.apiGatewayEnsureRunning).toHaveBeenCalledOnce()
-    expect(request?.connectionConfig.rebuildSignature).toBe(current.config.rebuildSignature)
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:23333',
-      ANTHROPIC_MODEL: `${CHERRY_CLOUD_PROVIDER_ID}:deepseek-free`
-    })
+    await expect(buildClaudeCodeQueryRequestForAgentSession('session-1')).rejects.toBeInstanceOf(
+      ApiGatewayNotRunningError
+    )
     expect(mocks.resolveApiKey).not.toHaveBeenCalled()
   })
 
@@ -777,7 +764,7 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     expect(mocks.apiGatewayEnsureKey).not.toHaveBeenCalled()
   })
 
-  it('routes a declared Anthropic model through the gateway when the provider configures no Messages base URL', async () => {
+  it('rejects an Anthropic model without a Messages base URL', async () => {
     // Without a Messages base URL there is nothing to point ANTHROPIC_BASE_URL at; falling back to the
     // effective host would post Messages bodies at an OpenAI-compatible endpoint.
     mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'custom::relay-model' })
@@ -793,13 +780,10 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     })
     mocks.getLastRuntimeResumeToken.mockReturnValue(null)
 
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-
-    expect(mocks.apiGatewayEnsureKey).toHaveBeenCalled()
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:23333',
-      ANTHROPIC_MODEL: 'custom:relay-model'
-    })
+    await expect(buildClaudeCodeQueryRequestForAgentSession('session-1')).rejects.toBeInstanceOf(
+      ApiGatewayNotRunningError
+    )
+    expect(mocks.resolveApiKey).not.toHaveBeenCalled()
   })
 
   it('captures distinct same-provider models for direct-route usage attribution', async () => {
@@ -917,7 +901,7 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     })
   })
 
-  it('routes non-Anthropic provider models through the local API gateway', async () => {
+  it('rejects cross-provider models that require the removed gateway', async () => {
     mocks.getAgent.mockReturnValue({
       id: 'agent-1',
       model: 'openai::gpt-main',
@@ -941,23 +925,10 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     })
     mocks.getLastRuntimeResumeToken.mockReturnValue(null)
 
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-
-    expect(mocks.apiGatewayEnsureKey).toHaveBeenCalled()
-    expect(request?.sdkModelId).toBe('openai:gpt-main-api')
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:24444',
-      ANTHROPIC_API_KEY: 'gateway-key',
-      ANTHROPIC_AUTH_TOKEN: 'gateway-key',
-      ANTHROPIC_MODEL: 'openai:gpt-main-api',
-      ANTHROPIC_DEFAULT_OPUS_MODEL: 'openai:gpt-main-api',
-      ANTHROPIC_DEFAULT_SONNET_MODEL: 'openai:gpt-plan-api',
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'other:small-api'
-    })
-    expect(request?.settings.env?.ANTHROPIC_CUSTOM_HEADERS).toBe(
-      'x-cherry-agent-session-id: session-1\nx-cherry-internal-usage-token: internal-token'
+    await expect(buildClaudeCodeQueryRequestForAgentSession('session-1')).rejects.toBeInstanceOf(
+      ApiGatewayNotRunningError
     )
-    expect(request?.usageCapture).toEqual({ owner: 'provider-calls' })
+    expect(mocks.resolveApiKey).not.toHaveBeenCalled()
   })
 
   // The gateway is never started implicitly (#18521); the caller turns this into the prompt that
@@ -978,102 +949,6 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     expect(mocks.apiGatewayStart).not.toHaveBeenCalled()
     expect(mocks.apiGatewayEnsureRunning).not.toHaveBeenCalled()
     expect(mocks.apiGatewayEnsureKey).not.toHaveBeenCalled()
-  })
-
-  // `!isRunning()` is not consent: the gateway is also down while binding at boot, mid-restart, or
-  // after a failed activation. Prompting there would ask the user to enable what they already did.
-  it('converges an enabled-but-not-yet-listening gateway instead of asking for consent again', async () => {
-    mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'openai::gpt-main' })
-    mocks.getProviderByProviderId.mockReturnValue({
-      id: 'openai',
-      endpointConfigs: { 'openai-chat-completions': { baseUrl: 'https://openai.example.com' } }
-    })
-    mocks.getModelByKey.mockReturnValue({ id: 'gpt-main', apiModelId: 'gpt-main-api' })
-    mocks.apiGatewayIsRunning.mockReturnValue(false)
-
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-
-    // `ensureRunning`, never `start`: converging must not be able to re-persist the intent.
-    expect(mocks.apiGatewayEnsureRunning).toHaveBeenCalled()
-    expect(mocks.apiGatewayStart).not.toHaveBeenCalled()
-    expect(request?.settings.env).toMatchObject({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:23333' })
-  })
-
-  it('bypasses the materialized API gateway host without making the rebuild baseline stale', async () => {
-    const proxyUrl = 'http://remote-proxy.example:7890'
-    mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'openai::gpt-main' })
-    mocks.getProviderByProviderId.mockReturnValue({
-      id: 'openai',
-      endpointConfigs: { 'openai-chat-completions': { baseUrl: 'https://openai.example.com' } }
-    })
-    mocks.getModelByKey.mockReturnValue({ id: 'gpt-main', apiModelId: 'gpt-main' })
-    mocks.apiGatewayGetCurrentConfig.mockReturnValue({
-      enabled: true,
-      host: '127.0.0.2',
-      port: 23333,
-      apiKey: 'gateway-key'
-    })
-    mocks.getProxyEnvironment.mockReturnValue({ HTTP_PROXY: proxyUrl })
-    mocks.buildSessionSettings.mockResolvedValue({ env: { HTTP_PROXY: proxyUrl } })
-
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-    const current = await deriveConnectionConfig('session-1')
-
-    if (!request || !current.ok) throw new Error('expected materialized request and current config')
-    expect(request.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.2:23333',
-      NO_PROXY: 'localhost,127.0.0.1,::1,[::1],127.0.0.2',
-      no_proxy: 'localhost,127.0.0.1,::1,[::1],127.0.0.2'
-    })
-    expect(request.connectionConfig.rebuildSignature).toBe(current.config.rebuildSignature)
-  })
-
-  it('carries Codex Fast through the internal gateway header', async () => {
-    mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'openai-codex::gpt-5-4' })
-    mocks.getProviderByProviderId.mockReturnValue({
-      id: 'openai-codex',
-      fastMode: { transport: 'openai-priority' },
-      endpointConfigs: { 'openai-responses': { baseUrl: 'https://chatgpt.com/backend-api/codex' } }
-    })
-    mocks.getModelByKey.mockReturnValue({
-      id: 'gpt-5-4',
-      apiModelId: 'gpt-5.4',
-      supportsFastMode: true
-    })
-    mocks.getLastRuntimeResumeToken.mockReturnValue(null)
-
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1', undefined, undefined, 'default', true)
-
-    // `mergeAnthropicCustomHeaders` canonicalizes to a case-insensitively sorted, deduplicated list.
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_CUSTOM_HEADERS:
-        'x-cherry-agent-session-id: session-1\nX-Cherry-Fast-Mode: true\nX-Cherry-Internal-Request-Token: internal-request-token\nx-cherry-internal-usage-token: internal-token'
-    })
-  })
-
-  it('preserves existing Anthropic custom headers when enabling Codex Fast', async () => {
-    mocks.getAgent.mockReturnValue({ id: 'agent-1', model: 'openai-codex::gpt-5-4' })
-    mocks.getProviderByProviderId.mockReturnValue({
-      id: 'openai-codex',
-      fastMode: { transport: 'openai-priority' },
-      endpointConfigs: { 'openai-responses': { baseUrl: 'https://chatgpt.com/backend-api/codex' } }
-    })
-    mocks.getModelByKey.mockReturnValue({
-      id: 'gpt-5-4',
-      apiModelId: 'gpt-5.4',
-      supportsFastMode: true
-    })
-    mocks.getLastRuntimeResumeToken.mockReturnValue(null)
-    mocks.buildSessionSettings.mockResolvedValueOnce({
-      env: { ANTHROPIC_CUSTOM_HEADERS: 'X-Custom-Header: retained' }
-    })
-
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1', undefined, undefined, 'default', true)
-
-    // Sorted canonical order — the retained custom header survives the merge.
-    expect(request?.settings.env?.ANTHROPIC_CUSTOM_HEADERS).toBe(
-      'x-cherry-agent-session-id: session-1\nX-Cherry-Fast-Mode: true\nX-Cherry-Internal-Request-Token: internal-request-token\nx-cherry-internal-usage-token: internal-token\nX-Custom-Header: retained'
-    )
   })
 
   it('pins cross-provider plan/small models onto the primary for an external-cli (claude-code) agent instead of routing through the gateway', async () => {
@@ -1161,7 +1036,7 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     )
   })
 
-  it('routes Gemini provider models through the local API gateway', async () => {
+  it('rejects Gemini models that require protocol bridging', async () => {
     mocks.getAgent.mockReturnValue({
       id: 'agent-1',
       model: 'gemini::gemini-2.5-pro'
@@ -1176,20 +1051,10 @@ describe('buildClaudeCodeQueryRequestForAgentSession resume-token precedence', (
     mocks.getModelByKey.mockReturnValue({ id: 'gemini-2.5-pro', apiModelId: 'gemini-2.5-pro' })
     mocks.getLastRuntimeResumeToken.mockReturnValue(null)
 
-    const request = await buildClaudeCodeQueryRequestForAgentSession('session-1')
-
-    expect(mocks.apiGatewayEnsureKey).toHaveBeenCalled()
-    expect(mocks.apiGatewayStart).not.toHaveBeenCalled()
-    expect(request?.sdkModelId).toBe('gemini:gemini-2.5-pro')
-    expect(request?.settings.env).toMatchObject({
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:23333',
-      ANTHROPIC_API_KEY: 'gateway-key',
-      ANTHROPIC_AUTH_TOKEN: 'gateway-key',
-      ANTHROPIC_MODEL: 'gemini:gemini-2.5-pro',
-      ANTHROPIC_DEFAULT_OPUS_MODEL: 'gemini:gemini-2.5-pro',
-      ANTHROPIC_DEFAULT_SONNET_MODEL: 'gemini:gemini-2.5-pro',
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'gemini:gemini-2.5-pro'
-    })
+    await expect(buildClaudeCodeQueryRequestForAgentSession('session-1')).rejects.toBeInstanceOf(
+      ApiGatewayNotRunningError
+    )
+    expect(mocks.resolveApiKey).not.toHaveBeenCalled()
   })
 })
 
@@ -1253,7 +1118,7 @@ describe('deriveConnectionConfig', () => {
     expect(mocks.buildSessionSettings).not.toHaveBeenCalled()
   })
 
-  it('does not start the gateway even when the route resolves to it', async () => {
+  it('marks gateway-bound routes as unroutable', async () => {
     mocks.getAgent.mockReturnValue({
       id: 'agent-1',
       model: 'provider-1::model-1',
@@ -1266,43 +1131,9 @@ describe('deriveConnectionConfig', () => {
 
     const result = await deriveConnectionConfig('session-1')
 
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
     expect(mocks.apiGatewayEnsureKey).not.toHaveBeenCalled()
     expect(mocks.apiGatewayStart).not.toHaveBeenCalled()
-  })
-
-  it('changes a Cloud route rebuild signature when the gateway key changes', async () => {
-    mocks.getAgent.mockReturnValue({
-      id: 'agent-1',
-      model: `${CHERRY_CLOUD_PROVIDER_ID}::deepseek-free`,
-      disabledTools: [],
-      mcps: [],
-      configuration: {}
-    })
-    mocks.getProviderByProviderId.mockReturnValue({ id: CHERRY_CLOUD_PROVIDER_ID })
-    mocks.getModelByKey.mockReturnValue({
-      id: 'deepseek-free',
-      apiModelId: 'deepseek-free',
-      group: CHERRY_CLOUD_MODEL_GROUP
-    })
-    mocks.apiGatewayIsRunning.mockReturnValue(true)
-    mocks.apiGatewayGetCurrentConfig.mockReturnValue({
-      enabled: true,
-      host: '127.0.0.1',
-      port: 23333,
-      apiKey: 'gateway-key-1'
-    })
-    const first = await deriveSignature()
-
-    mocks.apiGatewayGetCurrentConfig.mockReturnValue({
-      enabled: true,
-      host: '127.0.0.1',
-      port: 23333,
-      apiKey: 'gateway-key-2'
-    })
-    const changed = await deriveSignature()
-
-    expect(changed.rebuildSignature).not.toBe(first.rebuildSignature)
   })
 
   it('is stable across repeated derivation and across key rotation', async () => {

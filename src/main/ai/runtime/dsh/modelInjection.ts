@@ -24,7 +24,7 @@ import { getRawModelId, isGatewayRoutableModel, isReasoningModel, isVisionModel 
 import { isLoginBasedProvider } from '@shared/utils/provider'
 
 import { resolveEffectiveEndpoint } from '../../provider/endpoint'
-import { requiresAgentGateway } from '../agentApiGateway'
+import { ApiGatewayNotRunningError, requiresAgentGateway } from '../agentApiGateway'
 import { resolveAgentContextWindow } from '../agentContextWindow'
 import { toAgentProviderHeaders } from '../agentProviderHeaders'
 import type { AgentSessionUsageCapture } from '../types'
@@ -303,7 +303,6 @@ function formatDshBaseUrl(baseUrl: string, api: DshApi): string {
 
 /** Select one credential for already-captured provider/model facts without re-reading either row. */
 export async function resolveDshProviderInjectionFromSnapshot(
-  sessionId: string,
   provider: Provider,
   model: Model,
   enabledApiKeys?: readonly ApiKeyEntry[],
@@ -311,7 +310,8 @@ export async function resolveDshProviderInjectionFromSnapshot(
 ): Promise<DshProviderInjection> {
   if (usesDshGateway(provider, model)) {
     // Fork: API Gateway removed
-    throw new Error('API Gateway has been removed from this fork')
+    if (!isGatewayRoutableModel(model)) throw new DshUnsupportedProviderError(provider.id)
+    throw new ApiGatewayNotRunningError()
   }
   const resolvedApiKey = providerService.resolveApiKey(provider.id)
   if (!resolvedApiKey.value.trim()) throw new DshMissingApiKeyError(provider.id)
@@ -339,17 +339,17 @@ export async function assertDshProviderUsable(uniqueModelId: UniqueModelId): Pro
     modelService.getByKey(providerId, modelId)
   ])
 
-  // Provider-declared Gateway routes authenticate at materialization time, not with a provider key.
+  // The fork cannot materialize provider-declared gateway routes.
   if (requiresAgentGateway(provider.id)) {
-    // Fork: API Gateway removed
-    throw new Error('API Gateway has been removed from this fork; cannot validate gateway routes')
+    if (!isGatewayRoutableModel(model)) throw new DshUnsupportedProviderError(providerId)
+    throw new ApiGatewayNotRunningError()
   }
 
   // Unsupported beats missing-credential (parity with buildDshProviderInjection).
   if (resolveDshInjectionApi(provider, model) === undefined) {
     if (!isGatewayRoutableModel(model)) throw new DshUnsupportedProviderError(providerId)
     // Fork: API Gateway removed, gateway routes are disabled
-    throw new Error('API Gateway has been removed from this fork; cannot route through gateway')
+    throw new ApiGatewayNotRunningError()
   }
   const apiKeys = providerService.getApiKeys(providerId, { enabled: true })
   if (!apiKeys.some((entry) => entry.key.trim())) throw new DshMissingApiKeyError(providerId)

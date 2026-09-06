@@ -1819,6 +1819,7 @@ describe('Topics', () => {
   })
 
   it('shows a context-menu rename optimistically and restores the persisted name when it fails', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     const pendingUpdate = createDeferred<void>()
     topicDataMocks.updateTopic.mockReturnValueOnce(pendingUpdate.promise)
     const { getByText } = renderTopicList()
@@ -1831,8 +1832,8 @@ describe('Topics', () => {
     })
 
     const input = within(await screen.findByRole('dialog')).getByLabelText('Name')
-    fireEvent.change(input, { target: { value: 'Renamed topic' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    await user.clear(input)
+    await user.type(input, 'Renamed topic{Enter}')
 
     expect(await screen.findByText('Renamed topic')).toBeInTheDocument()
     expect(screen.queryByText('Alpha topic')).not.toBeInTheDocument()

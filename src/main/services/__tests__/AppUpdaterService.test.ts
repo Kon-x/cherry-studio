@@ -206,39 +206,36 @@ describe('AppUpdaterService', () => {
     it.each([
       ['RC', UpgradeChannel.RC],
       ['Beta', UpgradeChannel.BETA]
-    ])('requests the %s manifest when that test channel is enabled', async (_label, channel) => {
+    ])('ignores the legacy %s test channel and requests latest', async (_label, channel) => {
       MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.enabled', true)
       MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.channel', channel)
 
       await (appUpdater as any).configureUpdaterForCheck()
 
-      expect(autoUpdater.channel).toBe(channel)
+      expect(autoUpdater.channel).toBe(UpgradeChannel.LATEST)
     })
 
     it.each([
-      ['RC', UpgradeChannel.RC, 'rc-cn'],
-      ['Beta', UpgradeChannel.BETA, 'beta-cn']
-    ])(
-      'requests the China edition %s manifest when that test channel is enabled',
-      async (_label, channel, expected) => {
-        appEditionState.current = 'cn'
-        MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.enabled', true)
-        MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.channel', channel)
+      ['RC', UpgradeChannel.RC, 'latest-cn'],
+      ['Beta', UpgradeChannel.BETA, 'latest-cn']
+    ])('keeps the China edition on latest despite the legacy %s test channel', async (_label, channel, expected) => {
+      appEditionState.current = 'cn'
+      MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.enabled', true)
+      MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.channel', channel)
 
-        await (appUpdater as any).configureUpdaterForCheck()
+      await (appUpdater as any).configureUpdaterForCheck()
 
-        expect(autoUpdater.channel).toBe(expected)
-      }
-    )
+      expect(autoUpdater.channel).toBe(expected)
+    })
 
-    it('uses the selected test channel when the installed prerelease came from another channel', async () => {
+    it('keeps the latest channel when the installed prerelease came from another channel', async () => {
       vi.mocked(app.getVersion).mockReturnValue('2.0.0-rc.1')
       MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.enabled', true)
       MockMainPreferenceServiceUtils.setPreferenceValue('app.dist.test_plan.channel', UpgradeChannel.BETA)
 
       await (appUpdater as any).configureUpdaterForCheck()
 
-      expect(autoUpdater.channel).toBe(UpgradeChannel.BETA)
+      expect(autoUpdater.channel).toBe(UpgradeChannel.LATEST)
     })
 
     it('applies the channel and request headers before checking for updates', async () => {
@@ -257,7 +254,7 @@ describe('AppUpdaterService', () => {
       expect(autoUpdater.checkForUpdates).toHaveBeenCalledOnce()
     })
 
-    it('fetches and validates release history through the managed release service', async () => {
+    it('fetches and validates release history only from the fork release', async () => {
       vi.mocked(regionService.getCountry).mockResolvedValue('CN')
       const releaseNotes = '<!--LANG:en-->Remote notes<!--LANG:zh-CN-->远端说明<!--LANG:END-->'
       const history = [{ releaseNotes, version: '1.1.0' }]
@@ -266,7 +263,7 @@ describe('AppUpdaterService', () => {
       await expect(appUpdater.getReleaseHistory()).resolves.toEqual(history)
 
       expect(net.fetch).toHaveBeenCalledWith(
-        'https://releases.cherry-ai.com/release-history.json',
+        'https://github.com/Kon-x/cherry-studio/releases/latest/download/release-history.json',
         expect.objectContaining({
           headers: expect.objectContaining({
             'App-Version': 'v1.0.0',
@@ -290,7 +287,7 @@ describe('AppUpdaterService', () => {
 
       expect(releaseNotesUpdaterInstances).toHaveLength(1)
       expect(releaseNotesUpdaterInstances[0]).toMatchObject({
-        channel: 'rc-cn',
+        channel: 'latest-cn',
         requestHeaders: expect.objectContaining({ 'X-Edition': 'cn' })
       })
     })
