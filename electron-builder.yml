@@ -180,6 +180,14 @@ artifactBuildCompleted: scripts/artifact-build-completed.js
 releaseInfo:
   releaseNotes: |
     <!--LANG:en-->
+    Cherry Studio 2.0.14-kx.1 - Kon-x stable fork based on upstream 2.0.14
+    
+    🍒 Fork Release
+    - [Cherry Cloud] Sign-in remains unavailable in this build: upstream 2.0.14 requires a client signing key this fork does not configure. All other providers and local features are unaffected.
+    - Keep the API Gateway and channel bot adapters removed; Claude Code and DeepSeek Harness use direct provider connections only.
+    - Preserve deletable preset providers, batch provider deletion, and web-grounded selection explanations.
+    - Setup builds update only from Kon-x/cherry-studio stable releases. Portable builds remain manually updated.
+    
     Cherry Studio 2.0.14 - New Features, Fixes, and Performance
 
     ✨ New Features
@@ -206,6 +214,23 @@ releaseInfo:
     ⚡ Performance
     - [Knowledge] Knowledge page management dialogs and item detail panels are now loaded on demand instead of with the page.
 
+    Cherry Studio 2.0.13 highlights
+    
+    - [Models] GPT-6 Astra support; TokenDance and Jalapeno Cloud added as built-in providers; the Yi (01.AI) provider retired after its service shutdown.
+    - [Scheduled Tasks] Daily, weekdays, and weekly presets now support multiple times per day (e.g. 09:00 and 18:00).
+    - [Chat] Topic and session titles, branch switching from the header, and exporting individual branches as Markdown.
+    - [Image Export] Message image export now uses Chromium's compositor for pixel-perfect output.
+    - [Translate] Streamed translation output is rendered with rich Markdown formatting.
+    - [Agent] Numerous stability fixes across task logs, Bash tool output, tool-argument repair, Claude Code diagnostics, and the context-usage indicator.
+    
+    Cherry Studio 2.0.14-kx.1 - 基于上游 2.0.14 的 Kon-x 稳定定制版
+    
+    🍒 定制版发布
+    - [樱桃云] 本构建登录仍不可用：上游 2.0.14 要求客户端签名密钥，本定制版未配置。其他服务商与本地功能不受影响。
+    - 继续移除 API Gateway 与频道机器人适配器；Claude Code 和 DeepSeek Harness 仅允许直连服务商。
+    - 保留预置服务商删除、批量删除服务商和划词解释强制联网能力。
+    - 安装版仅从 Kon-x/cherry-studio 稳定 Release 自动更新；便携版仍需手动更新。
+    
     <!--LANG:zh-CN-->
     Cherry Studio 2.0.14 - 新功能、修复与性能优化
 
@@ -232,4 +257,13 @@ releaseInfo:
 
     ⚡ 性能优化
     - [知识库] 知识库页面管理对话框和条目详情面板现在按需加载，而非随页面加载。
+    Cherry Studio 2.0.13 亮点
+    
+    - [模型] 新增 GPT-6 Astra 支持；新增 TokenDance 与 Jalapeno Cloud 内置服务商；因服务关停下架零一万物 (Yi) 服务商。
+    - [定时任务] 每天、工作日和每周预设现在支持每天多个时间点（如 09:00 和 18:00）。
+    - [对话] 显示话题和会话标题，从标题栏切换分支，并将单个分支导出为 Markdown。
+    - [图片导出] 对话消息图片导出现在使用 Chromium 合成器，输出像素完美匹配屏幕显示。
+    - [翻译] 翻译输出使用富 Markdown 格式流式渲染。
+    - [智能体] 大量稳定性修复：任务日志、Bash 工具输出、工具参数修复、Claude Code 诊断与上下文用量指示器等。
+    
     <!--LANG:END-->
