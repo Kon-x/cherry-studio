@@ -8,13 +8,13 @@ import { type CherryCloudEventSchemas, cherryCloudRequestSchemas } from './cherr
 import { cherryinRequestSchemas } from './cherryin'
 import { citationRequestSchemas } from './citation'
 import { codeCliRequestSchemas } from './codeCli'
-import { type DeepSeekHarnessEventSchemas, deepSeekHarnessRequestSchemas } from './deepSeekHarness'
+import { deepSeekHarnessRequestSchemas } from './deepSeekHarness'
 import { diagnosticsRequestSchemas } from './diagnostics'
 import { exportRequestSchemas } from './export'
 import { externalAppRequestSchemas } from './externalApp'
 import { type FileEventSchemas, fileRequestSchemas } from './file'
 import { fileProcessingRequestSchemas } from './fileProcessing'
-import { type HermesDashboardEventSchemas, hermesDashboardRequestSchemas } from './hermesDashboard'
+import { hermesDashboardRequestSchemas } from './hermesDashboard'
 import { knowledgeRequestSchemas } from './knowledge'
 import { localModelRequestSchemas } from './localModel'
 import { type McpEventSchemas, mcpRequestSchemas } from './mcp'
@@ -22,7 +22,7 @@ import { type MiniAppEventSchemas, miniAppRequestSchemas } from './miniApp'
 import { type NavigationEventSchemas, navigationRequestSchemas } from './navigation'
 import { type NotificationEventSchemas, notificationRequestSchemas } from './notification'
 import { type OAuthEventSchemas, oauthRequestSchemas } from './oauth'
-import { type OpenClawEventSchemas, openclawRequestSchemas } from './openclaw'
+import { openclawRequestSchemas } from './openclaw'
 import { ovmsRequestSchemas } from './ovms'
 import { printRequestSchemas } from './print'
 import { profileRequestSchemas } from './profile'
@@ -100,15 +100,12 @@ export type IpcEventSchemas = AiEventSchemas &
   BackupEventSchemas &
   BinaryEventSchemas &
   CherryCloudEventSchemas &
-  DeepSeekHarnessEventSchemas &
   FileEventSchemas &
-  HermesDashboardEventSchemas &
   McpEventSchemas &
   MiniAppEventSchemas &
   NavigationEventSchemas &
   NotificationEventSchemas &
   OAuthEventSchemas &
-  OpenClawEventSchemas &
   QuickAssistantEventSchemas &
   ScreenshotEventSchemas &
   SelectionEventSchemas &
