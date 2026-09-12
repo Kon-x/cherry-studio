@@ -524,7 +524,7 @@ describe('PiRuntimeConnection', () => {
   it('forces Cherry-owned pi dirs and creates a fresh session (no resume)', async () => {
     await new PiRuntimeConnection(input).start()
 
-    expect(mocks.resolveInjection).toHaveBeenCalledWith({ id: 'p' }, { id: 'p::m' }, [
+    expect(mocks.resolveInjection).toHaveBeenCalledWith('sess-1', { id: 'p' }, { id: 'p::m' }, [
       { id: 'key-1', key: 'real-key', isEnabled: true }
     ])
     expect(mocks.createOpts?.agentDir).toBe(PI_ROOT)

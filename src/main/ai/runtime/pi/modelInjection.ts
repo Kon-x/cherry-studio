@@ -319,6 +319,7 @@ export function resolvePiProviderInjectionFromSnapshot(
 
 /** Resolve a session-bound Pi route, including provider-declared local Gateway transport. */
 export async function resolvePiProviderInjectionForSession(
+  sessionId: string,
   provider: Provider,
   model: Model,
   enabledApiKeys?: readonly ApiKeyEntry[]

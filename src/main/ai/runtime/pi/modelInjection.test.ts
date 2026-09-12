@@ -664,7 +664,9 @@ describe('Cherry Cloud Pi injection', () => {
   })
 
   it('rejects Cloud materialization without consuming provider credentials', async () => {
-    await expect(resolvePiProviderInjectionForSession(provider, model)).rejects.toThrow(ApiGatewayNotRunningError)
+    await expect(resolvePiProviderInjectionForSession('session-1', provider, model)).rejects.toThrow(
+      ApiGatewayNotRunningError
+    )
     expect(serviceMocks.resolveApiKey).not.toHaveBeenCalled()
   })
 })
