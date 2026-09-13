@@ -53,7 +53,6 @@ const mockListProviderRegistryModels = vi.fn()
 const mockIsRegistryProvider = vi.fn()
 const mockListModelsFromProvider = vi.fn()
 const mockRegisterBuiltinTools = vi.fn()
-const mockInstallProviderUserAgentInterceptor = vi.fn(() => vi.fn())
 const mockRecordRequest = vi.fn()
 const mockAddFileRefsTx = vi.fn()
 
@@ -82,7 +81,6 @@ vi.mock('../tools/adapters/aiSdk/builtin/registerBuiltinTools', () => ({
 
 vi.mock('../utils/customFetch', async (importOriginal) => ({
   ...(await importOriginal<typeof CustomFetchModule>()),
-  installProviderUserAgentInterceptor: () => mockInstallProviderUserAgentInterceptor(),
   // The inline health-check probe resolves the real provider config, which
   // defaults providerSettings.fetch to customFetch — a stub keeps it inert.
   customFetch: vi.fn()

@@ -443,6 +443,11 @@ export class MainWindowService extends BaseService {
   }
 
   private setupWebContentsHandlers(mainWindow: BrowserWindow) {
+    // Native popups keep their opener's session, so configure their actual webContents.
+    mainWindow.webContents.on('did-create-window', (window) => {
+      application.get('WebviewService').configureProviderPopup(window.webContents)
+    })
+
     // Fix for Electron bug where zoom resets during in-page navigation (route changes)
     // This complements the resize-based workaround by catching navigation events
     mainWindow.webContents.on('did-navigate-in-page', () => {

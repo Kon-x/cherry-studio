@@ -235,8 +235,8 @@ describe('installProviderUserAgentInterceptor', () => {
   })
 
   /** Register the interceptor and return the handler Electron would invoke per request. */
-  function captureHandler() {
-    installProviderUserAgentInterceptor()
+  function captureHandler(browserHeaders?: Parameters<typeof installProviderUserAgentInterceptor>[0]) {
+    installProviderUserAgentInterceptor(browserHeaders)
     return vi.mocked(session.defaultSession.webRequest.onBeforeSendHeaders).mock.calls[0][0] as (
       details: { requestHeaders: Record<string, string> },
       callback: (response: { requestHeaders?: Record<string, string> }) => void
@@ -271,6 +271,20 @@ describe('installProviderUserAgentInterceptor', () => {
     handler({ requestHeaders }, callback)
 
     expect(callback).toHaveBeenCalledWith({ requestHeaders })
+  })
+
+  it('combines browser headers with the SDK interceptor without losing provider overrides', () => {
+    const handler = captureHandler(() => ({ 'User-Agent': 'Browser/1.0', 'Accept-Language': 'ja-JP' }))
+    const responses: Array<Record<string, string> | undefined> = []
+    const collect = (response: { requestHeaders?: Record<string, string> }) => responses.push(response.requestHeaders)
+
+    handler({ requestHeaders: { Authorization: 'Bearer browser', 'User-Agent': 'Electron/default' } }, collect)
+    handler({ requestHeaders: { Authorization: 'Bearer sdk', [SENTINEL_HEADER]: 'Provider/2.0' } }, collect)
+
+    expect(responses).toEqual([
+      { Authorization: 'Bearer browser', 'User-Agent': 'Browser/1.0', 'Accept-Language': 'ja-JP' },
+      { Authorization: 'Bearer sdk', 'User-Agent': 'Provider/2.0' }
+    ])
   })
 
   it('returns a disposer that clears the interceptor', () => {

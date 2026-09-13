@@ -81,7 +81,6 @@ import type {
   AppProviderSettingsMap,
   ListModelsRequest
 } from './types'
-import { installProviderUserAgentInterceptor } from './utils/customFetch'
 import { type SplitImageParams, splitParamValues } from './utils/imageOptions'
 import { createAiUsageCaptureContext } from './utils/usageCapture'
 
@@ -378,15 +377,7 @@ export class AiService extends BaseService {
 
   protected async onInit(): Promise<void> {
     registerBuiltinTools()
-    // Restore provider custom `User-Agent` headers that Chromium's net.fetch stack
-    // would otherwise overwrite (see installProviderUserAgentInterceptor).
-    this.registerDisposable(installProviderUserAgentInterceptor())
     application.get('JobManager').registerHandler('image-generation.generate', imageGenerationJobHandler)
-    // Install built-in skills, then heal the CLAUDE_CONFIG_DIR/skills mirror once at
-    // startup — chained (not two independent fire-and-forgets) so the mirror reconcile
-    // always runs after builtin skills have synced to agent_global_skill this boot,
-    // regardless of whether the install succeeded. Fire-and-forget as a pair so
-    // neither blocks init.
     logger.info('AiService initialized')
   }
 
