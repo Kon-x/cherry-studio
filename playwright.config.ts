@@ -25,7 +25,6 @@ export default defineConfig({
 
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
-  maxFailures: process.env.CI ? 1 : undefined,
 
   // Reporter configuration
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],

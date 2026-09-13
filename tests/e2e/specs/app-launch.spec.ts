@@ -12,7 +12,7 @@ test('fresh profiles open Chat and the launchpad offers only the six retained ap
   await expect(apps.getByRole('button').and(apps.locator('button'))).toHaveText([
     'Conversations',
     'Paintings',
-    'Translate',
+    'Translation',
     'Knowledge Base',
     'Files',
     'Notes'
