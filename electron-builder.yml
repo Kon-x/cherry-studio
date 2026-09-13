@@ -170,83 +170,48 @@ artifactBuildCompleted: scripts/artifact-build-completed.js
 releaseInfo:
   releaseNotes: |
     <!--LANG:en-->
-    Cherry Studio 2.0.14-kx.1 - Kon-x stable fork based on upstream 2.0.14
-    
-    🍒 Fork Release
-    - [Cherry Cloud] Sign-in remains unavailable in this build: upstream 2.0.14 requires a client signing key this fork does not configure. All other providers and local features are unaffected.
-    - Remove Work/Agents, web and local Mini Apps, Code Mate, DSH, Agent skills/tasks, and built-in assistant/support Agents.
-    - Keep Chat, Paintings, Translate, Knowledge, Files, Notes, MCP, and ordinary tool approvals. Historical data and external CLI installations remain on disk.
-    - Preserve deletable preset providers, batch provider deletion, and web-grounded selection explanations.
-    - Setup builds update only from Kon-x/cherry-studio stable releases. Portable builds remain manually updated.
-    
-    Cherry Studio 2.0.14 - New Features, Fixes, and Performance
+    # Cherry Studio 2.0.14-kx.2
 
-    ✨ New Features
-    - [Models] DeepSeek V4.1 Flash Expires-On-0910 vision model is now available in the catalog.
-    - [Cherry Cloud] Cloud sessions are now bound to the current computer, preserving free-grant history across credential resets.
+    Windows x64 release of the Kon-x fork, based on official Cherry Studio 2.0.14.
 
-    🐛 Bug Fixes
-    - [Local Models] Windows cleanup now tolerates transient DLL release failures after an inference utility process exits.
-    - [Knowledge Base] Fixed tables from PDFs imported through Mistral OCR being dropped; table contents are now indexed as Markdown tables.
-    - [Export] Notion export now waits for the page body to be written and reports failed writes as errors instead of success.
-    - [Obsidian] Fix invalid front matter when the note title contains “: “ or starts with “#”, and export tags as a proper YAML list.
-    - [Prompt Polish] Add cancellation and a 60-second timeout so stalled requests return to a retryable state.
-    - [Chat] Show safe, actionable provider details instead of generic errors such as “400 null”.
-    - [Debug] Fixed truncated Outputs and UI freezes when inspecting long streaming responses in the message debug panel (Call Chain).
-    - [Provider] OpenCode Go/Zen requests from model health checks, topic naming, and context compaction now carry the required session header.
-    - [Chat] Deleting a response selected for context now preserves other replies and transfers context and follow-up messages to an adjacent reply.
-    - [Cherry Cloud] Unsupported client versions now show an update-required message instead of asking users to retry login.
-    - [Chat] Fixed text-only continuation turns incorrectly processing stale image attachments and failing before the response starts.
-    - [Cherry Cloud] Login now requires a configured client signing key for custom builds.
+    ## Changes
 
-    ⚡ Performance
-    - [Knowledge] Knowledge page management dialogs and item detail panels are now loaded on demand instead of with the page.
+    - [Desktop] Remove Work/Agents, Mini Apps, Code Mate, DSH, Agent skills/tasks, and the built-in assistant/support Agents. Keep Chat, Paintings, Translate, Knowledge, Files, Notes, custom assistants, MCP, and tool approvals. Windows packages are approximately 22% smaller than kx.1.
 
-    Cherry Studio 2.0.13 highlights
-    
-    - [Models] GPT-6 Astra support; TokenDance and Jalapeno Cloud added as built-in providers; the Yi (01.AI) provider retired after its service shutdown.
-    - [Chat] Topic titles, branch switching from the header, and exporting individual branches as Markdown.
-    - [Image Export] Message image export now uses Chromium's compositor for pixel-perfect output.
-    - [Translate] Streamed translation output is rendered with rich Markdown formatting.
-    
-    Cherry Studio 2.0.14-kx.1 - 基于上游 2.0.14 的 Kon-x 稳定定制版
-    
-    🍒 定制版发布
-    - [樱桃云] 本构建登录仍不可用：上游 2.0.14 要求客户端签名密钥，本定制版未配置。其他服务商与本地功能不受影响。
-    - 移除工作（Agent）、网页与本地小程序、编码搭档、DSH、Agent 技能和定时任务，以及内置小助手和反馈智能体。
-    - 保留聊天、绘画、翻译、知识库、文件、笔记、MCP 和普通工具审批；历史数据及外部 CLI 安装继续保留。
-    - 保留预置服务商删除、批量删除服务商和划词解释强制联网能力。
-    - 安装版仅从 Kon-x/cherry-studio 稳定 Release 自动更新；便携版仍需手动更新。
-    
+    ## Fixes
+
+    - [Data] Opening Clear Cache no longer refreshes the interface or exits the app when large leftover v1 records are present.
+    - [Providers] Sign-in windows respect the selected language and network settings while preserving authorization callbacks.
+    - [Updates] Release history recognizes fork revisions and displays them before their upstream base version.
+
+    ## Upgrade notes
+
+    **action required:** Use Chat and custom assistants for new conversations. Retired Agent schedules no longer run, and retired navigation entries are removed. Historical records, user files, and external CLI installations remain on disk.
+
+    Setup builds from kx.1 onward update from this fork; portable builds require a manual update.
+
+    Cherry Cloud sign-in remains unavailable in this fork. Windows executables are not Authenticode-signed and may show a SmartScreen warning.
+
     <!--LANG:zh-CN-->
-    Cherry Studio 2.0.14 - 新功能、修复与性能优化
+    # Cherry Studio 2.0.14-kx.2
 
-    ✨ 新功能
-    - [模型] DeepSeek V4.1 Flash Expires-On-0910 视觉模型现已上架模型目录。
-    - [樱桃云] 云会话现已绑定当前设备，在凭证重置后保留免费额度历史。
+    基于 Cherry Studio 官方 2.0.14 的 Kon-x Windows x64 定制版。
 
-    🐛 问题修复
-    - [本地模型] 修复 Windows 下 inference utility process 退出后 DLL 短暂占用导致模型清理偶发失败的问题。
-    - [知识库] 修复通过 Mistral OCR 导入的 PDF 表格丢失问题；表格内容现在以 Markdown 表格形式索引。请重新索引已有条目以获取表格内容。
-    - [导出] Notion 导出现在等待页面正文写入完成，写入失败时正确报错而非显示成功。
-    - [Obsidian] 修复笔记标题包含”: “或以”#”开头时导出无效前置数据的问题，并将标签导出为正确的 YAML 列表。
-    - [提示词润色] 支持取消和 60 秒超时，卡住的请求可立即恢复为可重试状态。
-    - [对话] 显示安全可操作的错误详情，而非”400 null”等通用错误。
-    - [调试] 修复消息调试面板(Call Chain)中长输出被截断和 UI 卡死的问题。
-    - [服务商] OpenCode Go/Zen 的模型健康检查、话题命名和上下文压缩请求现在携带必需的会话头部。
-    - [对话] 删除用于上下文的回复时，现在保留其他回复，并将上下文和后续消息转移到相邻回复。
-    - [樱桃云] 不支持的客户端版本现在显示更新提示，而非让用户重试登录。
-    - [对话] 修复纯文本续写轮次错误处理残留图片附件并在响应开始前失败的问题。
-    - [樱桃云] 自定义构建现在需要配置客户端签名密钥才能登录。
+    ## 变更
 
-    ⚡ 性能优化
-    - [知识库] 知识库页面管理对话框和条目详情面板现在按需加载，而非随页面加载。
-    Cherry Studio 2.0.13 亮点
-    
-    - [模型] 新增 GPT-6 Astra 支持；新增 TokenDance 与 Jalapeno Cloud 内置服务商；因服务关停下架零一万物 (Yi) 服务商。
-    - [对话] 显示话题标题，从标题栏切换分支，并将单个分支导出为 Markdown。
-    - [图片导出] 对话消息图片导出现在使用 Chromium 合成器，输出像素完美匹配屏幕显示。
-    - [翻译] 翻译输出使用富 Markdown 格式流式渲染。
-    
+    - [桌面] 移除工作（Agent）、小程序、编码搭档、DSH、Agent 技能和定时任务，以及内置小助手和反馈智能体。保留聊天、绘画、翻译、知识库、文件、笔记、自定义助手、MCP 和工具审批。Windows 安装包相较 kx.1 缩小约 22%。
+
+    ## 修复
+
+    - [数据] 修复存在大体积 v1 遗留记录时，打开“清除缓存”弹窗导致界面刷新或程序退出的问题。
+    - [服务商] 登录窗口正确使用所选语言和网络设置，并保留授权回调。
+    - [更新] 发布历史正确识别 fork 修订版，并将其排在对应的上游基础版本之前。
+
+    ## 升级说明
+
+    **需要操作：** 后续对话请使用聊天和自定义助手。已移除的 Agent 定时任务不再运行，相关导航记录会被清除。历史记录、用户文件及外部 CLI 安装继续保留在磁盘上。
+
+    kx.1 及之后的安装版从本 fork 更新；便携版需要手动更新。
+
+    本 fork 的樱桃云登录仍不可用。Windows 程序暂未进行 Authenticode 签名，可能触发 SmartScreen。
     <!--LANG:END-->
-

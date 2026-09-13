@@ -1,6 +1,6 @@
 
 <h1 align="center">
-  <a href="https://github.com/CherryHQ/cherry-studio/releases">
+  <a href="https://github.com/Kon-x/cherry-studio/releases">
     <img src="https://github.com/CherryHQ/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" /><br>
   </a>
 </h1>
@@ -18,7 +18,6 @@
 <div align="center">
 
 [![][github-release-shield]][github-release-link]
-[![][github-nightly-shield]][github-nightly-link]
 [![][github-contributors-shield]][github-contributors-link]
 [![][license-shield]][license-link]
 [![][commercial-shield]][commercial-link]
@@ -33,6 +32,11 @@
 </div>
 
 # 🍒 Cherry Studio
+
+This Kon-x fork follows official stable upstream releases and publishes Windows x64 builds.
+[Download the latest fork release](https://github.com/Kon-x/cherry-studio/releases/latest) or read the
+[fork feature and release guide](docs/contrib/fork-release.md). Chat, Paintings, Translate, Knowledge, Files,
+Notes, custom assistants, and MCP remain available; Work/Agents, Mini Apps, Code Mate, and their runtimes are removed.
 
 Cherry Studio is a desktop client that supports multiple LLM providers, available on Windows, Mac and Linux.
 
@@ -276,10 +280,8 @@ Should you require a commercial license that provides an exemption from the AGPL
 
 <!-- Links & Images -->
 
-[github-release-shield]: https://img.shields.io/github/v/release/CherryHQ/cherry-studio?logo=github
-[github-release-link]: https://github.com/CherryHQ/cherry-studio/releases
-[github-nightly-shield]: https://img.shields.io/github/actions/workflow/status/CherryHQ/cherry-studio/nightly-build.yml?label=nightly%20build&logo=github
-[github-nightly-link]: https://github.com/CherryHQ/cherry-studio/actions/workflows/nightly-build.yml
+[github-release-shield]: https://img.shields.io/github/v/release/Kon-x/cherry-studio?logo=github
+[github-release-link]: https://github.com/Kon-x/cherry-studio/releases
 [github-contributors-shield]: https://img.shields.io/github/contributors/CherryHQ/cherry-studio?logo=github
 [github-contributors-link]: https://github.com/CherryHQ/cherry-studio/graphs/contributors
 

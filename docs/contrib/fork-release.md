@@ -20,6 +20,8 @@ Do not merge `upstream/main`, beta tags, or RC tags into `main`.
   open Chat; upgrades with no surviving tabs open Launchpad. Schedules without a registered handler stay dormant.
 - Provider login windows retain proxy, language, and UA configuration. Chat HTML previews remain available.
   Help and release notes open in the system browser; feedback offers diagnostics and GitHub.
+- Cache inspection uses browser storage estimates instead of loading leftover v1 records. Unattributable sizes
+  remain partially unknown; opening the cleanup dialog never deletes data.
 - Preset providers can be deleted, deleted presets stay tombstoned until recreated manually, and providers support
   batch deletion.
 - Selection Assistant explanations always use web grounding.
@@ -101,8 +103,9 @@ checks and build without publishing a release.
 - **Build Windows x64** builds natively on Windows and inspects `app.asar` plus its external resources for retired
   SDKs, compiled runtimes, preloads, and bundled assets. Generic provider icons and historical data types are valid.
   Playwright then exercises Chat/Launchpad, persisted streaming chat, MCP allow/deny, knowledge indexing and recall,
-  provider login session settings, HTML previews, and system-browser help links. Each Electron instance has a
-  temporary profile; model, embedding, MCP, and login traffic use local test services.
+  provider login session settings, HTML previews, system-browser help links, and repeated cache-dialog inspection
+  with a 32 MiB legacy binary record under a 512 MiB V8 heap limit. Each Electron instance has a temporary profile;
+  model, embedding, MCP, and login traffic use local test services.
 - Failed Electron runs upload logs, screenshots, and traces as `electron-verification-<run-id>`. Windows builds
   upload the validated installers and checksums. Setup and portable sizes are compared with `v2.0.14-kx.1` in
   the Actions summary and `windows-x64-size-comparison-<run-id>` artifact, using release asset metadata.
@@ -130,7 +133,19 @@ gateway rejection, retired navigation filtering, historical data retention, and 
 
 ## Release
 
-After the synchronization PR is merged, run **Build Windows x64** from `main` with the exact `package.json` version.
+For a fork-only update on the same upstream base, increment `x.y.z-kx.n` to `x.y.z-kx.(n+1)`. Prepare the version
+and documentation in the feature or synchronization PR before merging:
+
+1. Update `package.json`, write bilingual notes in `docs/releases/v<version>.md`, and copy the exact text into
+   `electron-builder.yml` under `releaseInfo.releaseNotes`. Keep one English, Chinese, and end marker in order.
+2. Run `node scripts/release/sync-release-history.js --target-version <version>`. It records both plain upstream
+   stable versions and the fork's normal `kx.n` releases, while skipping beta and RC versions. Never edit the
+   generated history by hand or rewrite already published release documents.
+3. Run `pnpm docs:check` and require the PR's latest **Checks** and **Build Windows x64** runs to pass. Merge with
+   a merge commit and retain signing plus DCO signoff.
+4. Wait for **Checks** on the resulting `main` SHA, then dispatch **Build Windows x64** on `main` with the exact
+   version. This fork does not use the upstream release-branch, built-in knowledge, or metadata-sync PR workflow.
+
 The workflow rejects any other ref/version and requires a successful `Checks` run for the same SHA. Its protected
 `release` environment creates `v<version>` as a normal Latest Release and uploads:
 
@@ -145,6 +160,8 @@ and may trigger SmartScreen. Commit signing and Windows code signing are separat
 
 After publishing, verify that the tag points to the merged `main` SHA, all assets download, checksums match, and
 `https://github.com/Kon-x/cherry-studio/releases/latest/download/latest.yml` plus its setup URL return successfully.
+The published history must contain the new fork version with notes identical to the release document and builder
+configuration. Fork revisions appear before their upstream base in the client history.
 
 ## Rollback
 

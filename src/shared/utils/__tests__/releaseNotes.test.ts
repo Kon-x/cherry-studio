@@ -52,6 +52,8 @@ describe('releaseNotes', () => {
   it.each([
     ['invalid JSON', '{'],
     ['prerelease version', JSON.stringify([{ releaseNotes, version: '2.0.0-rc.1' }])],
+    ['beta version', JSON.stringify([{ releaseNotes, version: '2.0.15-beta.1' }])],
+    ['invalid fork revision', JSON.stringify([{ releaseNotes, version: '2.0.14-kx.01' }])],
     ['incomplete localization', JSON.stringify([{ releaseNotes: 'English only', version: '2.0.0' }])],
     [
       'duplicate version',
@@ -62,6 +64,15 @@ describe('releaseNotes', () => {
     ]
   ])('rejects %s in bundled history', (_case, source) => {
     expect(() => parseReleaseHistory(source)).toThrow('release-history.json')
+  })
+
+  it('accepts published fork revisions alongside their upstream history', () => {
+    const history = [
+      { releaseNotes, version: '2.0.14-kx.2' },
+      { releaseNotes, version: '2.0.14' }
+    ]
+
+    expect(parseReleaseHistory(JSON.stringify(history))).toEqual(history)
   })
 
   it('keeps the current release first and removes its historical duplicate', () => {
@@ -97,6 +108,23 @@ describe('releaseNotes', () => {
     expect(() =>
       validateCurrentReleaseHistory({ releaseNotes, version: '2.0.2' }, [{ releaseNotes, version: '2.0.2' }])
     ).not.toThrow()
+  })
+
+  it('orders fork revisions numerically before their upstream base', () => {
+    const versions = ['2.0.14', '2.0.14-kx.2', '2.0.15', '2.0.14-kx.10']
+
+    expect(
+      mergeReleaseHistory(
+        versions.map((version) => ({ releaseNotes, version })),
+        []
+      ).map(({ version }) => version)
+    ).toEqual(['2.0.15', '2.0.14-kx.10', '2.0.14-kx.2', '2.0.14'])
+  })
+
+  it('requires the current fork revision in bundled history', () => {
+    expect(() =>
+      validateCurrentReleaseHistory({ releaseNotes, version: '2.0.14-kx.2' }, [{ releaseNotes, version: '2.0.14' }])
+    ).toThrow('must contain current stable version 2.0.14-kx.2')
   })
 
   it('rejects a stable current release missing from bundled history', () => {
