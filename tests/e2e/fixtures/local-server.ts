@@ -7,7 +7,7 @@ type ChatRequest = {
   stream?: boolean
   input?: string | string[]
   messages?: Array<{ role: string; content: unknown }>
-  tools?: Array<{ function: { name: string } }>
+  tools?: Array<{ function: { name: string; description?: string } }>
 }
 
 export async function startLocalServer() {
@@ -50,7 +50,7 @@ export async function startLocalServer() {
     const lastUser = messages.findLastIndex((message) => message.role === 'user')
     const lastTool = messages.findLastIndex((message) => message.role === 'tool')
     const prompt = JSON.stringify(messages[lastUser]?.content ?? '')
-    const tool = body.tools?.find((tool) => tool.function.name.endsWith('verify_connection'))
+    const tool = body.tools?.find((tool) => tool.function.description?.includes('ordinary chat MCP approval flow'))
     const callTool = Boolean(tool && prompt.includes('verification MCP') && lastTool < lastUser)
     let reply = 'Ordinary chat verification succeeded.'
     if (lastTool > lastUser) {

@@ -15,11 +15,14 @@ async function sendMessage(page: Page, message: string) {
 
 test('ordinary streamed chat remains readable after reloading', async ({ mainWindow, models }) => {
   await sendMessage(mainWindow, `Verify ordinary chat with ${models.chat.name}.`)
-  await expect(mainWindow.getByText('Ordinary chat verification succeeded.', { exact: true })).toBeVisible({
+  const reply = uiLocator(mainWindow, 'chat.message-list').getByText('Ordinary chat verification succeeded.', {
+    exact: true
+  })
+  await expect(reply).toBeVisible({
     timeout: 30000
   })
   await mainWindow.reload()
-  await expect(mainWindow.getByText('Ordinary chat verification succeeded.', { exact: true })).toBeVisible()
+  await expect(reply).toBeVisible()
 })
 
 for (const decision of ['Allow', 'Deny'] as const) {
@@ -54,7 +57,9 @@ for (const decision of ['Allow', 'Deny'] as const) {
     await mainWindow.getByRole('button', { name: decision, exact: true }).click()
 
     const reply = decision === 'Allow' ? 'MCP verified after approval.' : 'MCP request was denied.'
-    await expect(mainWindow.getByText(reply, { exact: true })).toBeVisible({ timeout: 30000 })
+    await expect(uiLocator(mainWindow, 'chat.message-list').getByText(reply, { exact: true })).toBeVisible({
+      timeout: 30000
+    })
     const calls = await readFile(callsPath, 'utf8')
     expect(
       calls
