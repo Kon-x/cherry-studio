@@ -21,6 +21,7 @@ tests/e2e/
 │   └── index.ts              # 工具导出
 └── specs/                    # 测试用例
     ├── app-launch.spec.ts    # 启动台和帮助链接
+    ├── cache-cleanup.spec.ts # 受限内存下统计大体积旧数据并反复打开弹窗
     ├── chat.spec.ts          # 流式聊天、MCP 审批和 HTML 预览
     ├── knowledge.spec.ts     # 索引与召回
     └── provider-login.spec.ts # 登录窗口的代理、语言与 UA
@@ -40,6 +41,9 @@ tests/e2e/
 `CS_DEV_USER_DATA_SUFFIX`，关闭自己创建的 Electron 实例后清理该目录。模型、嵌入与 MCP 使用本地
 测试服务；登录页面重定向到本地测试服务，帮助链接只记录系统浏览器交接，不使用真实账号。
 CI 上传主进程日志、失败截图和 Playwright trace，报告位于 `electron-verification-<run-id>` 产物。
+
+缓存统计回归通过夹具的 `extraElectronArgs` 将该用例的 V8 堆限制为 512 MiB，启动后写入含
+32 MiB 二进制记录的 v1 测试库，再反复打开清理弹窗，检查页面、进程和保留数据。其他用例使用默认启动参数。
 
 ### 运行命令
 

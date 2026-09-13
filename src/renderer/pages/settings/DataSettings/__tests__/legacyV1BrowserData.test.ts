@@ -1,28 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-interface LegacyRecord {
-  id: string
-  [key: string]: unknown
-}
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const dexieMock = vi.hoisted(() => ({
-  close: vi.fn(),
-  exists: vi.fn(),
-  open: vi.fn(),
-  table: vi.fn(),
-  tableNames: [] as string[]
+  exists: vi.fn()
+}))
+
+const storageMock = vi.hoisted(() => ({
+  databases: vi.fn(),
+  estimate: vi.fn()
 }))
 
 vi.mock('dexie', () => ({
   Dexie: class MockDexie {
     static exists = dexieMock.exists
 
-    get tables() {
-      return dexieMock.tableNames.map((name) => ({ name, ...dexieMock.table(name) }))
+    constructor() {
+      throw new Error('Size inspection must not open legacy records')
     }
-
-    open = dexieMock.open
-    close = dexieMock.close
   }
 }))
 
@@ -35,31 +28,6 @@ import {
   LEGACY_LOCAL_STORAGE_KEYS,
   mergeLegacyV1CleanupResults
 } from '../legacyV1BrowserData'
-
-function createTableMock(inputRows: LegacyRecord[]) {
-  const rows = [...inputRows].sort((a, b) => a.id.localeCompare(b.id))
-  const rowsById = new Map(rows.map((row) => [row.id, row]))
-  const pageQuery = vi.fn()
-
-  const createCollection = (lastPrimaryKey?: string) => ({
-    limit: (limit: number) => ({
-      primaryKeys: async () => {
-        pageQuery()
-        return rows
-          .filter((row) => lastPrimaryKey === undefined || row.id > lastPrimaryKey)
-          .slice(0, limit)
-          .map((row) => row.id)
-      }
-    })
-  })
-
-  return {
-    get: vi.fn(async (key: string) => rowsById.get(key)),
-    orderBy: vi.fn(() => createCollection()),
-    pageQuery,
-    where: vi.fn(() => ({ above: (key: string) => createCollection(key) }))
-  }
-}
 
 function installDeleteDatabase() {
   const request = {
@@ -86,7 +54,17 @@ describe('legacyV1BrowserData', () => {
     vi.clearAllMocks()
     localStorage.clear()
     dexieMock.exists.mockResolvedValue(true)
-    dexieMock.tableNames.splice(0, dexieMock.tableNames.length, 'message_blocks')
+    storageMock.databases.mockReset().mockResolvedValue([{ name: 'CherryStudio', version: 29 }])
+    storageMock.estimate.mockReset().mockResolvedValue({
+      usage: 8192,
+      usageDetails: { indexedDB: 2048, caches: 4096 }
+    })
+    vi.stubGlobal('indexedDB', { databases: storageMock.databases })
+    vi.stubGlobal('navigator', { storage: { estimate: storageMock.estimate } })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('uses persisted v1 state or an incomplete cleanup as the visibility marker', () => {
@@ -109,63 +87,112 @@ describe('legacyV1BrowserData', () => {
     expect(beginLegacyV1Cleanup()).toBe(false)
   })
 
-  it('estimates selected localStorage keys and every IndexedDB page', async () => {
-    localStorage.setItem('persist:cherry-studio', 'legacy')
+  it('estimates only legacy storage without opening database records', async () => {
+    localStorage.setItem('language', '中文')
     localStorage.setItem('failed_favicon_https://example.com', 'active-v2-state')
     localStorage.setItem('cs_cache_persist', 'v2-cache')
-    const rows = Array.from({ length: 205 }, (_, index) => ({
-      id: `block-${String(index).padStart(3, '0')}`,
-      payload: `payload-${index}`
-    }))
-    const table = createTableMock(rows)
-    dexieMock.table.mockReturnValue(table)
 
-    const result = await inspectLegacyV1BrowserData()
-    const encoder = new TextEncoder()
-    const expectedBytes =
-      encoder.encode('persist:cherry-studio').byteLength +
-      encoder.encode('legacy').byteLength +
-      rows.reduce((total, row) => total + encoder.encode(JSON.stringify(row)).byteLength, 0)
-
-    expect(result).toMatchObject({
-      bytes: expectedBytes,
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: 2062,
       accuracy: 'estimated',
       completeness: 'complete'
     })
-    expect(table.pageQuery).toHaveBeenCalledTimes(4)
-    expect(table.get).toHaveBeenCalledTimes(rows.length)
-    expect(dexieMock.close).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('language')).toBe('中文')
+    expect(localStorage.getItem('cs_cache_persist')).toBe('v2-cache')
   })
 
-  it('cancels an in-flight IndexedDB inspection and closes the database', async () => {
-    const table = createTableMock([{ id: 'block-001', payload: 'legacy' }])
-    let releaseGet!: () => void
-    table.get.mockImplementationOnce(
+  it.each([{ databases: [] }, { databases: [{ name: 'other-database', version: 1 }] }])(
+    'reports zero when the legacy database is absent: $databases',
+    async ({ databases }) => {
+      storageMock.databases.mockResolvedValue(databases)
+      vi.stubGlobal('navigator', {})
+
+      await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+        bytes: 0,
+        accuracy: 'estimated',
+        completeness: 'complete'
+      })
+    }
+  )
+
+  it('treats omitted zero-usage storage types as empty', async () => {
+    storageMock.estimate.mockResolvedValue({ usage: 4096, usageDetails: { caches: 4096 } })
+
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: 0,
+      accuracy: 'estimated',
+      completeness: 'complete'
+    })
+  })
+
+  it('keeps known bytes without attributing other databases to legacy data', async () => {
+    localStorage.setItem('language', '中文')
+    storageMock.databases.mockResolvedValue([
+      { name: 'CherryStudio', version: 29 },
+      { name: 'other-database', version: 1 }
+    ])
+
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: 14,
+      accuracy: 'estimated',
+      completeness: 'partial'
+    })
+  })
+
+  it('reports unknown size when the storage breakdown is unavailable', async () => {
+    storageMock.estimate.mockResolvedValue({ usage: 8192 })
+
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: null,
+      accuracy: 'unavailable',
+      completeness: 'partial'
+    })
+  })
+
+  it('reports unknown size when the storage API is unavailable', async () => {
+    vi.stubGlobal('navigator', {})
+
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: null,
+      accuracy: 'unavailable',
+      completeness: 'partial'
+    })
+  })
+
+  it.each(['databases', 'estimate'] as const)('preserves known bytes when %s fails', async (operation) => {
+    localStorage.setItem('language', '中文')
+    storageMock[operation].mockRejectedValueOnce(new DOMException('storage denied', 'SecurityError'))
+
+    await expect(inspectLegacyV1BrowserData()).resolves.toEqual({
+      bytes: 14,
+      accuracy: 'estimated',
+      completeness: 'partial'
+    })
+  })
+
+  it('rejects an inspection that was already cancelled', async () => {
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(inspectLegacyV1BrowserData(controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it.each(['databases', 'estimate'] as const)('discards %s results after cancellation', async (operation) => {
+    let finishQuery: ((value: unknown) => void) | undefined
+    storageMock[operation].mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          releaseGet = () => resolve({ id: 'block-001', payload: 'legacy' })
+          finishQuery = resolve
         })
     )
-    dexieMock.table.mockReturnValue(table)
     const controller = new AbortController()
 
     const inspection = inspectLegacyV1BrowserData(controller.signal)
-    await vi.waitFor(() => expect(table.get).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(finishQuery).toBeTypeOf('function'))
     controller.abort()
-    releaseGet()
+    finishQuery?.(operation === 'databases' ? [{ name: 'CherryStudio' }] : { usageDetails: { indexedDB: 2048 } })
 
     await expect(inspection).rejects.toMatchObject({ name: 'AbortError' })
-    expect(dexieMock.close).toHaveBeenCalledOnce()
-  })
-
-  it('keeps known bytes and reports partial size when one IndexedDB table cannot be serialized', async () => {
-    localStorage.setItem('language', 'zh-cn')
-    dexieMock.table.mockReturnValue(createTableMock([{ id: 'bad', payload: 1n }]))
-
-    const result = await inspectLegacyV1BrowserData()
-
-    expect(result.bytes).toBeGreaterThan(0)
-    expect(result.completeness).toBe('partial')
   })
 
   it('deletes only the v1 keys and the CherryStudio database', async () => {

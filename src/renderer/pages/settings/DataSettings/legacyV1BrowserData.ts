@@ -1,13 +1,12 @@
 import { loggerService } from '@logger'
 import type { CacheCleanupGroupResult, CacheCleanupSizeSnapshot } from '@shared/types/cacheCleanupIpc'
-import { Dexie, type IndexableType } from 'dexie'
+import { Dexie } from 'dexie'
 
 const logger = loggerService.withContext('LegacyV1BrowserData')
 
 const LEGACY_DATABASE_NAME = 'CherryStudio'
 const LEGACY_PERSISTED_STATE_KEY = 'persist:cherry-studio'
 const LEGACY_CLEANUP_RETRY_MARKER_KEY = 'cherry-studio:legacy-v1-cleanup-pending'
-const INDEXED_DB_PAGE_SIZE = 100
 const textEncoder = new TextEncoder()
 
 export const LEGACY_LOCAL_STORAGE_KEYS = [
@@ -93,69 +92,31 @@ function inspectLegacyLocalStorage(): BrowserDataMeasurement {
 async function inspectLegacyIndexedDb(signal?: AbortSignal): Promise<BrowserDataMeasurement> {
   signal?.throwIfAborted()
   try {
-    if (!(await Dexie.exists(LEGACY_DATABASE_NAME))) {
+    const databases = await indexedDB.databases()
+    signal?.throwIfAborted()
+    if (!databases.some(({ name }) => name === LEGACY_DATABASE_NAME)) {
       return { bytes: 0, hasFailures: false }
     }
-  } catch (error) {
-    if (signal?.aborted) throw error
-    logger.warn('Failed to check legacy IndexedDB existence', error as Error)
-    return { bytes: 0, hasFailures: true }
-  }
+    if (databases.length > 1) {
+      return { bytes: 0, hasFailures: true }
+    }
 
-  const db = new Dexie(LEGACY_DATABASE_NAME)
-  let bytes = 0
-  let hasFailures = false
-
-  try {
-    await db.open()
+    // Serializing large legacy values can exhaust the renderer heap just to estimate their size.
+    const estimate: StorageEstimate & { usageDetails?: { indexedDB?: number } } = await navigator.storage.estimate()
     signal?.throwIfAborted()
-
-    for (const table of db.tables) {
-      let lastPrimaryKey: IndexableType | undefined
-
-      try {
-        while (true) {
-          signal?.throwIfAborted()
-          const collection =
-            lastPrimaryKey === undefined ? table.orderBy(':id') : table.where(':id').above(lastPrimaryKey)
-          const primaryKeys = await collection.limit(INDEXED_DB_PAGE_SIZE).primaryKeys()
-          signal?.throwIfAborted()
-          if (primaryKeys.length === 0) break
-
-          for (const primaryKey of primaryKeys) {
-            signal?.throwIfAborted()
-            const record = await table.get(primaryKey)
-            signal?.throwIfAborted()
-            if (record === undefined) {
-              throw new Error('IndexedDB record missing from page')
-            }
-            const serialized = JSON.stringify(record)
-            if (serialized === undefined) {
-              throw new Error('IndexedDB record is not serializable')
-            }
-            bytes += byteLength(serialized)
-          }
-
-          lastPrimaryKey = primaryKeys[primaryKeys.length - 1]
-        }
-      } catch (error) {
-        if (signal?.aborted) throw error
-        logger.warn('Failed to inspect legacy IndexedDB table', { table: table.name, error })
-        hasFailures = true
-      }
+    return {
+      bytes: estimate.usageDetails?.indexedDB ?? 0,
+      hasFailures: estimate.usageDetails === undefined
     }
   } catch (error) {
-    if (signal?.aborted) throw error
-    logger.warn('Failed to open legacy IndexedDB', error as Error)
-    hasFailures = true
-  } finally {
-    db.close()
+    signal?.throwIfAborted()
+    logger.warn('Failed to inspect legacy IndexedDB size', error as Error)
+    return { bytes: 0, hasFailures: true }
   }
-
-  return { bytes, hasFailures }
 }
 
 export async function inspectLegacyV1BrowserData(signal?: AbortSignal): Promise<CacheCleanupSizeSnapshot> {
+  signal?.throwIfAborted()
   const localStorageMeasurement = inspectLegacyLocalStorage()
   const indexedDbMeasurement = await inspectLegacyIndexedDb(signal)
   const bytes = localStorageMeasurement.bytes + indexedDbMeasurement.bytes

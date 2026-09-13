@@ -12,10 +12,12 @@ import { uiLocator } from '../utils/ui-locator'
 export type ElectronFixtures = {
   electronApp: ElectronApplication
   mainWindow: Page
+  extraElectronArgs: string[]
 }
 
 export const test = base.extend<ElectronFixtures>({
-  electronApp: async ({}, use, testInfo) => {
+  extraElectronArgs: [[], { option: true }],
+  electronApp: async ({ extraElectronArgs }, use, testInfo) => {
     const profile = await mkdtemp(path.join(os.tmpdir(), 'cherry-e2e-'))
     const roaming = path.join(profile, 'AppData', 'Roaming')
     const local = path.join(profile, 'AppData', 'Local')
@@ -37,7 +39,11 @@ export const test = base.extend<ElectronFixtures>({
       CS_DEV_USER_DATA_SUFFIX: profileSuffix
     }
     delete env.ELECTRON_RUN_AS_NODE
-    const electronApp = await electron.launch({ args: ['.', '--disable-gpu'], env, timeout: 60000 })
+    const electronApp = await electron.launch({
+      args: ['.', '--disable-gpu', ...extraElectronArgs],
+      env,
+      timeout: 60000
+    })
     const userData = await electronApp.evaluate(({ app }) => app.getPath('userData'))
     const logsPath = await electronApp.evaluate(({ app }) => app.getPath('logs'))
     expect(path.basename(userData)).toContain(profileSuffix)
