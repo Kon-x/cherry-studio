@@ -37,7 +37,7 @@ test('knowledge indexes a note with the local embedding model and retrieves its 
   const apps = mainWindow
     .locator('section')
     .filter({ has: mainWindow.getByRole('heading', { name: 'Apps', exact: true }) })
-  await apps.getByRole('button', { name: 'Knowledge Base', exact: true }).click()
+  await apps.getByRole('button', { name: 'Knowledge Base', exact: true }).and(apps.locator('button')).click()
   await mainWindow.getByRole('button', { name: 'CI knowledge', exact: true }).click()
   await mainWindow.getByRole('button', { name: 'Recall Test', exact: true }).click()
   await mainWindow.getByPlaceholder('Enter test query...').fill('What is the verification passphrase?')

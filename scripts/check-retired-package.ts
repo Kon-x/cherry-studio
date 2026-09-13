@@ -14,7 +14,7 @@ const retiredRuntime =
 
 export function checkRetiredPackage(resourcesDirectory: string) {
   const archive = path.join(resourcesDirectory, 'app.asar')
-  const entries = listPackage(archive).map((entry) => entry.replaceAll('\\', '/').replace(/^\/+/, ''))
+  const entries = listPackage(archive, {}).map((entry) => entry.replaceAll('\\', '/').replace(/^\/+/, ''))
   const externalFiles = fs
     .readdirSync(resourcesDirectory, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())

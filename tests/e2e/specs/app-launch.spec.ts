@@ -8,7 +8,8 @@ test('fresh profiles open Chat and the launchpad offers only the six retained ap
     .locator('section')
     .filter({ has: mainWindow.getByRole('heading', { name: 'Apps', exact: true }) })
 
-  await expect(apps.getByRole('button')).toHaveText([
+  // Sortable also exposes a button role on each tile's keyboard activator.
+  await expect(apps.getByRole('button').and(apps.locator('button'))).toHaveText([
     'Conversations',
     'Paintings',
     'Translate',
@@ -16,7 +17,7 @@ test('fresh profiles open Chat and the launchpad offers only the six retained ap
     'Files',
     'Notes'
   ])
-  await apps.getByRole('button', { name: 'Conversations', exact: true }).click()
+  await apps.getByRole('button', { name: 'Conversations', exact: true }).and(apps.locator('button')).click()
   await expect(uiLocator(mainWindow, 'chat.composer')).toBeVisible()
 })
 
