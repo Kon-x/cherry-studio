@@ -29,7 +29,7 @@ export function checkRetiredPackage(resourcesDirectory: string) {
 
   const bundles = entries.filter((entry) => /^out\/.*\.js$/.test(entry))
   for (const entry of bundles) {
-    const match = extractFile(archive, entry).toString('utf8').match(retiredRuntime)
+    const match = extractFile(archive, path.normalize(entry)).toString('utf8').match(retiredRuntime)
     if (match) failures.push(`${entry}: ${match[0]}`)
   }
 
