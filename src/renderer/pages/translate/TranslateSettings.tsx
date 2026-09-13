@@ -482,7 +482,9 @@ const CustomLanguageList: FC = () => {
       title={t('translate.custom.label')}
       actions={
         customLanguages.length > 0 && (
-          <span className="text-foreground-tertiary text-xs">{t('code.count', { count: customLanguages.length })}</span>
+          <span className="text-foreground-tertiary text-xs">
+            {t('common.item_count', { count: customLanguages.length })}
+          </span>
         )
       }>
       <div className="flex flex-col gap-1">

@@ -44,7 +44,6 @@ import {
   WEB_SEARCH_TOOL_NAME,
   webSearchOutputSchema
 } from '@shared/ai/builtinTools'
-import { PI_TOOL_CALL_TOOL_NAME } from '@shared/ai/piBuiltinTools'
 import { parseFunctionCallToolName } from '@shared/ai/tools/mcpToolName'
 import { isDeferredToolOutput, isPersistedToolOutput } from '@shared/ai/transport'
 import type { CherryMessagePart } from '@shared/data/types/message'
@@ -141,11 +140,6 @@ function resolveCitableToolName(part: CherryMessagePart): string | null {
 
   // pi runs every tool through its code-mode `tool_call` wrapper, so the target's wire name lives
   // in the input rather than the part's own name — the `tool_invoke` shape with an MCP-style name.
-  if (rawName === PI_TOOL_CALL_TOOL_NAME) {
-    const input = toolPart.input
-    return isRecord(input) && typeof input.name === 'string' ? citableCherryToolName(input.name) : null
-  }
-
   return citableCherryToolName(rawName)
 }
 

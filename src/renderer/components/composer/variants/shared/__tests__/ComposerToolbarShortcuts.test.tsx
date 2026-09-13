@@ -240,7 +240,7 @@ describe('ComposerToolbarShortcuts', () => {
     })
 
     expect(mocks.toastError).toHaveBeenCalledTimes(3)
-    expect(mocks.toastError).toHaveBeenCalledWith('code.model_required')
+    expect(mocks.toastError).toHaveBeenCalledWith('chat.model_required')
     expect(onCustomSelect).not.toHaveBeenCalled()
   })
 

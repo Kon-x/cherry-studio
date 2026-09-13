@@ -409,32 +409,6 @@ function createAssistantResource(overrides: Partial<Extract<ResourceItem, { type
   }
 }
 
-function createAgentResource(): ResourceItem {
-  return {
-    id: 'agent-1',
-    type: 'agent',
-    name: 'Agent',
-    description: '',
-    avatar: 'A',
-    createdAt: '2026-05-06T00:00:00.000Z',
-    updatedAt: '2026-05-06T00:00:00.000Z',
-    raw: {} as Extract<ResourceItem, { type: 'agent' }>['raw']
-  }
-}
-
-function createSkillResource(version: string | null = null, isGlobalEnabled = true): ResourceItem {
-  return {
-    id: 'skill-1',
-    type: 'skill',
-    name: 'Skill',
-    description: '',
-    avatar: 'S',
-    createdAt: '2026-05-06T00:00:00.000Z',
-    updatedAt: '2026-05-06T00:00:00.000Z',
-    raw: { version, isGlobalEnabled } as Extract<ResourceItem, { type: 'skill' }>['raw']
-  }
-}
-
 function createPromptResource(): ResourceItem {
   return {
     id: 'prompt-1',
@@ -462,7 +436,6 @@ function renderResourceGrid(props: Partial<ComponentProps<typeof ResourceGrid>> 
       onExport={vi.fn()}
       onCreate={vi.fn()}
       onImportAssistant={vi.fn()}
-      onOpenSkillMarketplace={vi.fn()}
       groups={[]}
       activeGroupId={null}
       onGroupFilter={vi.fn()}
@@ -492,7 +465,7 @@ describe('ResourceGrid empty state copy', () => {
 
     unmount()
     const onSearchChange = vi.fn()
-    renderResourceGrid({ activeResourceType: 'skill', onSearchChange, variant: 'settings', title: '技能' })
+    renderResourceGrid({ activeResourceType: 'prompt', onSearchChange, variant: 'settings', title: '技能' })
 
     fireEvent.change(screen.getByPlaceholderText('library.toolbar.search_placeholder'), {
       target: { value: 'creator' }
@@ -515,28 +488,18 @@ describe('ResourceGrid empty state copy', () => {
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument()
   })
 
-  it('keeps the settings grid single-column with a little more space below the header', async () => {
-    const clientWidthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200)
-
-    try {
-      renderResourceGrid({ activeResourceType: 'skill', isLoading: true, variant: 'settings', title: '技能' })
-
-      const loadingGrid = screen.getByTestId('resource-grid-loading')
-      await waitFor(() => expect(loadingGrid).toHaveStyle({ gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }))
-      expect(loadingGrid.parentElement).toBe(screen.getByTestId('shared-scrollbar'))
-      expect(loadingGrid.parentElement).toHaveClass('pt-4', 'pb-3')
-    } finally {
-      clientWidthSpy.mockRestore()
-    }
-  })
-
   it('keeps the layout control aligned with the visible columns after resizing', async () => {
     const user = userEvent.setup()
     let width = 900
     const clientWidthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width)
     vi.stubGlobal('ResizeObserver', undefined)
     try {
-      renderResourceGrid({ activeResourceType: 'skill', isLoading: true, variant: 'settings', allowColumnToggle: true })
+      renderResourceGrid({
+        activeResourceType: 'prompt',
+        isLoading: true,
+        variant: 'settings',
+        allowColumnToggle: true
+      })
       const grid = screen.getByTestId('resource-grid-loading')
       const toggle = screen.getByRole('button', { name: 'common.layout.two_columns' })
       expect(toggle).toHaveAccessibleName('common.layout.two_columns')
@@ -608,51 +571,6 @@ describe('ResourceGrid assistant add actions', () => {
     expect(screen.getByRole('button', { name: '新建助手' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '助手库' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '导入助手' })).toBeInTheDocument()
-  })
-})
-
-describe('ResourceGrid skill add actions', () => {
-  it('renders skill actions inline and dispatches online, system, or local actions', async () => {
-    const user = userEvent.setup()
-    const onCreate = vi.fn()
-    const onOpenSkillMarketplace = vi.fn()
-    const onOpenSystemSkills = vi.fn()
-
-    renderResourceGrid({
-      activeResourceType: 'skill',
-      onCreate,
-      onOpenSkillMarketplace,
-      onOpenSystemSkills
-    })
-
-    expect(screen.getByRole('button', { name: '添加技能' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: '添加技能' }))
-
-    expect(screen.getByRole('menuitem', { name: '在线搜索' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: '本地导入' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: '系统搜索' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('menuitem', { name: '在线搜索' }))
-
-    expect(onOpenSkillMarketplace).toHaveBeenCalledTimes(1)
-    expect(onCreate).not.toHaveBeenCalled()
-
-    await user.click(screen.getByRole('menuitem', { name: '本地导入' }))
-
-    expect(onCreate).toHaveBeenCalledWith('skill')
-
-    await user.click(screen.getByRole('menuitem', { name: '系统搜索' }))
-
-    expect(onOpenSystemSkills).toHaveBeenCalledTimes(1)
-  })
-
-  it('hides system search when no current agent is available', () => {
-    renderResourceGrid({ activeResourceType: 'skill' })
-
-    fireEvent.click(screen.getByRole('button', { name: '添加技能' }))
-
-    expect(screen.queryByRole('menuitem', { name: '系统搜索' })).not.toBeInTheDocument()
   })
 })
 
@@ -819,37 +737,6 @@ describe('ResourceGrid group toolbar management', () => {
 })
 
 describe('ResourceGrid card actions', () => {
-  it('toggles a Skill globally from its settings card without opening the card', async () => {
-    const user = userEvent.setup()
-    const onEdit = vi.fn()
-    updateSkillGlobalEnabledMock.mockResolvedValueOnce({})
-
-    render(
-      <ResourceCard
-        resource={createSkillResource(null, true)}
-        variant="settings"
-        {...getResourceCardProps({ onEdit })}
-      />
-    )
-
-    const toggle = screen.getByRole('switch', { name: '全局启用技能' })
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
-    await user.click(toggle)
-
-    expect(updateSkillGlobalEnabledMock).toHaveBeenCalledWith(false)
-    expect(onEdit).not.toHaveBeenCalled()
-  })
-
-  it('shows the Skill version tag only when a version is available', () => {
-    const { rerender } = render(<ResourceCard resource={createSkillResource('1.2.3')} {...getResourceCardProps()} />)
-
-    expect(screen.getByText('1.2.3')).toBeInTheDocument()
-
-    rerender(<ResourceCard resource={createSkillResource()} {...getResourceCardProps()} />)
-
-    expect(screen.queryByText('1.2.3')).not.toBeInTheDocument()
-  })
-
   it('shows the overflow menu only for assistant cards', () => {
     render(<ResourceCard resource={createAssistantResource()} {...getResourceCardProps()} />)
 
@@ -859,7 +746,7 @@ describe('ResourceGrid card actions', () => {
 
   it('shows a direct delete action when delete is the only card action', async () => {
     const user = userEvent.setup()
-    const resource = createAgentResource()
+    const resource = createPromptResource()
     const onDelete = vi.fn()
 
     render(<ResourceCard resource={resource} {...getResourceCardProps({ onDelete })} />)
@@ -1067,7 +954,7 @@ describe('ResourceCardMenu group binding', () => {
     })
   })
 
-  it('does not expose group management for agent, skill, or prompt resources', async () => {
+  it('does not expose group management for prompt resources', async () => {
     const user = userEvent.setup()
     const menuProps = {
       onClose: vi.fn(),
@@ -1077,7 +964,7 @@ describe('ResourceCardMenu group binding', () => {
       allGroups: assistantGroups
     }
 
-    for (const resource of [createAgentResource(), createSkillResource(), createPromptResource()]) {
+    for (const resource of [createPromptResource()]) {
       const { unmount } = render(<ResourceCardMenu resource={resource} {...menuProps} />)
 
       await user.click(screen.getByRole('button', { name: /common.more/ }))
@@ -1085,25 +972,6 @@ describe('ResourceCardMenu group binding', () => {
 
       unmount()
     }
-  })
-
-  it('keeps uninstall available for skill resources without extra menu actions', async () => {
-    const user = userEvent.setup()
-
-    render(
-      <ResourceCardMenu
-        resource={createSkillResource()}
-        onClose={vi.fn()}
-        onDuplicate={vi.fn()}
-        onDelete={vi.fn()}
-        onExport={vi.fn()}
-        allGroups={[]}
-      />
-    )
-
-    await user.click(screen.getByRole('button', { name: /common.more/ }))
-    expect(screen.getByRole('menuitem', { name: /library.action.uninstall/ })).toBeInTheDocument()
-    expect(screen.queryByTestId('menu-divider')).not.toBeInTheDocument()
   })
 
   it('keeps the divider when assistant resources have actions before delete', async () => {

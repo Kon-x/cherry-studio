@@ -52,8 +52,6 @@ const mockResolveImageTransport = vi.fn()
 const mockListProviderRegistryModels = vi.fn()
 const mockIsRegistryProvider = vi.fn()
 const mockListModelsFromProvider = vi.fn()
-const mockInstallBuiltinSkills = vi.fn()
-const mockReconcileSkills = vi.fn()
 const mockRegisterBuiltinTools = vi.fn()
 const mockInstallProviderUserAgentInterceptor = vi.fn(() => vi.fn())
 const mockRecordRequest = vi.fn()
@@ -75,16 +73,6 @@ vi.mock('@data/services/AssistantService', () => ({
 vi.mock('@data/services/JobService', () => ({
   jobService: {
     addFileRefsTx: (...args: unknown[]) => mockAddFileRefsTx(...args)
-  }
-}))
-
-vi.mock('@main/utils/builtinSkills', () => ({
-  installBuiltinSkills: (...args: unknown[]) => mockInstallBuiltinSkills(...args)
-}))
-
-vi.mock('../skills/SkillService', () => ({
-  skillService: {
-    reconcileSkills: (...args: unknown[]) => mockReconcileSkills(...args)
   }
 }))
 
@@ -335,45 +323,6 @@ describe('AiService', () => {
   it('requires one stream topic while allowing a distinct conversation identity', () => {
     expectTypeOf<AiStreamRequest['conversation']>().toExtend<{ id: string; topicId: string }>()
     expectTypeOf<AiStreamRequest>().not.toHaveProperty('chatId')
-  })
-
-  it('routes agent-session runtime requests directly to the runtime service', async () => {
-    const service = createService()
-    const stream = new ReadableStream()
-    const openTurnStream = vi.fn(() => stream)
-    mockApplicationGet.mockReturnValue({ openTurnStream })
-
-    await expect(
-      service.streamText({
-        conversation: { id: 'session-1', topicId: 'agent-session:session-1' },
-        trigger: 'submit-message',
-        runtime: { kind: 'agent-session', sessionId: 'session-1', turnId: 'turn-1' },
-        requestOptions: { signal: new AbortController().signal }
-      })
-    ).resolves.toBe(stream)
-
-    expect(mockApplicationGet).toHaveBeenCalledWith('AgentSessionRuntimeService')
-    expect(openTurnStream).toHaveBeenCalledWith({
-      sessionId: 'session-1',
-      turnId: 'turn-1',
-      signal: expect.any(AbortSignal)
-    })
-  })
-
-  it('rejects agent-session streams that do not carry a runtime request', async () => {
-    const service = createService()
-    const buildAgentParamsFor = vi.spyOn(service as any, 'buildAgentParamsFor')
-
-    await expect(
-      service.streamText({
-        conversation: { id: 'session-1', topicId: 'agent-session:session-1' },
-        trigger: 'submit-message',
-        requestOptions: { signal: new AbortController().signal }
-      })
-    ).rejects.toThrow('requires an agent-session runtime request')
-
-    expect(buildAgentParamsFor).not.toHaveBeenCalled()
-    expect(mockApplicationGet).not.toHaveBeenCalled()
   })
 
   it('detects only native attachment shapes that the primary model preserves', () => {
@@ -856,41 +805,6 @@ describe('AiService', () => {
   })
 })
 
-describe('AiService.onInit', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockApplicationGet.mockImplementation((name: string) =>
-      name === 'JobManager' ? { registerHandler: vi.fn() } : undefined
-    )
-    mockReconcileSkills.mockResolvedValue(undefined)
-  })
-
-  it('installs built-in skills before reconciling skills, without blocking init', async () => {
-    const calls: string[] = []
-    mockInstallBuiltinSkills.mockImplementation(async () => {
-      calls.push('installBuiltinSkills')
-    })
-    mockReconcileSkills.mockImplementation(async () => {
-      calls.push('reconcileSkills')
-    })
-    const service = createService()
-
-    // Fire-and-forget: _doInit resolves without waiting on this chain.
-    await service._doInit()
-    await vi.waitFor(() => expect(mockReconcileSkills).toHaveBeenCalled())
-
-    expect(calls).toEqual(['installBuiltinSkills', 'reconcileSkills'])
-  })
-
-  it('logs and continues to reconcile when installBuiltinSkills rejects', async () => {
-    mockInstallBuiltinSkills.mockRejectedValue(new Error('disk full'))
-    const service = createService()
-
-    await expect(service._doInit()).resolves.toBeUndefined()
-    await vi.waitFor(() => expect(mockReconcileSkills).toHaveBeenCalled())
-  })
-})
-
 describe('AiService tool approval', () => {
   /** A fake renderer event whose `sender` satisfies `WebContentsListener`'s constructor. */
   function fakeEvent() {
@@ -947,42 +861,8 @@ describe('AiService tool approval', () => {
     vi.clearAllMocks()
   })
 
-  it('takes the Claude-Agent fast-path when the live registry dispatches the decision', async () => {
-    const respondToolApproval = vi.fn(() => true)
-    const dispatch = vi.fn()
-    mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
-      if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
-      return undefined
-    })
-    const getById = vi.spyOn(messageService, 'getById')
-
-    const handler = getApprovalHandler()
-    const result = await handler(fakeEvent(), {
-      approvalId: 'agent-approval-1',
-      approved: true
-    })
-
-    expect(result).toEqual({ ok: true })
-    expect(respondToolApproval).toHaveBeenCalledWith(
-      'agent-approval-1',
-      {
-        approved: true,
-        reason: undefined,
-        updatedInput: undefined
-      },
-      undefined
-    )
-    // Fast-path short-circuits before any DB read or continue dispatch.
-    expect(getById).not.toHaveBeenCalled()
-    expect(dispatch).not.toHaveBeenCalled()
-  })
-
   it('returns { ok: false } when there is no live entry and no anchor context', async () => {
-    const respondToolApproval = vi.fn(() => false)
-    mockApplicationGet.mockImplementation((name: string) =>
-      name === 'AgentSessionRuntimeService' ? { respondToolApproval } : undefined
-    )
+    mockApplicationGet.mockReturnValue(undefined)
     const getById = vi.spyOn(messageService, 'getById')
 
     const handler = getApprovalHandler()
@@ -997,10 +877,8 @@ describe('AiService tool approval', () => {
   })
 
   it('applies the decision atomically and dispatches continue-conversation when nothing is left pending', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })
@@ -1043,10 +921,8 @@ describe('AiService tool approval', () => {
   })
 
   it('skips the continuation (ok:false) when there is no caller window to stream it to', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })
@@ -1073,11 +949,9 @@ describe('AiService tool approval', () => {
     // land while a sibling exec / another continuation is still live. Dispatching continue-conversation
     // then would hit send()'s inject path and silently swallow the approved turn. Gate it: refuse
     // before touching the row, so the card stays actionable and the renderer can retry post-settle.
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     const hasLiveStream = vi.fn(() => true)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream }
       return undefined
     })
@@ -1099,10 +973,8 @@ describe('AiService tool approval', () => {
   })
 
   it('still dispatches when the committed parts report nothing pending (overlay-only decision)', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })
@@ -1134,10 +1006,8 @@ describe('AiService tool approval', () => {
   })
 
   it('does not finalize while another approval on the turn is still pending', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })
@@ -1167,10 +1037,8 @@ describe('AiService tool approval', () => {
   })
 
   it('ignores duplicate already-settled approval responses without dispatching another continuation', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })
@@ -1199,10 +1067,8 @@ describe('AiService tool approval', () => {
   })
 
   it('returns { ok: false } when the anchor message is missing or deleted', async () => {
-    const respondToolApproval = vi.fn(() => false)
     const dispatch = vi.fn().mockResolvedValue(undefined)
     mockApplicationGet.mockImplementation((name: string) => {
-      if (name === 'AgentSessionRuntimeService') return { respondToolApproval }
       if (name === 'AiStreamManager') return { dispatch, hasLiveStream: () => false }
       return undefined
     })

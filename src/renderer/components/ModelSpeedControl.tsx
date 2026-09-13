@@ -42,16 +42,16 @@ const EFFORT_LABEL_KEYS: Record<ThinkingOption, string> = {
 }
 
 const SUMMARY_LABEL_KEYS: Record<ReasoningSummary, string> = {
-  auto: 'agent.speed.summary.auto',
-  concise: 'agent.speed.summary.concise',
-  detailed: 'agent.speed.summary.detailed'
+  auto: 'chat.speed.summary.auto',
+  concise: 'chat.speed.summary.concise',
+  detailed: 'chat.speed.summary.detailed'
 }
 
 const SERVICE_TIER_LABEL_KEYS: Record<ServiceTierSelection, string> = {
-  standard: 'agent.speed.service_tier.standard',
-  auto: 'agent.speed.service_tier.auto',
-  fast: 'agent.speed.service_tier.fast',
-  flex: 'agent.speed.service_tier.flex'
+  standard: 'chat.speed.service_tier.standard',
+  auto: 'chat.speed.service_tier.auto',
+  fast: 'chat.speed.service_tier.fast',
+  flex: 'chat.speed.service_tier.flex'
 }
 
 const WHEEL_STEP_THRESHOLD = 40
@@ -209,11 +209,11 @@ export function ModelSpeedControl({
   const currentIndex = selectedIndex >= 0 ? selectedIndex : 0
   const displayedEffort = showEffortSlider ? effectiveReasoningEffort : selectedOption
   const effortLabel = displayedEffort ? t(EFFORT_LABEL_KEYS[displayedEffort]) : ''
-  const effortControlLabel = t('agent.speed.effort')
-  const serviceTierControlLabel = t('agent.speed.service_tier.label')
+  const effortControlLabel = t('chat.speed.effort')
+  const serviceTierControlLabel = t('chat.speed.service_tier.label')
   const effectiveServiceTier = resolveSupportedServiceTier(model, serviceTier)
   const serviceTierLabel = t(SERVICE_TIER_LABEL_KEYS[effectiveServiceTier])
-  const triggerLabel = fastMode ? t('agent.speed.fast') : t('agent.speed.label')
+  const triggerLabel = fastMode ? t('chat.speed.fast') : t('chat.speed.label')
   const handleSliderValueChange = (index: number) => {
     const effort = sliderEfforts[index]
     if (effort) onReasoningEffortChange(effort)
@@ -227,10 +227,10 @@ export function ModelSpeedControl({
           variant="ghost"
           size="sm"
           className="h-8 gap-1 rounded-md px-2.5 text-muted-foreground text-xs hover:text-foreground"
-          aria-label={t('agent.speed.title')}>
+          aria-label={t('chat.speed.title')}>
           <Gauge size={14} className="shrink-0" />
           <span>{supportsReasoning ? effortLabel : supportsServiceTier ? serviceTierLabel : triggerLabel}</span>
-          {supportsReasoning && fastMode && supportsFast ? <span>· {t('agent.speed.fast')}</span> : null}
+          {supportsReasoning && fastMode && supportsFast ? <span>· {t('chat.speed.fast')}</span> : null}
           <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -252,7 +252,7 @@ export function ModelSpeedControl({
                 </span>
               </div>
             ) : (
-              <span className="text-muted-foreground">{t('agent.speed.label')}</span>
+              <span className="text-muted-foreground">{t('chat.speed.label')}</span>
             )}
             {showEffortSlider || supportsFast ? (
               <div className="ml-auto flex shrink-0 items-center gap-0.5">
@@ -273,7 +273,7 @@ export function ModelSpeedControl({
                     variant="ghost"
                     size="icon-sm"
                     className={cn('rounded-full', fastMode && 'text-primary hover:text-primary')}
-                    aria-label={t('agent.speed.fast')}
+                    aria-label={t('chat.speed.fast')}
                     aria-pressed={fastMode}
                     onClick={() => onFastModeChange?.(!fastMode)}>
                     <Zap size={14} fill={fastMode ? 'currentColor' : 'none'} />
@@ -286,8 +286,8 @@ export function ModelSpeedControl({
         {supportsReasoning && showEffortSlider ? (
           <div className="mt-2.5">
             <div className="flex items-center justify-between font-medium text-[11px] leading-none" aria-hidden="true">
-              <span className="text-muted-foreground">{t('agent.speed.faster')}</span>
-              <span className="text-primary">{t('agent.speed.smarter')}</span>
+              <span className="text-muted-foreground">{t('chat.speed.faster')}</span>
+              <span className="text-primary">{t('chat.speed.smarter')}</span>
             </div>
             <WheelStepControl
               value={currentIndex}
@@ -347,11 +347,11 @@ export function ModelSpeedControl({
         {summaryOptions.length > 0 ? (
           <div className="mt-3 border-frame-border border-t pt-3">
             <span className="mb-2 block font-medium text-[11px] text-muted-foreground leading-none">
-              {t('agent.speed.summary.label')}
+              {t('chat.speed.summary.label')}
             </span>
             <div
               role="group"
-              aria-label={t('agent.speed.summary.label')}
+              aria-label={t('chat.speed.summary.label')}
               className="grid grid-cols-3 gap-1 rounded-lg bg-muted/70 p-1">
               {summaryOptions.map((summary) => (
                 <Button

@@ -134,9 +134,6 @@ export enum IpcChannel {
   TRACE_CLEAN_LOCAL_DATA = 'trace:cleanLocalData',
 
   // Global Skills
-  Skill_ReadFile = 'skill:read-file',
-  Skill_ListFiles = 'skill:list-files',
-
   // LAN Transfer
   LanTransfer_StartScan = 'lan-transfer:start-scan',
   LanTransfer_StopScan = 'lan-transfer:stop-scan',

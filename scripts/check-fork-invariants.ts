@@ -35,11 +35,38 @@ function listFiles(relativePath: string): string[] {
 for (const relativePath of [
   'docs/references/api-gateway',
   'src/main/features/apiGateway',
-  'src/main/ai/channels/adapters',
-  'src/main/ai/channels/ChannelLogBuffer.ts',
-  'src/main/ai/channels/ChannelMessageHandler.ts',
-  'src/main/ai/channels/FlushController.ts',
+  'src/main/ai/channels',
+  'src/main/ai/agentSession',
+  'src/main/ai/agents',
+  'src/main/ai/skills',
+  'src/main/ai/runtime/claudeCode',
+  'src/main/ai/runtime/pi',
+  'src/main/ai/runtime/dsh',
+  'src/main/features/miniApp',
+  'src/main/services/CodeCliService.ts',
+  'src/main/services/DeepSeekHarnessService.ts',
+  'src/main/services/OpenClawService.ts',
+  'src/main/services/HermesService.ts',
+  'packages/dsh-bridge',
+  'packages/provider-registry/src/providers/claude-code.ts',
+  'resources/builtin-agents',
+  'resources/builtin-mini-apps',
+  'resources/code-cli-skills',
+  'resources/skills',
+  'src/renderer/pages/agents',
+  'src/renderer/pages/miniApps',
+  'src/renderer/pages/code',
+  'src/renderer/routes/app/agents.tsx',
+  'src/renderer/routes/app/code.tsx',
+  'src/renderer/routes/app/mini-app.index.tsx',
+  'src/renderer/routes/app/mini-app',
+  'src/renderer/routes/settings/skills.tsx',
+  'src/renderer/routes/settings/scheduled-tasks.tsx',
+  'docs/references/mini-app',
   'src/main/ipc/handlers/apiGateway.ts',
+  'src/shared/ipc/schemas/apiGateway.ts',
+  'src/shared/types/apiGateway.ts',
+  'src/shared/utils/apiGateway.ts',
   'src/main/ipc/handlers/channel.ts',
   'src/shared/ipc/schemas/channel.ts',
   'src/renderer/pages/settings/ChannelsSettings',
@@ -51,27 +78,52 @@ for (const relativePath of [
   assertRemoved(relativePath)
 }
 
-const sourceFiles = listFiles('src').filter((file) => /\.[cm]?[jt]sx?$/.test(file))
+const removedServices = [
+  'ApiGatewayService',
+  'AgentSessionRuntimeService',
+  'AgentJobsService',
+  'SkillService',
+  'ChannelManager',
+  'MiniAppService',
+  'CodeCliService',
+  'DeepSeekHarnessService'
+]
+const sourceFiles = listFiles('src').filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/'))
 for (const file of sourceFiles) {
   const source = read(file)
-  if (/application\.get(?:Optional)?\(['"]ApiGatewayService['"]\)/.test(source)) {
-    failures.push(`${file} looks up the removed ApiGatewayService`)
+  const dependencies = [...source.matchAll(/@DependsOn\(\[([\s\S]*?)\]\)/g)].map((match) => match[1]).join('\n')
+  for (const service of removedServices) {
+    const lookup = new RegExp(`(?:application\\.get(?:Optional)?|@Injectable)\\(['"]${service}['"]`)
+    if (lookup.test(source) || new RegExp(`['"]${service}['"]`).test(dependencies)) {
+      failures.push(`${file} depends on the removed ${service}`)
+    }
   }
 }
 
-const channelManager = read('src/main/ai/channels/ChannelManager.ts')
-for (const [description, pattern] of [
-  ['syncChannel must remain inert', /async syncChannel\([\s\S]*?\): Promise<void> \{\}/],
-  ['getAgentAdapters must return no adapters', /getAgentAdapters\([\s\S]*?return \[\]/],
-  ['getAdapter must return undefined', /getAdapter\([\s\S]*?return undefined/],
-  ['getAllStatuses must return no statuses', /getAllStatuses\([\s\S]*?return \[\]/]
-] as const) {
-  if (!pattern.test(channelManager)) failures.push(description)
+const launchpadApps = [...read('src/renderer/utils/sidebar.ts').matchAll(/\bid: '([^']+)'/g)].map((match) => match[1])
+if (
+  JSON.stringify(launchpadApps) !==
+  JSON.stringify(['assistants', 'paintings', 'translate', 'knowledge', 'files', 'notes'])
+) {
+  failures.push('The launchpad must contain only the six retained apps')
 }
 
-const dependencySources = `${read('package.json')}\n${read('pnpm-lock.yaml')}`
-for (const dependency of ['@larksuiteoapi/node-sdk', 'grammy', 'telegram-markdown-v2']) {
+const dependencySources = `${read('package.json')}\n${read('pnpm-lock.yaml')}\n${read('pnpm-workspace.yaml')}`
+for (const dependency of [
+  '@larksuiteoapi/node-sdk',
+  'grammy',
+  'telegram-markdown-v2',
+  '@anthropic-ai/claude-agent-sdk',
+  '@earendil-works/pi-',
+  '@deepseek-ai/dsh-',
+  '@cherrystudio/dsh-bridge'
+]) {
   if (dependencySources.includes(dependency)) failures.push(`${dependency} must stay removed`)
+}
+
+const lifecycle = read('src/main/core/application/serviceRegistry.ts')
+for (const service of removedServices) {
+  if (lifecycle.includes(service)) failures.push(`${service} must not be registered`)
 }
 
 const workflowFiles = fs.readdirSync(repositoryPath('.github/workflows')).sort()

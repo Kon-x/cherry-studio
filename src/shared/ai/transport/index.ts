@@ -18,8 +18,6 @@ export {
 } from './persistedToolOutput'
 export type {
   ActiveExecution,
-  AiAgentSessionWarmCloseRequest,
-  AiAgentSessionWarmRequest,
   AiChatRequestBody,
   AiStreamAbortRequest,
   AiStreamAdmissionReason,

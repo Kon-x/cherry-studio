@@ -12,12 +12,6 @@ function makePart(overrides: Partial<Record<string, unknown>> = {}): CherryMessa
     input: { file_path: '/tmp/file.ts' },
     approval: { id: 'approval-1' },
     providerExecuted: true,
-    callProviderMetadata: {
-      'claude-code': {
-        rawInput: { file_path: '/tmp/file.ts' },
-        parentToolCallId: null
-      }
-    },
     ...overrides
   } as unknown as CherryMessagePart
 }
@@ -81,15 +75,15 @@ describe('findNextPendingPermissionRequest', () => {
     expect(result?.title).toBe('Run focused composer tests')
   })
 
-  it('shows the target path for Pi file-tool approvals', () => {
+  it('shows the target path for file-tool approvals', () => {
     const result = findNextPendingPermissionRequest({
-      'message-1': [makePart({ input: { path: '/managed-skills/find-skills/SKILL.md' } })]
+      'message-1': [makePart({ input: { path: '/documents/notes.md' } })]
     })
 
-    expect(result?.title).toBe('/managed-skills/find-skills/SKILL.md')
+    expect(result?.title).toBe('/documents/notes.md')
   })
 
-  it('uses Claude Code MCP metadata for the tool preview', () => {
+  it('uses MCP server metadata for the tool preview', () => {
     const result = findNextPendingPermissionRequest({
       'message-1': [
         makePart({
@@ -100,7 +94,6 @@ describe('findNextPendingPermissionRequest', () => {
           approval: { id: 'mcp-approval-1' },
           callProviderMetadata: {
             cherry: {
-              transport: 'claude-agent',
               toolName: 'mcp__8171b5f3-c666-4ead-b2ab-bb9ac244af57__resolve-library-id',
               tool: {
                 type: 'mcp',
@@ -109,10 +102,6 @@ describe('findNextPendingPermissionRequest', () => {
                 name: 'resolve-library-id',
                 description: 'Resolve a package name into a Context7 library ID.'
               }
-            },
-            'claude-code': {
-              rawInput: { query: 'composer' },
-              parentToolCallId: null
             }
           }
         })
@@ -136,10 +125,9 @@ describe('findNextPendingPermissionRequest', () => {
     })
   })
 
-  it('ignores AskUserQuestion, invalid, and already responded tool parts', () => {
+  it('ignores invalid and already responded tool parts', () => {
     const result = findNextPendingPermissionRequest({
       'message-1': [
-        makePart({ toolName: 'AskUserQuestion', type: 'tool-AskUserQuestion' }),
         makePart({ state: 'approval-responded' }),
         makePart({ approval: undefined }),
         makePart({ toolCallId: undefined }),

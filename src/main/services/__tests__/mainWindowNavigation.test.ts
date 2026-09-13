@@ -120,7 +120,7 @@ describe('mainWindowNavigation', () => {
 
     it('uses a fresh request id for repeated cold-start navigations', () => {
       openRouteInMainWindow('/knowledge')
-      openRouteInMainWindow('/agents')
+      openRouteInMainWindow('/app/chat')
 
       const firstRequest = mainWindowServiceMock.showMainWindow.mock.calls[0][0]
       const secondRequest = mainWindowServiceMock.showMainWindow.mock.calls[1][0]
@@ -281,9 +281,25 @@ describe('mainWindowNavigation', () => {
   })
 
   describe('isAllowedRoute', () => {
+    it.each([
+      '/app/agents',
+      '/app/agents?sessionId=old',
+      '/app/mini-app',
+      '/app/mini-app/installed',
+      '/app/code',
+      '/app/openclaw',
+      '/settings/skills',
+      '/settings/scheduled-tasks/task',
+      '/agents',
+      '/apps',
+      '/code',
+      '/openclaw'
+    ])('rejects retired external navigation %s', (url) => {
+      expect(isAllowedRoute(url)).toBe(false)
+    })
     it('allows real app routes under the /app prefix, with or without a query string', () => {
-      expect(isAllowedRoute('/app/agents')).toBe(true)
-      expect(isAllowedRoute('/app/agents?intent=feedback&sessionId=abc')).toBe(true)
+      expect(isAllowedRoute('/app/chat')).toBe(true)
+      expect(isAllowedRoute('/app/chat?topicId=abc')).toBe(true)
       expect(isAllowedRoute('/app/knowledge')).toBe(true)
     })
 
@@ -292,7 +308,6 @@ describe('mainWindowNavigation', () => {
     })
 
     it('keeps the legacy protocol-deep-link prefixes allowlisted', () => {
-      expect(isAllowedRoute('/agents')).toBe(true)
       expect(isAllowedRoute('/knowledge?x=1&y=2')).toBe(true)
     })
 

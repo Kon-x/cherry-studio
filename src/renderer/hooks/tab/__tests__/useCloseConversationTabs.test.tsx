@@ -10,35 +10,19 @@ import {
   useCloseConversationTabs
 } from '../useCloseConversationTabs'
 
-const activeConversationCases = [
-  ['conversation', 'assistants', 'topic-a', '/app/chat', 'topicId'],
-  ['agent session', 'agents', 'session-a', '/app/agents', 'sessionId']
-] as const
+const activeConversationCases = [['conversation', 'assistants', 'topic-a', '/app/chat', 'topicId']] as const
 
 describe('findClosableConversationTabIds', () => {
   it('matches assistant tabs by topic id without crossing app routes', () => {
     const tabs: Tab[] = [
       { id: 'topic-a-tab', type: 'route', url: '/app/chat?topicId=topic-a', title: 'Topic A' },
       { id: 'topic-b-tab', type: 'route', url: '/app/chat?topicId=topic-b', title: 'Topic B' },
-      { id: 'session', type: 'route', url: '/app/agents?sessionId=topic-a', title: 'Session' }
+      { id: 'session', type: 'route', url: '/app/chat?topicId=topic-a', title: 'Session' }
     ]
 
     expect(findClosableConversationTabIds(tabs, 'session', 'assistants', ['topic-a', 'topic-b'])).toEqual([
       'topic-a-tab',
       'topic-b-tab'
-    ])
-  })
-
-  it('matches agent tabs by session id without crossing app routes', () => {
-    const tabs: Tab[] = [
-      { id: 'session-a-tab', type: 'route', url: '/app/agents?sessionId=session-a', title: 'Session A' },
-      { id: 'session-b-tab', type: 'route', url: '/app/agents?sessionId=session-b', title: 'Session B' },
-      { id: 'topic', type: 'route', url: '/app/chat?topicId=session-a', title: 'Topic' }
-    ]
-
-    expect(findClosableConversationTabIds(tabs, 'topic', 'agents', ['session-a', 'session-b'])).toEqual([
-      'session-a-tab',
-      'session-b-tab'
     ])
   })
 
@@ -87,6 +71,6 @@ describe('useCloseConversationTabs', () => {
     rerender()
 
     expect(result.current).toBe(first)
-    expect(() => result.current('agents', ['session-a'])).not.toThrow()
+    expect(() => result.current('assistants', ['session-a'])).not.toThrow()
   })
 })

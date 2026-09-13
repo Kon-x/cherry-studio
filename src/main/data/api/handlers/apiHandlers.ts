@@ -14,11 +14,6 @@
 
 import type { ApiImplementation } from '@shared/data/api/types'
 
-import { agentChannelHandlers } from './agentChannels'
-import { agentHandlers } from './agents'
-import { agentSessionMessageHandlers } from './agentSessionMessages'
-import { agentSessionHandlers } from './agentSessions'
-import { agentWorkspaceHandlers } from './agentWorkspaces'
 import { aiUsageRecordHandlers } from './aiUsageRecords'
 import { assistantHandlers } from './assistants'
 import { fileHandlers } from './files'
@@ -27,7 +22,6 @@ import { jobHandlers } from './jobs'
 import { knowledgeHandlers } from './knowledges'
 import { mcpServerHandlers } from './mcpServers'
 import { messageHandlers } from './messages'
-import { miniAppHandlers } from './miniApps'
 import { modelHandlers } from './models'
 import { noteHandlers } from './notes'
 import { paintingHandlers } from './paintings'
@@ -35,7 +29,6 @@ import { pinHandlers } from './pins'
 import { promptHandlers } from './prompts'
 import { providerHandlers } from './providers'
 import { searchHandlers } from './search'
-import { skillHandlers } from './skills'
 import { tagHandlers } from './tags'
 import { temporaryChatHandlers } from './temporaryChats'
 import { topicHandlers } from './topics'
@@ -49,9 +42,7 @@ import { translateHandlers } from './translate'
  * TypeScript ensures exhaustive coverage - missing handlers cause compile errors.
  */
 export const apiHandlers: ApiImplementation = {
-  ...agentHandlers,
   ...assistantHandlers,
-  ...agentChannelHandlers,
   ...topicHandlers,
   ...messageHandlers,
   ...fileHandlers,
@@ -59,19 +50,14 @@ export const apiHandlers: ApiImplementation = {
   ...modelHandlers,
   ...paintingHandlers,
   ...providerHandlers,
-  ...agentSessionHandlers,
-  ...agentSessionMessageHandlers,
-  ...skillHandlers,
   ...knowledgeHandlers,
   ...translateHandlers,
   ...mcpServerHandlers,
-  ...miniAppHandlers,
   ...noteHandlers,
   ...tagHandlers,
   ...groupHandlers,
   ...pinHandlers,
   ...promptHandlers,
-  ...agentWorkspaceHandlers,
   ...jobHandlers,
   ...searchHandlers,
   ...aiUsageRecordHandlers

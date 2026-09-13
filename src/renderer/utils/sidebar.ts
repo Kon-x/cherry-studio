@@ -47,14 +47,6 @@ function getConversationSearchParamFromUrl(url: string, name: string): string | 
  */
 const SIDEBAR_APP_DEFINITIONS = [
   {
-    id: 'agents',
-    routePrefix: '/app/agents',
-    conversationRoute: {
-      keyFromUrl: (url) => getConversationSearchParamFromUrl(url, CONVERSATION_ROUTES.agent.keyParam),
-      urlForKey: (key) => conversationRouteUrl({ conversationType: 'agent', conversationId: key })
-    }
-  },
-  {
     id: 'assistants',
     // `routePrefix` must stay a string literal — the knowledge-manifest generator reads it
     // with ts-morph. `conversationRoute` below carries the same path from the shared contract.
@@ -74,21 +66,12 @@ const SIDEBAR_APP_DEFINITIONS = [
     routePrefix: '/app/translate'
   },
   {
-    id: 'mini_app',
-    routePrefix: '/app/mini-app',
-    exactRouteFocus: true
-  },
-  {
     id: 'knowledge',
     routePrefix: '/app/knowledge'
   },
   {
     id: 'files',
     routePrefix: '/app/files'
-  },
-  {
-    id: 'code_tools',
-    routePrefix: '/app/code'
   },
   {
     id: 'notes',
@@ -207,9 +190,6 @@ function normalizeSidebarFavoriteItem(favorite: SidebarFavoriteItem): SidebarFav
   switch (favorite.type) {
     case 'app':
       return isSidebarAppId(favorite.id) ? { ...favorite } : undefined
-    case 'mini_app':
-      return favorite.id ? { ...favorite } : undefined
-    case 'agent':
     case 'assistant':
       return favorite.id ? { ...favorite } : undefined
     default: {
@@ -241,12 +221,6 @@ export function getSidebarFavoriteItems(favorites: readonly SidebarFavoriteItem[
   }
 
   return items
-}
-
-/** Mini app sidebar favorites: an ordered, deduped list of mini app ids. */
-export function getSidebarMiniAppFavoriteIds(favorites: readonly SidebarFavoriteItem[] | undefined): string[] {
-  // LEAF-ONLY: recurse into group.items when a 'group' variant is added.
-  return getSidebarFavoriteItems(favorites).flatMap((favorite) => (favorite.type === 'mini_app' ? [favorite.id] : []))
 }
 
 /**
@@ -356,7 +330,7 @@ export function setSidebarAppPinned(
   return preserveForwardCompatibleSidebarFavoriteItems(favorites, [...items, createSidebarAppFavorite(id)])
 }
 
-type SidebarLeafFavoriteType = 'mini_app' | 'agent' | 'assistant'
+type SidebarLeafFavoriteType = 'assistant'
 
 // LEAF-ONLY: recurse into group.items when a 'group' variant is added.
 const isSidebarLeafFavorite = (item: SidebarFavoriteItem, type: SidebarLeafFavoriteType, id: string) =>
@@ -388,30 +362,14 @@ function removeSidebarLeafFavorite(
   )
 }
 
-/** Toggle a mini app favorite, preserving everything else. Adding appends to the end. */
-export function toggleSidebarMiniApp(
-  favorites: readonly SidebarFavoriteItem[] | undefined,
-  id: string
-): SidebarFavoriteItem[] {
-  return toggleSidebarLeafFavorite(favorites, 'mini_app', id)
-}
-
-/** Remove a mini app favorite, preserving everything else in place. */
-export function removeSidebarMiniApp(
-  favorites: readonly SidebarFavoriteItem[] | undefined,
-  id: string
-): SidebarFavoriteItem[] {
-  return removeSidebarLeafFavorite(favorites, 'mini_app', id)
-}
-
 /**
  * Toggle a pinned user entity (agent / assistant) favorite, preserving
  * everything else in place. Adding appends to the end of the whole list,
- * removing filters the target out — mirrors {@link toggleSidebarMiniApp}.
+ * removing filters the target out without reordering the remaining favorites.
  */
 export function toggleSidebarEntityFavorite(
   favorites: readonly SidebarFavoriteItem[] | undefined,
-  type: 'agent' | 'assistant',
+  type: 'assistant',
   id: string
 ): SidebarFavoriteItem[] {
   return toggleSidebarLeafFavorite(favorites, type, id)
@@ -420,7 +378,7 @@ export function toggleSidebarEntityFavorite(
 /** Remove a pinned user entity (agent / assistant) favorite, preserving everything else in place. */
 export function removeSidebarEntityFavorite(
   favorites: readonly SidebarFavoriteItem[] | undefined,
-  type: 'agent' | 'assistant',
+  type: 'assistant',
   id: string
 ): SidebarFavoriteItem[] {
   return removeSidebarLeafFavorite(favorites, type, id)

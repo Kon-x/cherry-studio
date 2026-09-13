@@ -580,7 +580,7 @@ describe('translate model parameters', () => {
     render(<TranslateSettingsPanelContent />)
 
     // The effort slider commits on change, unlike the sampling sliders below it.
-    fireEvent.click(within(screen.getByRole('slider', { name: 'agent.speed.effort' })).getByTestId('slider-drag'))
+    fireEvent.click(within(screen.getByRole('slider', { name: 'chat.speed.effort' })).getByTestId('slider-drag'))
 
     await waitFor(() => expect(setterFor('feature.translate.reasoning_effort')).toHaveBeenCalledWith('high'))
   })

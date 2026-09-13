@@ -43,11 +43,6 @@ export const entries: SettingsSearchEntry[] = [
     groupKey: 'settings.general.common.sections.display_language'
   },
   {
-    anchorId: 'work-list-position',
-    titleKey: 'settings.display.list_position.work',
-    groupKey: 'settings.general.common.sections.display_language'
-  },
-  {
     anchorId: 'font-global',
     titleKey: 'settings.display.font.global',
     groupKey: 'settings.display.font.title'

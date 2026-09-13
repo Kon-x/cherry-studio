@@ -88,9 +88,7 @@ each subsystem.
      via `steerYield` (persisting as `success`) and `onExecutionDone` chains a
      `steer-continuation` — steering is enqueue + yield + chain, not
      abort-and-restart and not mid-turn injection.
-   - **agent-session follow-up**: the stream is left running and `send()`
-     **injects** — it upserts `listeners` onto the running stream, `models`
-     ignored (the message was already enqueued on the session's `pendingTurns`).
+
    - **no live stream**: `send()` **starts** — evict any grace-period stream,
      create an `ActiveStream`, launch one `StreamExecution` per model.
 7. For each `StreamExecution`, `AiStreamManager`'s private `runExecutionLoop`
@@ -99,10 +97,7 @@ each subsystem.
    `applyDeferExposition` + per-feature hooks), constructs an `Agent`
    (`composeHooks` folds observers + caller + features inside `Agent`), and
    calls `agent.stream(messages, signal)` — which opens AI SDK's stream and
-   yields `UIMessageChunk`s. Agent-session runtime requests skip the generic
-   agent loop here: `AiService.streamText()` calls
-   `AgentSessionRuntimeService.openTurnStream()` so the registered driver
-   can own the concrete agent runtime.
+   yields `UIMessageChunk`s.
 8. `pipeStreamLoop` reads the chunk stream once, tees: broadcast to
    listeners, accumulate via `readUIMessageStream`.
 9. On terminal (`done` / `error` / `aborted` / `awaiting-approval`):
@@ -123,8 +118,7 @@ each subsystem.
    shows the approval card.
 4. User decides → `useToolApprovalBridge` → `ai.tool.respond_approval`.
 5. Main applies the decision to the anchor row, resumes the stream
-   (agent-session runtime: resolves the live approval registry entry; MCP:
-   dispatches a `continue-conversation` so the existing stream rebroadcasts).
+   (   dispatches a `continue-conversation` so the existing stream rebroadcasts).
 6. Status flips back to `streaming`; UI hides the card.
 
 See [Tool Approval](./tool-approval.md) for invariants and the
@@ -135,7 +129,6 @@ overlay-vs-persist conditional write.
 | Subsystem | Reference |
 |---|---|
 | Active-stream registry, listeners, persistence backends, reconnect, abort, grace-period eviction | [Stream Manager](./stream-manager.md) |
-| Agent-session host plus Claude Code, Pi, and DSH runtime drivers | [Agent Session Runtime](./agent-session-runtime.md) |
 | `Agent.stream` single-pass loop, hooks model, error/abort | [Agent Loop](./agent-loop.md) |
 | `buildAgentParams`, `RequestFeature` composition, `INTERNAL_FEATURES` order | [Params Pipeline](./params-pipeline.md) |
 | Tool registry, MCP sync, meta-tools (`tool_search` / `tool_inspect` / `tool_invoke` / `tool_exec`), defer exposition | [Tool Registry](./tool-registry.md) |
@@ -168,14 +161,10 @@ overlay-vs-persist conditional write.
 ```
 src/main/ai/
 ├── AiService.ts                  ← provider operations, built-in tool init, approval decisions
-├── runtime/                      ← aiSdk plus claudeCode / pi / dsh agent-session drivers
-├── agentSession/                 ← agent-session topic host
-├── agents/                       ← AgentJobsService, AgentTaskJobHandler, runAgentTask, prompt, heartbeat
-├── channels/                     ← ChannelManager + IM adapters (discord/feishu/qq/slack/telegram/wechat) + security/
+├── runtime/                      ← AI SDK chat executor
 ├── streamManager/                ← AiStreamManager, listeners, persistence, dispatch
 ├── provider/                     ← provider config, endpoint resolution, custom providers
 ├── mcp/                          ← McpRuntimeService / McpCatalogService, oauth, built-in servers
-├── skills/                       ← SkillService, SkillInstaller
 ├── contextBuild/                 ← context policy, compression, persisted tool outputs
 ├── inference/                    ← local embedding/OCR inference
 ├── tokens/                       ← token estimators and modality profiles

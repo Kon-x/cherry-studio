@@ -9,7 +9,6 @@ import * as z from 'zod'
 
 import type { Prompt, PromptBindingRelation, PromptBindingTarget } from '../../types/prompt'
 import {
-  PromptAgentBindingTargetSchema,
   PromptAssistantBindingTargetSchema,
   PromptBindingTargetSchema,
   PromptIdSchema as SharedPromptIdSchema,
@@ -57,47 +56,27 @@ const PromptTextSearchQuerySchema = z.strictObject({
 
 const PromptSearchQuerySchema = PromptTextSearchQuerySchema.extend({ visibility: PromptVisibilitySchema.optional() })
 
-const PromptTargetListQuerySchema = z.discriminatedUnion('targetType', [
-  PromptTextSearchQuerySchema.extend({
-    targetType: z.literal('assistant'),
-    targetId: PromptAssistantBindingTargetSchema.shape.id,
-    includeGlobal: z.boolean()
-  }),
-  PromptTextSearchQuerySchema.extend({
-    targetType: z.literal('agent'),
-    targetId: PromptAgentBindingTargetSchema.shape.id,
-    includeGlobal: z.boolean()
-  })
-])
+const PromptTargetListQuerySchema = PromptTextSearchQuerySchema.extend({
+  targetType: z.literal('assistant'),
+  targetId: PromptAssistantBindingTargetSchema.shape.id,
+  includeGlobal: z.boolean()
+})
 
 export const ListPromptsQuerySchema = z.union([PromptSearchQuerySchema, PromptTargetListQuerySchema])
 export type ListPromptsQueryParams = z.input<typeof ListPromptsQuerySchema>
 export type ListPromptsQuery = z.output<typeof ListPromptsQuerySchema>
 
-export const PromptBindingParamsSchema = z.discriminatedUnion('targetType', [
-  z.strictObject({
-    id: PromptIdSchema,
-    targetType: z.literal('assistant'),
-    targetId: PromptAssistantBindingTargetSchema.shape.id
-  }),
-  z.strictObject({
-    id: PromptIdSchema,
-    targetType: z.literal('agent'),
-    targetId: PromptAgentBindingTargetSchema.shape.id
-  })
-])
+export const PromptBindingParamsSchema = z.strictObject({
+  id: PromptIdSchema,
+  targetType: z.literal('assistant'),
+  targetId: PromptAssistantBindingTargetSchema.shape.id
+})
 export type PromptBindingParams = z.infer<typeof PromptBindingParamsSchema>
 
-export const PromptBindingTargetParamsSchema = z.discriminatedUnion('targetType', [
-  z.strictObject({
-    targetType: z.literal('assistant'),
-    targetId: PromptAssistantBindingTargetSchema.shape.id
-  }),
-  z.strictObject({
-    targetType: z.literal('agent'),
-    targetId: PromptAgentBindingTargetSchema.shape.id
-  })
-])
+export const PromptBindingTargetParamsSchema = z.strictObject({
+  targetType: z.literal('assistant'),
+  targetId: PromptAssistantBindingTargetSchema.shape.id
+})
 export type PromptBindingTargetParams = z.infer<typeof PromptBindingTargetParamsSchema>
 
 // ============================================================================

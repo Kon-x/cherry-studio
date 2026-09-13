@@ -13,9 +13,8 @@ import { steerYieldFeature } from '../steerYield'
 const scope = (topicId?: string) => ({ request: { conversation: { id: topicId ?? 'no-topic', topicId } } }) as any
 
 describe('steerYieldFeature', () => {
-  it('applies to chat topics, not agent sessions or topicless requests', () => {
+  it('applies only to requests with a topic', () => {
     expect(steerYieldFeature.applies?.(scope('topic-1'))).toBe(true)
-    expect(steerYieldFeature.applies?.(scope('agent-session:s1'))).toBe(false)
     expect(steerYieldFeature.applies?.(scope(undefined))).toBe(false)
   })
 

@@ -5,8 +5,6 @@ import type { Citation, MessageUiState } from '@renderer/types/message'
 import type { MessageExportView } from '@renderer/types/messageExport'
 import type { McpTool } from '@renderer/types/tool'
 import type { Topic } from '@renderer/types/topic'
-import type { AgentSessionDelivery } from '@shared/ai/agentSessionDelivery'
-import type { AutonomousTurnOrigin } from '@shared/ai/agentSessionTurnOrigin'
 import type {
   ChatMessageStyle,
   MultiModelGridPopoverTrigger,
@@ -213,8 +211,6 @@ export interface MessageListItem {
   siblingsGroupId?: number
   isActiveBranch?: boolean
   stats?: MessageStats
-  delivery?: AgentSessionDelivery
-  turnOrigin?: AutonomousTurnOrigin
   mentions?: Array<{
     id: string
     name: string

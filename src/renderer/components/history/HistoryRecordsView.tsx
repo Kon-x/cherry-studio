@@ -4,8 +4,6 @@ import { lazy, type ReactNode, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { HistoryRecordsMode } from './historyRecordsTypes'
-
-const AgentHistoryRecords = lazy(() => import('./AgentHistoryRecords'))
 const AssistantHistoryRecords = lazy(() => import('./AssistantHistoryRecords'))
 
 // The toolbar and close button live inside the lazy chunk, so a null fallback leaves the panel the
@@ -32,15 +30,10 @@ interface HistoryRecordsViewBaseProps {
   toolbarLeading?: ReactNode
 }
 
-type HistoryRecordsViewProps =
-  | (HistoryRecordsViewBaseProps & {
-      mode: 'assistant'
-      onRecordSelect?: (topic: RendererTopic | null) => void
-    })
-  | (HistoryRecordsViewBaseProps & {
-      mode: 'agent'
-      onRecordSelect?: (sessionId: string | null) => void
-    })
+type HistoryRecordsViewProps = HistoryRecordsViewBaseProps & {
+  mode: 'assistant'
+  onRecordSelect?: (topic: RendererTopic | null) => void
+}
 
 const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
   if (!props.open) return null
@@ -48,21 +41,14 @@ const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
   return (
     <div className="flex min-h-0 flex-1 bg-card [-webkit-app-region:none]" data-testid="history-records-view">
       <Suspense fallback={<HistoryRecordsLoading />}>
-        {props.mode === 'assistant' ? (
+        {
           <AssistantHistoryRecords
             activeRecordId={props.activeRecordId}
             onClose={props.onClose}
             onRecordSelect={props.onRecordSelect}
             toolbarLeading={props.toolbarLeading}
           />
-        ) : (
-          <AgentHistoryRecords
-            activeRecordId={props.activeRecordId}
-            onClose={props.onClose}
-            onRecordSelect={props.onRecordSelect}
-            toolbarLeading={props.toolbarLeading}
-          />
-        )}
+        }
       </Suspense>
     </div>
   )

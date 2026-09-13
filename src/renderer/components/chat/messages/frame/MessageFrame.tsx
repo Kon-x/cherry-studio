@@ -31,7 +31,7 @@ import MessageAttachments from './MessageAttachments'
 import MessageAvatar from './MessageAvatar'
 import MessageContent from './MessageContent'
 import MessageErrorBoundary from './MessageErrorBoundary'
-import MessageHeader, { AgentSessionDeliveryBadge } from './MessageHeader'
+import MessageHeader from './MessageHeader'
 import MessageMenuBar from './MessageMenuBar'
 
 const USER_MESSAGE_FOOTER_ACTIONS_CLASS =
@@ -363,11 +363,6 @@ const UserBubbleMessage = ({
     <div className="flex w-full flex-col items-end">
       <div className="flex max-w-[calc(100%-2.5rem)] items-start justify-end gap-2.5 has-[.code-block]:w-full">
         <div className="flex min-w-0 flex-1 flex-col items-end">
-          {message.delivery && (
-            <div className="mb-1 max-w-full">
-              <AgentSessionDeliveryBadge delivery={message.delivery} />
-            </div>
-          )}
           {(attachments.images.length > 0 || attachments.files.length > 0) && (
             <div className="flex max-w-full flex-col items-end">
               {attachments.images.length > 0 && (

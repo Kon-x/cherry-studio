@@ -6,8 +6,7 @@ import type { ConversationNavigationTarget } from '@shared/types/navigation'
  * a second copy on either side silently breaks tab-ownership matching.
  */
 export const CONVERSATION_ROUTES = {
-  assistant: { path: '/app/chat', keyParam: 'topicId' },
-  agent: { path: '/app/agents', keyParam: 'sessionId' }
+  assistant: { path: '/app/chat', keyParam: 'topicId' }
 } as const satisfies Record<ConversationNavigationTarget['conversationType'], { path: string; keyParam: string }>
 
 export function conversationRouteUrl({ conversationType, conversationId }: ConversationNavigationTarget): string {

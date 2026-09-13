@@ -34,21 +34,6 @@ export async function resolveChatEntryTopicId(): Promise<string | null> {
   return topic?.id ?? null
 }
 
-export async function resolveAgentEntrySessionId(): Promise<string | null> {
-  const lastUsedSessionId = cacheService.getPersist('ui.agent.last_used_session_id')
-  if (lastUsedSessionId) {
-    try {
-      await dataApiService.get(`/agent-sessions/${lastUsedSessionId}`)
-      return lastUsedSessionId
-    } catch (error) {
-      if (!isDataApiNotFoundError(error)) throw error
-    }
-  }
-
-  const { session } = await dataApiService.get('/agent-sessions/latest')
-  return session?.id ?? null
-}
-
 /**
  * Entity-scoped variants used by the sidebar entries: resolve the most recent
  * conversation of one specific assistant / agent. They intentionally ignore the
@@ -58,9 +43,4 @@ export async function resolveAgentEntrySessionId(): Promise<string | null> {
 export async function resolveChatEntryTopicIdForAssistant(assistantId: string): Promise<string | null> {
   const { topic } = await dataApiService.get('/topics/latest', { query: { assistantId } })
   return topic?.id ?? null
-}
-
-export async function resolveAgentEntrySessionIdForAgent(agentId: string): Promise<string | null> {
-  const { session } = await dataApiService.get('/agent-sessions/latest', { query: { agentId } })
-  return session?.id ?? null
 }

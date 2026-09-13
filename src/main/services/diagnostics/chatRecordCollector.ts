@@ -3,8 +3,6 @@ import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { finished } from 'node:stream/promises'
 
-import { agentSessionMessageService } from '@data/services/AgentSessionMessageService'
-import { agentSessionService } from '@data/services/AgentSessionService'
 import { messageService } from '@data/services/MessageService'
 import { topicService } from '@data/services/TopicService'
 import { loggerService } from '@logger'
@@ -17,12 +15,7 @@ import type { ChatRecordStats, DiagnosticTimeRange, DiagnosticWarning, StagedSou
 const logger = loggerService.withContext('ChatRecordCollector')
 const CHAT_RECORD_PAGE_SIZE = 100
 
-export const CHAT_ARCHIVE_NAMES = [
-  'chats/topics.jsonl',
-  'chats/messages.jsonl',
-  'chats/agent-sessions.jsonl',
-  'chats/agent-session-messages.jsonl'
-] as const
+export const CHAT_ARCHIVE_NAMES = ['chats/topics.jsonl', 'chats/messages.jsonl'] as const
 
 export type ChatArchiveName = (typeof CHAT_ARCHIVE_NAMES)[number]
 
@@ -40,7 +33,7 @@ export interface ChatRecordCandidate {
   readonly latestAt: number
   readonly messageId: string
   readonly messageRecord: ChatRecordReference
-  readonly source: 'normal-chat' | 'agent-session'
+  readonly source: 'normal-chat'
 }
 
 export interface ChatRecordCollection {
@@ -127,87 +120,7 @@ async function* collectNormalChatRecords(
   }
 }
 
-async function* collectAgentChatRecords(
-  range: DiagnosticTimeRange,
-  warnings: Set<DiagnosticWarning>
-): AsyncGenerator<ChatRecordCandidate> {
-  let cursor: string | undefined
-  const sessions = new Map<string, ChatRecordReference>()
-  try {
-    do {
-      const page = agentSessionMessageService.listCreatedInRangeMetadataPage({
-        ...range,
-        cursor,
-        limit: CHAT_RECORD_PAGE_SIZE
-      })
-      for (const message of page.items) {
-        let sessionReference = sessions.get(message.sessionId)
-        if (!sessionReference) {
-          let session
-          try {
-            session = agentSessionService.getById(message.sessionId)
-          } catch (error) {
-            if (!(isDataApiError(error) && error.code === ErrorCode.NOT_FOUND)) throw error
-            warnings.add('source_changed')
-            logger.warn('Skipped diagnostic chat record with deleted agent session', {
-              sessionId: message.sessionId,
-              source: 'agent-session'
-            })
-            continue
-          }
-          sessionReference = contextRecord('chats/agent-sessions.jsonl', `agent-session:${message.sessionId}`, session)
-          sessions.set(message.sessionId, sessionReference)
-        }
-
-        yield {
-          contextId: message.sessionId,
-          contextRecord: sessionReference,
-          id: `agent-session-message:${message.id}`,
-          kind: 'chatRecords',
-          latestAt: Date.parse(message.createdAt),
-          messageId: message.id,
-          messageRecord: recordReference(
-            'chats/agent-session-messages.jsonl',
-            `agent-session-message:${message.id}`,
-            message.entityJsonBytes
-          ),
-          source: 'agent-session'
-        }
-      }
-      cursor = page.nextCursor
-      if (cursor) await yieldToEventLoop()
-    } while (cursor)
-  } catch (error) {
-    warnUnreadableChatSource(warnings, 'agent-session', error)
-  }
-}
-
-function newestFirst(a: ChatRecordCandidate, b: ChatRecordCandidate): number {
-  return b.latestAt - a.latestAt || (a.id > b.id ? 1 : a.id < b.id ? -1 : 0)
-}
-
-async function* mergeNewestFirst(
-  normal: AsyncIterator<ChatRecordCandidate>,
-  agent: AsyncIterator<ChatRecordCandidate>
-): AsyncGenerator<ChatRecordCandidate> {
-  let normalResult = await normal.next()
-  let agentResult = await agent.next()
-  while (!normalResult.done || !agentResult.done) {
-    if (agentResult.done || (!normalResult.done && newestFirst(normalResult.value, agentResult.value) <= 0)) {
-      yield normalResult.value
-      normalResult = await normal.next()
-    } else {
-      yield agentResult.value
-      agentResult = await agent.next()
-    }
-  }
-}
-
-function warnUnreadableChatSource(
-  warnings: Set<DiagnosticWarning>,
-  source: 'normal-chat' | 'agent-session',
-  error: unknown
-): void {
+function warnUnreadableChatSource(warnings: Set<DiagnosticWarning>, source: 'normal-chat', error: unknown): void {
   warnings.add('source_unreadable')
   logger.warn('Failed to collect diagnostic chat records', {
     errorName: error instanceof Error ? error.name : typeof error,
@@ -217,11 +130,7 @@ function warnUnreadableChatSource(
 
 export function collectChatRecords(range: DiagnosticTimeRange): ChatRecordCollection {
   const warnings = new Set<DiagnosticWarning>()
-  const candidates = mergeNewestFirst(
-    collectNormalChatRecords(range, warnings),
-    collectAgentChatRecords(range, warnings)
-  )
-  return { candidates, warnings }
+  return { candidates: collectNormalChatRecords(range, warnings), warnings }
 }
 
 export function addChatRecordStats(
@@ -246,22 +155,11 @@ export async function scanChatRecordStats(candidates: AsyncIterable<ChatRecordCa
 }
 
 function hydrateMessageRecord(candidate: ChatRecordCandidate): HydratedChatRecord {
-  if (candidate.source === 'normal-chat') {
-    return serializeRecord(candidate.messageRecord, messageService.getById(candidate.messageId))
-  }
-
-  return serializeRecord(
-    candidate.messageRecord,
-    agentSessionMessageService.getSessionMessage(candidate.contextId, candidate.messageId)
-  )
+  return serializeRecord(candidate.messageRecord, messageService.getById(candidate.messageId))
 }
 
 function hydrateContextRecord(candidate: ChatRecordCandidate): HydratedChatRecord {
-  if (candidate.source === 'normal-chat') {
-    return serializeRecord(candidate.contextRecord, topicService.getById(candidate.contextId))
-  }
-
-  return serializeRecord(candidate.contextRecord, agentSessionService.getById(candidate.contextId))
+  return serializeRecord(candidate.contextRecord, topicService.getById(candidate.contextId))
 }
 
 export async function stageChatRecords(
@@ -392,4 +290,8 @@ export async function stageChatRecords(
       : []
   })
   return { included, observedByteDelta, sources, warnings }
+}
+
+function newestFirst(a: ChatRecordCandidate, b: ChatRecordCandidate): number {
+  return b.latestAt - a.latestAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 }

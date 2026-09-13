@@ -160,16 +160,6 @@ describe('Application.getPath', () => {
       expect(fs.mkdirSync).not.toHaveBeenCalled()
     })
 
-    it('does not mkdir the system-workspace root while a DataApi service only resolves its path', () => {
-      expect(app.getPath('feature.agents.system_workspaces')).toBe('/mock/userData/Data/Agents/system')
-      expect(fs.mkdirSync).not.toHaveBeenCalled()
-    })
-
-    it('does not mkdir for keys under the external.* prefix', () => {
-      app.getPath('external.openclaw.config')
-      expect(fs.mkdirSync).not.toHaveBeenCalled()
-    })
-
     it('does not mkdir for keys under the sys.* prefix', () => {
       app.getPath('sys.home')
       expect(fs.mkdirSync).not.toHaveBeenCalled()

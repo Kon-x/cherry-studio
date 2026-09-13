@@ -78,7 +78,7 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en' },
     t: (key: string, options?: { count?: number; name?: string }) => {
       if (key === 'common.open_in') return `Open in ${options?.name ?? ''}`
-      if (key === 'agent.session.file_manager.finder') return 'Finder'
+      if (key === 'files.file_manager.finder') return 'Finder'
       return key
     }
   })
@@ -237,11 +237,11 @@ describe('ArtifactPane Context Menu Integration', () => {
     fireEvent.contextMenu(titleElement)
 
     // Verify open targets and tab actions appear in the context menu
-    expect(await screen.findByRole('menuitem', { name: /agent\.preview_pane\.default_app/ })).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: /chat\.preview_pane\.default_app/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Finder/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /VS Code/ })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /agent\.preview_pane\.refresh/ })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /agent\.preview_pane\.close/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /chat\.preview_pane\.refresh/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /chat\.preview_pane\.close/ })).toBeInTheDocument()
 
     // Test external open
     fireEvent.click(screen.getByRole('menuitem', { name: /Finder/ }))
@@ -250,13 +250,13 @@ describe('ArtifactPane Context Menu Integration', () => {
     })
 
     // Test refresh
-    fireEvent.click(screen.getByRole('menuitem', { name: /agent\.preview_pane\.refresh/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /chat\.preview_pane\.refresh/ }))
     await waitFor(() => {
       expect(model.refresh).toHaveBeenCalled()
     })
 
     // Test close
-    fireEvent.click(screen.getByRole('menuitem', { name: /agent\.preview_pane\.close/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /chat\.preview_pane\.close/ }))
     await waitFor(() => {
       expect(onPreviewClose).toHaveBeenCalled()
     })

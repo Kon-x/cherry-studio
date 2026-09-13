@@ -1,4 +1,3 @@
-import { miniAppService } from '@data/services/MiniAppService'
 import { providerService } from '@data/services/ProviderService'
 import { bindLogoImage } from '@main/services/entityImageBinding'
 import type { LogoImageIntent } from '@shared/ipc/schemas/entityImage'
@@ -20,18 +19,5 @@ import type { LogoImageIntent } from '@shared/ipc/schemas/entityImage'
 export function setProviderLogo(providerId: string, image: LogoImageIntent): Promise<void> {
   return bindLogoImage(image, (logo) => {
     providerService.update(providerId, { logo })
-  })
-}
-
-export function setMiniAppLogo(appId: string, image: LogoImageIntent): Promise<void> {
-  return bindLogoImage(image, (logo) => {
-    miniAppService.update(appId, { logo })
-  })
-}
-
-/** Installer-only: a packaged icon onto an installed app row. Not reachable from `mini_app.settings.set_logo`. */
-export function setInstalledMiniAppLogo(appId: string, image: LogoImageIntent): Promise<void> {
-  return bindLogoImage(image, (logo) => {
-    miniAppService.setInstalledLogo(appId, logo)
   })
 }

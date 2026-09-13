@@ -70,7 +70,6 @@ function sortProvidersByPriority(providers: Provider[], prioritizedProviderIds: 
 
 export function useModelSelectorData({
   enabled = true,
-  includeAgentOnlyModels = false,
   selectedModelIds = [],
   maxSelectedCount,
   searchText,
@@ -129,7 +128,7 @@ export function useModelSelectorData({
         continue
       }
 
-      if (!includeAgentOnlyModels && agentOnlyProviderIds.has(model.providerId)) {
+      if (agentOnlyProviderIds.has(model.providerId)) {
         continue
       }
 
@@ -142,7 +141,7 @@ export function useModelSelectorData({
     }
 
     return grouped
-  }, [agentOnlyProviderIds, baseModelFilter, includeAgentOnlyModels, models, sortedProviders])
+  }, [agentOnlyProviderIds, baseModelFilter, models, sortedProviders])
 
   const availableTags = useMemo(() => {
     if (modelsByProvider.size === 0) {

@@ -1,10 +1,5 @@
 import { ConfirmDialog } from '@cherrystudio/ui'
-import {
-  useAgentMutationsById,
-  useAssistantMutationsById,
-  usePromptMutationsById,
-  useSkillMutationsById
-} from '@renderer/hooks/resourceCatalog'
+import { useAssistantMutationsById, usePromptMutationsById } from '@renderer/hooks/resourceCatalog'
 import { toast } from '@renderer/services/toast'
 import type { ResourceItem } from '@renderer/types/resourceCatalog'
 import type { FC } from 'react'
@@ -30,8 +25,6 @@ export const ResourceDeleteConfirmDialog: FC<Props> = ({ resource, onClose }) =>
 
 const DeleteDialogBody: FC<{ resource: ResourceItem; onClose: () => void }> = ({ resource, onClose }) => {
   if (resource.type === 'assistant') return <AssistantDeleteDialog resource={resource} onClose={onClose} />
-  if (resource.type === 'agent') return <AgentDeleteDialog resource={resource} onClose={onClose} />
-  if (resource.type === 'skill') return <SkillDeleteDialog resource={resource} onClose={onClose} />
   return <PromptDeleteDialog resource={resource} onClose={onClose} />
 }
 
@@ -42,23 +35,6 @@ const AssistantDeleteDialog: FC<{ resource: Extract<ResourceItem, { type: 'assis
   const { deleteAssistant } = useAssistantMutationsById(resource.id)
   return <DeleteDialogContent resource={resource} onClose={onClose} onDelete={deleteAssistant} />
 }
-
-const AgentDeleteDialog: FC<{ resource: Extract<ResourceItem, { type: 'agent' }>; onClose: () => void }> = ({
-  resource,
-  onClose
-}) => {
-  const { deleteAgent } = useAgentMutationsById(resource.id)
-  return <DeleteDialogContent resource={resource} onClose={onClose} onDelete={deleteAgent} />
-}
-
-const SkillDeleteDialog: FC<{ resource: Extract<ResourceItem, { type: 'skill' }>; onClose: () => void }> = ({
-  resource,
-  onClose
-}) => {
-  const { uninstallSkill } = useSkillMutationsById(resource.id)
-  return <DeleteDialogContent resource={resource} onClose={onClose} onDelete={uninstallSkill} />
-}
-
 const PromptDeleteDialog: FC<{ resource: Extract<ResourceItem, { type: 'prompt' }>; onClose: () => void }> = ({
   resource,
   onClose
@@ -88,20 +64,6 @@ const DeleteDialogContent: FC<{ resource: ResourceItem; onClose: () => void; onD
   }, [onDelete, t])
 
   const { title, description, confirmText } = useMemo(() => {
-    if (resource.type === 'agent') {
-      return {
-        title: t('library.delete.agent.title'),
-        description: t('library.delete.agent.content'),
-        confirmText: t('common.delete')
-      }
-    }
-    if (resource.type === 'skill') {
-      return {
-        title: t('library.delete.skill.title'),
-        description: t('library.delete.skill.content'),
-        confirmText: t('library.action.uninstall')
-      }
-    }
     if (resource.type === 'prompt') {
       return {
         title: t('settings.prompts.delete'),

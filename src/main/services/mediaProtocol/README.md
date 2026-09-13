@@ -20,7 +20,7 @@ An unknown kind is a 400, not a fallthrough to another kind's store — ids are 
 | File | Role |
 |---|---|
 | `types.ts` | `CHERRY_MEDIA_SCHEME`, `MediaKind` + `MEDIA_KINDS`, the internal `MediaEntry` shape |
-| `registerSchemes.ts` | `CHERRY_MEDIA_SCHEME_DECLARATION` — the pre-ready privilege declaration; `main.ts` passes it to the process's single `registerSchemesAsPrivileged` call together with the mini-app scheme |
+| `registerSchemes.ts` | `CHERRY_MEDIA_SCHEME_DECLARATION` — the pre-ready privilege declaration; `main.ts` passes it to the process's single `registerSchemesAsPrivileged` call  |
 | `MediaProtocolService.ts` | the store and the `protocol.handle` responder |
 | `index.ts` | barrel — the only import surface for code outside this directory |
 

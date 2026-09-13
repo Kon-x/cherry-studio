@@ -1021,8 +1021,8 @@ describe('useMutation trigger identity & option freshness', () => {
     // classic layout: template path + inline function-form refresh.
     const { result, rerender } = renderHook(
       () =>
-        useMutation('PATCH', '/agents/:agentId', {
-          refresh: ({ args }) => ['/agents', `/agents/${args?.params?.agentId}`]
+        useMutation('PATCH', '/assistants/:id', {
+          refresh: ({ args }) => ['/assistants', `/assistants/${args!.params.id}`]
         }),
       { wrapper: Wrapper }
     )

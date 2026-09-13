@@ -7,14 +7,11 @@
 import { loggerService } from '@logger'
 import { topicService } from '@main/data/services/TopicService'
 import type { AiStreamOpenRequest, AiStreamOpenResponse, ApprovalDecision } from '@shared/ai/transport'
-import type { AgentSessionMessageEntity } from '@shared/data/api/schemas/agentSessionMessages'
 import type { ServiceTierSelection } from '@shared/data/types/model'
 import type { ReasoningEffortOption } from '@shared/types/aiSdk'
 
-import { isAgentSessionWorkspaceError } from '../../runtime/agentSessionWorkspace'
 import type { AiStreamManager } from '../AiStreamManager'
 import type { StreamListener } from '../types'
-import { agentChatContextProvider } from './AgentChatContextProvider'
 import type { ChatContextProvider } from './ChatContextProvider'
 import { persistentChatContextProvider } from './PersistentChatContextProvider'
 import { temporaryChatContextProvider } from './TemporaryChatContextProvider'
@@ -50,20 +47,7 @@ export interface MainSteerContinuationRequest {
   fastMode: boolean
 }
 
-export type MainDispatchRequest = (
-  | AiStreamOpenRequest
-  | MainContinueConversationRequest
-  | MainSteerContinuationRequest
-) & {
-  /**
-   * Main-only dispatch flag: the run has no interactive responder (channel message, scheduled
-   * task), so runtimes must not enable ask-the-user tools. Never set on renderer requests.
-   */
-  headless?: boolean
-  /** Main-only durable user row accepted by the cross-session delivery path. */
-  agentDeliveryMessage?: AgentSessionMessageEntity
-  /** Main-only queue policy: never redirect this delivery into the currently-running turn. */
-}
+export type MainDispatchRequest = AiStreamOpenRequest | MainContinueConversationRequest | MainSteerContinuationRequest
 
 const logger = loggerService.withContext('chatContextDispatch')
 
@@ -72,11 +56,7 @@ const logger = loggerService.withContext('chatContextDispatch')
  * the dispatcher takes the first match without checking the rest.
  * `persistentChatContextProvider` is the catch-all and stays last.
  */
-const providers: readonly ChatContextProvider[] = [
-  agentChatContextProvider,
-  temporaryChatContextProvider,
-  persistentChatContextProvider
-]
+const providers: readonly ChatContextProvider[] = [temporaryChatContextProvider, persistentChatContextProvider]
 
 export async function dispatchStreamRequest(
   manager: AiStreamManager,
@@ -108,21 +88,7 @@ export async function dispatchStreamRequest(
       topicId: req.topicId
     })
   }
-  const prepared = await provider.prepareDispatch(subscriber, req, { hasLiveStream }).catch((error: unknown) => {
-    if (isAgentSessionWorkspaceError(error)) {
-      return {
-        blocked: {
-          reason: 'agent-session-workspace' as const,
-          message: error.message
-        }
-      }
-    }
-    throw error
-  })
-  if ('blocked' in prepared) {
-    return { mode: 'blocked', ...prepared.blocked }
-  }
-
+  const prepared = await provider.prepareDispatch(subscriber, req, { hasLiveStream })
   // Inject-steer: a live persistent-chat submit took the `hasLiveStream` branch, which sets an
   // explicit `pendingSteerUserMessageId`. Enqueue it so the running turn yields (`hasPendingSteer`)
   // and `onExecutionDone` chains a `steer-continuation` to answer it.

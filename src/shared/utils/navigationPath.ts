@@ -1,3 +1,25 @@
+const RETIRED_ROUTE_PREFIXES = [
+  '/app/agents',
+  '/app/mini-app',
+  '/app/code',
+  '/app/openclaw',
+  '/app/library',
+  '/settings/skills',
+  '/settings/scheduled-tasks',
+  '/settings/channels',
+  '/settings/api-gateway',
+  '/agents',
+  '/apps',
+  '/code',
+  '/openclaw'
+] as const
+
+/** Includes query-bearing and nested URLs retained in old tabs and search history. */
+export function isRetiredNavigationUrl(value: string): boolean {
+  const pathname = value.split(/[?#]/, 1)[0].replace(/\/+$/, '')
+  return RETIRED_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
+
 function getNavigationPathSegments(value: string): string[] | undefined {
   if (!value.startsWith('/') || value.includes('?') || value.includes('#') || value.includes('\\')) return undefined
 

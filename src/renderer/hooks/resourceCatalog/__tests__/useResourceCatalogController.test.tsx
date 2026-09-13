@@ -6,8 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useResourceCatalogController } from '../useResourceCatalogController'
 
-type ControllerResourceType = Parameters<typeof useResourceCatalogController>[0]
-
 const controllerMocks = vi.hoisted(() => ({
   createAgent: vi.fn(),
   createAssistant: vi.fn(),
@@ -59,12 +57,6 @@ vi.mock('../assistantAdapter', () => ({
   useAssistantMutations: () => ({
     createAssistant: controllerMocks.createAssistant,
     duplicateAssistant: controllerMocks.duplicateAssistant
-  })
-}))
-
-vi.mock('../agentAdapter', () => ({
-  useAgentMutations: () => ({
-    createAgent: controllerMocks.createAgent
   })
 }))
 
@@ -139,36 +131,6 @@ describe('useResourceCatalogController', () => {
       modelId: createValues.modelId,
       name: createValues.name,
       prompt: createValues.prompt
-    })
-    expect(controllerMocks.refetch).toHaveBeenCalledOnce()
-    expect(result.current.dialogs.createDialogOpen).toBe(false)
-  })
-
-  it('creates an agent and refetches the resource list', async () => {
-    const { result } = renderHook(() => useResourceCatalogController('agent'))
-
-    act(() => {
-      result.current.gridProps.onCreate('agent')
-    })
-
-    await act(async () => {
-      await result.current.dialogs.handleSubmitCreateResource(createValues)
-    })
-
-    expect(controllerMocks.createAgent).toHaveBeenCalledWith({
-      configuration: {
-        avatar: createValues.avatar,
-        permission_mode: 'auto'
-      },
-      description: createValues.description,
-      instructions: createValues.prompt,
-      knowledgeBaseIds: createValues.knowledgeBaseIds,
-      model: createValues.modelId,
-      name: createValues.name,
-      planModel: createValues.modelId,
-      skillIds: createValues.skillIds,
-      smallModel: createValues.modelId,
-      type: 'claude-code'
     })
     expect(controllerMocks.refetch).toHaveBeenCalledOnce()
     expect(result.current.dialogs.createDialogOpen).toBe(false)
@@ -270,34 +232,5 @@ describe('useResourceCatalogController', () => {
         regularPhrases: [{ title: 'Context prompt', content: 'Context body', order: 0 }]
       }
     ])
-  })
-
-  it('clears the active group when the resource type changes', async () => {
-    const { result, rerender } = renderHook(
-      ({ resourceType }: { resourceType: ControllerResourceType }) => useResourceCatalogController(resourceType),
-      { initialProps: { resourceType: 'assistant' as ControllerResourceType } }
-    )
-
-    act(() => {
-      result.current.gridProps.onGroupFilter('11111111-1111-4111-8111-111111111111')
-    })
-
-    await waitFor(() => {
-      expect(result.current.gridProps.activeGroupId).toBe('11111111-1111-4111-8111-111111111111')
-    })
-
-    rerender({ resourceType: 'agent' })
-
-    await waitFor(() => {
-      expect(result.current.gridProps.activeGroupId).toBeNull()
-    })
-
-    rerender({ resourceType: 'assistant' })
-
-    await waitFor(() => {
-      expect(controllerMocks.resourceLibraryOptions.at(-1)).toEqual(
-        expect.objectContaining({ activeGroupId: null, resourceType: 'assistant' })
-      )
-    })
   })
 })

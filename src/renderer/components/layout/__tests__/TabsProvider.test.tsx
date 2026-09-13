@@ -31,26 +31,6 @@ const LEGACY_LIBRARY_PINNED_TAB: Tab = {
   isPinned: true
 }
 
-const PINNED_OPENCLAW_TAB: Tab = {
-  id: 'openclaw',
-  type: 'route',
-  url: '/app/openclaw',
-  title: 'OpenClaw',
-  lastAccessTime: 0,
-  isDormant: false,
-  isPinned: true
-}
-
-const PINNED_CODE_TAB: Tab = {
-  id: 'code',
-  type: 'route',
-  url: '/app/code',
-  title: 'Code',
-  lastAccessTime: 0,
-  isDormant: false,
-  isPinned: true
-}
-
 const HOME_TAB: Tab = {
   id: 'home',
   type: 'route',
@@ -103,7 +83,7 @@ vi.mock('react-i18next', async (importOriginal) => {
 vi.mock('@renderer/utils/routeTitle', async () => {
   const actual = await vi.importActual<typeof RouteTitle>('@renderer/utils/routeTitle')
   const titles: Record<string, Record<string, string>> = {
-    '/app/agents': { en: 'Agent', zh: '代理' },
+    '/app/notes': { en: 'Notes', zh: '笔记' },
     '/app/chat': { en: 'Chat', zh: '聊天' },
     '/app/files': { en: 'Files', zh: '文件' },
     '/app/launchpad': { en: 'Launchpad', zh: '启动台' }
@@ -311,11 +291,11 @@ function CloseHomeAfterSecondTabOpens() {
   useEffect(() => {
     if (didOpenRef.current) return
     didOpenRef.current = true
-    openTab('/app/agents', { id: 'agents', forceNew: true })
+    openTab('/app/notes', { id: 'notes', forceNew: true })
   }, [openTab])
 
   useEffect(() => {
-    if (didCloseRef.current || !tabs.some((tab) => tab.id === 'agents')) return
+    if (didCloseRef.current || !tabs.some((tab) => tab.id === 'notes')) return
     didCloseRef.current = true
     closeTab('home')
   }, [closeTab, tabs])
@@ -374,31 +354,6 @@ function PinnedOverflowSeeder() {
   )
 }
 
-function TransientMiniAppPinner() {
-  const { openTab, pinTab, tabs } = useTabsContext()
-  const didOpenRef = useRef(false)
-  const didPinRef = useRef(false)
-
-  useEffect(() => {
-    if (didOpenRef.current) return
-    didOpenRef.current = true
-    openTab('/app/mini-app/deepseek-harness', {
-      id: 'transient-mini-app',
-      title: 'DeepSeek Harness',
-      metadata: { transientMiniApp: true },
-      forceNew: true
-    })
-  }, [openTab])
-
-  useEffect(() => {
-    if (didPinRef.current || !tabs.some((tab) => tab.id === 'transient-mini-app')) return
-    didPinRef.current = true
-    pinTab('transient-mini-app')
-  }, [pinTab, tabs])
-
-  return <div data-testid="transient-tab-ids">{tabs.map((tab) => tab.id).join(',')}</div>
-}
-
 beforeEach(() => {
   currentLanguage = 'en'
   pinnedTabsValue = [PINNED_FILES_TAB]
@@ -450,7 +405,7 @@ describe('TabsProvider', () => {
         initialDefaultTab={{
           id: 'home',
           type: 'route',
-          url: '/app/agents',
+          url: '/app/chat',
           title: '',
           lastAccessTime: Date.now(),
           isDormant: false
@@ -506,17 +461,6 @@ describe('TabsProvider', () => {
     await waitFor(() => expect(setPinnedTabsMock).toHaveBeenCalled())
   })
 
-  it('keeps a transient mini-app tab visible when pinning is requested programmatically', async () => {
-    render(
-      <TabsProvider initialDefaultTab={HOME_TAB}>
-        <TransientMiniAppPinner />
-      </TabsProvider>
-    )
-
-    await waitFor(() => expect(screen.getByTestId('transient-tab-ids')).toHaveTextContent('transient-mini-app'))
-    expect(setPinnedTabsMock.mock.calls.some(([arg]) => typeof arg === 'function')).toBe(false)
-  })
-
   it('removes a menu-closed pinned tab from the persistent pinned list', async () => {
     render(
       <TabsProvider initialDefaultTab={HOME_TAB}>
@@ -546,28 +490,7 @@ describe('TabsProvider', () => {
     )
 
     expect(screen.getByTestId('tab-ids')).toHaveTextContent('files,home')
-    await waitFor(() => expect(setPinnedTabsMock).toHaveBeenCalledWith([{ ...PINNED_FILES_TAB, isDormant: true }]))
-  })
-
-  // Reviewer B7: OpenClaw's sidebar entry + /app/openclaw route were removed (folded into Code), so a
-  // persisted OpenClaw pin must be redirected to /app/code on restore instead of resurrecting a dead
-  // route — and the reconciled list written back to the cache.
-  it('redirects a persisted OpenClaw pinned tab to the Code page on restore', async () => {
-    pinnedTabsValue = [PINNED_OPENCLAW_TAB, PINNED_FILES_TAB]
-
-    render(
-      <TabsProvider initialDefaultTab={HOME_TAB}>
-        <TabSnapshot />
-      </TabsProvider>
-    )
-
-    expect(screen.getByTestId('tab-urls')).toHaveTextContent('/app/code,/app/files,/app/chat')
-    await waitFor(() =>
-      expect(setPinnedTabsMock).toHaveBeenCalledWith([
-        { ...PINNED_OPENCLAW_TAB, url: '/app/code', title: '/app/code', isDormant: true },
-        { ...PINNED_FILES_TAB, isDormant: true }
-      ])
-    )
+    await waitFor(() => expect(setPinnedTabsMock).toHaveBeenCalledWith([{ ...PINNED_FILES_TAB, isDormant: false }]))
   })
 
   it('closes active and adjacent tabs atomically when closing a batch', async () => {
@@ -740,10 +663,10 @@ describe('TabsProvider', () => {
       </TabsProvider>
     )
 
-    await waitFor(() => expect(screen.getByTestId('tab-ids')).toHaveTextContent('agents'))
-    expect(screen.getByTestId('tab-urls')).toHaveTextContent('/app/agents')
+    await waitFor(() => expect(screen.getByTestId('tab-ids')).toHaveTextContent('notes'))
+    expect(screen.getByTestId('tab-urls')).toHaveTextContent('/app/notes')
     expect(screen.getByTestId('tab-urls')).not.toHaveTextContent('/app/launchpad')
-    expect(screen.getByTestId('active-tab-id')).toHaveTextContent('agents')
+    expect(screen.getByTestId('active-tab-id')).toHaveTextContent('notes')
   })
 
   it('creates a second tab for an already-open URL when forceNew is set', async () => {
@@ -771,11 +694,11 @@ describe('TabsProvider', () => {
 
 describe('TabsProvider session restore', () => {
   it('drops transient mini-app tabs whose in-memory descriptor disappears on restart', async () => {
-    const codeTab: Tab = {
-      id: 'code',
+    const chatTab: Tab = {
+      id: 'chat',
       type: 'route',
-      url: '/app/code',
-      title: 'Code',
+      url: '/app/chat',
+      title: 'Chat',
       lastAccessTime: 1,
       isDormant: false
     }
@@ -788,7 +711,7 @@ describe('TabsProvider session restore', () => {
       lastAccessTime: 2,
       isDormant: false
     }
-    normalTabsValue = [codeTab, transientMiniAppTab]
+    normalTabsValue = [chatTab, transientMiniAppTab]
     activeTabIdValue = transientMiniAppTab.id
 
     render(
@@ -797,13 +720,13 @@ describe('TabsProvider session restore', () => {
       </TabsProvider>
     )
 
-    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent(codeTab.id))
+    await waitFor(() => expect(screen.getByTestId('active')).toHaveTextContent(chatTab.id))
     expect(screen.getByTestId('session-ids')).not.toHaveTextContent(transientMiniAppTab.id)
   })
 
   it('restores the persisted session and keeps only the active tab awake', async () => {
     const tabA: Tab = { id: 'a', type: 'route', url: '/app/chat', title: '', lastAccessTime: 1, isDormant: false }
-    const tabB: Tab = { id: 'b', type: 'route', url: '/app/agents', title: '', lastAccessTime: 2, isDormant: false }
+    const tabB: Tab = { id: 'b', type: 'route', url: '/app/files', title: '', lastAccessTime: 2, isDormant: false }
     normalTabsValue = [tabA, tabB]
     activeTabIdValue = 'b'
 
@@ -824,7 +747,7 @@ describe('TabsProvider session restore', () => {
     // Active id points at a tab that no longer exists in either the pinned or normal set. The
     // resolved active tab (first normal tab) must still be awake, or AppShell renders no TabRouter.
     const tabA: Tab = { id: 'a', type: 'route', url: '/app/chat', title: '', lastAccessTime: 1, isDormant: false }
-    const tabB: Tab = { id: 'b', type: 'route', url: '/app/agents', title: '', lastAccessTime: 2, isDormant: false }
+    const tabB: Tab = { id: 'b', type: 'route', url: '/app/files', title: '', lastAccessTime: 2, isDormant: false }
     normalTabsValue = [tabA, tabB]
     activeTabIdValue = 'ghost'
 
@@ -911,6 +834,7 @@ describe('TabsProvider session restore', () => {
   })
 
   it('applies the hard fuse across a batch of pinned additions', () => {
+    pinnedTabsValue = []
     render(
       <TabsProvider>
         <PinnedOverflowSeeder />
@@ -920,7 +844,7 @@ describe('TabsProvider session restore', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seed pinned overflow' }))
 
     const updaters = setPinnedTabsMock.mock.calls.map(([arg]) => arg).filter((arg) => typeof arg === 'function')
-    const persisted = updaters.reduce<Tab[]>((tabs, update) => update(tabs), [{ ...PINNED_FILES_TAB, isDormant: true }])
+    const persisted = updaters.reduce<Tab[]>((tabs, update) => update(tabs), [])
     expect(persisted.some((tab) => tab.isDormant)).toBe(true)
     expect(persisted.filter((tab) => !tab.isDormant)).toHaveLength(TAB_LIMITS.softCap)
     expect(persisted.find((tab) => tab.id === `pinned-${TAB_LIMITS.hardCap}`)?.isDormant).toBe(false)
@@ -941,23 +865,6 @@ describe('migratePinnedTabs', () => {
     expect(tabs).toEqual([PINNED_FILES_TAB])
   })
 
-  it('redirects an OpenClaw pin to the Code page and flags the change', () => {
-    const { tabs, changed } = migratePinnedTabs([PINNED_OPENCLAW_TAB, PINNED_FILES_TAB])
-    expect(changed).toBe(true)
-    expect(tabs).toEqual([{ ...PINNED_OPENCLAW_TAB, url: '/app/code', title: '/app/code' }, PINNED_FILES_TAB])
-  })
-
-  it('drops the OpenClaw pin instead of duplicating an existing Code pin', () => {
-    const { tabs, changed } = migratePinnedTabs([PINNED_CODE_TAB, PINNED_OPENCLAW_TAB])
-    expect(changed).toBe(true)
-    expect(tabs).toEqual([PINNED_CODE_TAB])
-  })
-
-  it('collapses two OpenClaw pins into a single Code pin', () => {
-    const { tabs } = migratePinnedTabs([PINNED_OPENCLAW_TAB, { ...PINNED_OPENCLAW_TAB, id: 'openclaw2' }])
-    expect(tabs).toEqual([{ ...PINNED_OPENCLAW_TAB, url: '/app/code', title: '/app/code' }])
-  })
-
   it('drops legacy library pins', () => {
     const { tabs, changed } = migratePinnedTabs([LEGACY_LIBRARY_PINNED_TAB, PINNED_FILES_TAB])
     expect(changed).toBe(true)
@@ -965,7 +872,7 @@ describe('migratePinnedTabs', () => {
   })
 
   it('is a no-op when nothing needs migrating', () => {
-    const input = [PINNED_FILES_TAB, PINNED_CODE_TAB]
+    const input = [PINNED_FILES_TAB, { ...HOME_TAB, isPinned: true }]
     const { tabs, changed } = migratePinnedTabs(input)
     expect(changed).toBe(false)
     expect(tabs).toEqual(input)

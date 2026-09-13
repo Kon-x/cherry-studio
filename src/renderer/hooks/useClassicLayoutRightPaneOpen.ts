@@ -2,8 +2,7 @@ import { usePersistCache } from '@renderer/data/hooks/useCache'
 import { useCallback } from 'react'
 
 const RIGHT_PANE_OPEN_OVERRIDE_CACHE_KEY = {
-  chat: 'ui.chat.right_pane_open_override',
-  agent: 'ui.agent.right_pane_open_override'
+  chat: 'ui.chat.right_pane_open_override'
 } as const
 
 interface ClassicLayoutRightPaneOpenOptions {
@@ -20,7 +19,7 @@ type ClassicLayoutPaneOpenSetter = (open: boolean, options?: { force?: boolean }
  * normal writes are ignored.
  */
 export function useClassicLayoutRightPaneOpen(
-  surface: 'chat' | 'agent',
+  surface: 'chat',
   { enabled, defaultOpen }: ClassicLayoutRightPaneOpenOptions
 ): readonly [boolean, ClassicLayoutPaneOpenSetter] {
   const [storedOverride, setStoredOverride] = usePersistCache(RIGHT_PANE_OPEN_OVERRIDE_CACHE_KEY[surface])

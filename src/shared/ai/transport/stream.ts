@@ -105,7 +105,7 @@ export interface ComposerQueuedMessagePayload {
   serviceTier?: ServiceTierSelection
   /** Whether this queued draft requests Fast processing. */
   fastMode?: boolean
-  /** Chat-only target snapshot. Agent-session queues leave this unset. */
+  /** Chat target snapshot. */
   chatTarget?: ComposerChatTarget
 }
 
@@ -273,16 +273,6 @@ export interface AiToolResultRequest {
 
 export type AiToolResultResponse = { found: true; output: unknown } | { found: false }
 
-/** Prewarm the next Claude Agent SDK query for an agent session. */
-export interface AiAgentSessionWarmRequest {
-  sessionId: string
-}
-
-/** Close any unused warm query for an agent session. */
-export interface AiAgentSessionWarmCloseRequest {
-  sessionId: string
-}
-
 /** Result of an attach attempt.
  *
  * Terminal-state variants (`done` / `paused` / `error`) carry per-execution
@@ -324,11 +314,6 @@ export type AiStreamOpenResponse =
        * reconcile final content/status from a DB refresh.
        */
       reservedMessages?: CherryUIMessage[]
-    }
-  | {
-      mode: 'blocked'
-      reason: 'agent-session-workspace'
-      message: string
     }
   | {
       mode: 'blocked'

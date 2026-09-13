@@ -1,6 +1,6 @@
 # Message Components Design Rules
 
-This directory contains the shared message display component family for Home, Agents, History, Quick Assistant, and other chat-like surfaces.
+This directory contains the shared message display component family for Home, History, Quick Assistant, and other chat-like surfaces.
 
 The goal is one reusable message UI implementation with page-specific data and capabilities injected through adapters and providers.
 
@@ -25,9 +25,8 @@ This directory must not own page shell concerns:
 - right panes
 - settings panels
 - Home topic tabs
-- Agent session sidebars
 
-Page-only UI should stay in the page directory. If a component is only a Home or Agent adapter, keep it in `adapters/` or move it back to the page side.
+Page-only UI should stay in the page directory. If a component is only a page adapter, keep it in `adapters/` or move it back to the page side.
 
 ## Directory Layout
 
@@ -74,18 +73,17 @@ Adapters are the boundary between page/business data and this component family.
 Adapters may:
 
 - call page or data hooks
-- map topic/session/agent/message data into `MessageListProviderValue`
+- map topic/assistant/message data into `MessageListProviderValue`
 - register page-specific actions
-- provide display metadata such as agent avatar/name
+- provide display metadata such as assistant avatar/name
 
 Adapters must not:
 
 - render a second list implementation
 - duplicate message block or tool rendering
 - store business data as a second source of truth
-- make Agent session messages call Home topic write APIs
 
-Home and Agents may have separate adapters, but both must render the same `MessageList`.
+Chat and History have separate adapters and share `MessageList`.
 
 ## Action Rules
 
@@ -102,7 +100,7 @@ Avoid separate booleans that mirror action availability.
 
 ## Variant Rules
 
-Differences between Home and Agents should be expressed through provider values, actions, metadata, and explicit adapter composition.
+Differences between chat surfaces should be expressed through provider values, actions, metadata, and explicit adapter composition.
 
 Do not add page-mode props such as:
 
@@ -127,7 +125,7 @@ Business data stays outside:
 
 - topics
 - sessions
-- agents
+- assistants
 - persisted messages
 - tool executions
 - artifacts
@@ -141,7 +139,6 @@ The virtual list must not become a second source of truth for messages.
 - Use `MessageParts` for parts-based message data.
 - Use `MessageMenuBar`, not `MessageMenubar`.
 - Use `Message*` for shared message components.
-- Use `Agent*` only for agent-specific tool renderers or adapter code.
 - Do not use `Chat*` for message-list internals unless the component is outside this shared message family.
 
 ## Import Rules
@@ -149,7 +146,6 @@ The virtual list must not become a second source of truth for messages.
 Shared message components should not import from page-private paths such as:
 
 - `@renderer/pages/home/...`
-- `@renderer/pages/agents/...`
 
 If a shared component needs UI from a page-private module, extract a smaller shared primitive or inject the capability through an adapter.
 

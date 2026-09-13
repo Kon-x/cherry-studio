@@ -1,4 +1,3 @@
-import type { AgentRouteSearch } from '@renderer/pages/agents/routeSearch'
 import type { ChatRouteSearch } from '@renderer/pages/home/routeSearch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,18 +7,14 @@ const mocks = vi.hoisted(() => ({
   resolveChatEntryTopicId: vi.fn(),
   resolveChatEntryTopicIdForAssistant: vi.fn()
 }))
-
-vi.mock('@renderer/pages/agents/AgentPage', () => ({ default: () => null }))
 vi.mock('@renderer/pages/home/HomePage', () => ({ default: () => null }))
 vi.mock('@renderer/utils/conversationEntry', () => mocks)
 
-import { Route as AgentRoute } from '../agents'
 import { Route as ChatRoute } from '../chat'
 
 type EntryBeforeLoad<TSearch> = (args: { search: TSearch }) => Promise<void>
 
 const chatBeforeLoad = ChatRoute.options.beforeLoad as EntryBeforeLoad<ChatRouteSearch>
-const agentBeforeLoad = AgentRoute.options.beforeLoad as EntryBeforeLoad<AgentRouteSearch>
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -44,26 +39,6 @@ describe('conversation entry route guards', () => {
     expect(mocks.resolveChatEntryTopicId).not.toHaveBeenCalled()
   })
 
-  it('resolves the entry target for a bare agent entry', async () => {
-    mocks.resolveAgentEntrySessionId.mockResolvedValue('session-last')
-
-    await expect(agentBeforeLoad({ search: {} })).rejects.toMatchObject({
-      options: { to: '/app/agents', search: { sessionId: 'session-last' }, replace: true }
-    })
-  })
-
-  it('does not resolve an agent entry that already carries a session id', async () => {
-    await agentBeforeLoad({ search: { sessionId: 'session-a' } })
-
-    expect(mocks.resolveAgentEntrySessionId).not.toHaveBeenCalled()
-  })
-
-  it('does not resolve a feedback-intent agent entry', async () => {
-    await agentBeforeLoad({ search: { intent: 'feedback' } })
-
-    expect(mocks.resolveAgentEntrySessionId).not.toHaveBeenCalled()
-  })
-
   it('resolves an assistant-scoped topic for a sidebar assistant entry', async () => {
     mocks.resolveChatEntryTopicIdForAssistant.mockResolvedValue('topic-assistant')
 
@@ -80,23 +55,5 @@ describe('conversation entry route guards', () => {
 
     expect(mocks.resolveChatEntryTopicIdForAssistant).toHaveBeenCalledWith('assistant-1')
     expect(mocks.resolveChatEntryTopicId).not.toHaveBeenCalled()
-  })
-
-  it('resolves an agent-scoped session for a sidebar agent entry', async () => {
-    mocks.resolveAgentEntrySessionIdForAgent.mockResolvedValue('session-agent')
-
-    await expect(agentBeforeLoad({ search: { agentId: 'agent-1' } })).rejects.toMatchObject({
-      options: { to: '/app/agents', search: { sessionId: 'session-agent' }, replace: true }
-    })
-
-    expect(mocks.resolveAgentEntrySessionIdForAgent).toHaveBeenCalledWith('agent-1')
-    expect(mocks.resolveAgentEntrySessionId).not.toHaveBeenCalled()
-  })
-
-  it('falls through bare when the agent has no sessions', async () => {
-    await agentBeforeLoad({ search: { agentId: 'agent-1' } })
-
-    expect(mocks.resolveAgentEntrySessionIdForAgent).toHaveBeenCalledWith('agent-1')
-    expect(mocks.resolveAgentEntrySessionId).not.toHaveBeenCalled()
   })
 })

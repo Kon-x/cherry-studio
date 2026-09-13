@@ -58,14 +58,7 @@ const createScheduleState = (): ScheduleState => ({
 
 @Injectable('AutoBackupService')
 @ServicePhase(Phase.WhenReady)
-@DependsOn([
-  'SchedulerService',
-  'WindowManager',
-  'ChannelManager',
-  'AiStreamManager',
-  'AgentSessionRuntimeService',
-  'JobManager'
-])
+@DependsOn(['SchedulerService', 'WindowManager', 'AiStreamManager', 'JobManager'])
 export class AutoBackupService extends BaseService {
   private active = false
   private activeRun: Promise<void> | null = null

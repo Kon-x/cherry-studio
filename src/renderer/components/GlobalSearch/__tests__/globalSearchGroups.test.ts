@@ -5,7 +5,6 @@ import {
   buildGlobalMessageSearchGroups,
   buildGlobalSearchGroups,
   createRecentRouteEntryFromTab,
-  createRecentSessionEntryFromSession,
   createRecentTopicEntryFromTopic,
   getDisplayGlobalSearchRecentEntries,
   getGlobalSearchTypes,
@@ -54,9 +53,9 @@ describe('globalSearchGroups', () => {
         lastAccessTime: 20
       },
       {
-        kind: 'session' as const,
-        sessionId: 'session-1',
-        title: 'Session 1',
+        kind: 'route' as const,
+        url: '/app/notes',
+        title: 'Assistant 1',
         lastAccessTime: 10
       }
     ]
@@ -211,7 +210,7 @@ describe('globalSearchGroups', () => {
       ]
     }
 
-    expect(getGlobalSearchTypes('all')).toEqual(['topic', 'session', 'assistant', 'agent', 'knowledge-base'])
+    expect(getGlobalSearchTypes('all')).toEqual(['topic', 'assistant', 'knowledge-base'])
     expect(getGlobalSearchTypes('knowledge')).toEqual(['knowledge-base'])
     expect(
       buildGlobalSearchGroups({
@@ -263,24 +262,9 @@ describe('globalSearchGroups', () => {
       title: 'Topic title',
       lastAccessTime: 20
     })
-
-    expect(
-      createRecentSessionEntryFromSession(
-        {
-          id: 'session-1',
-          name: 'Session title'
-        },
-        30
-      )
-    ).toEqual({
-      kind: 'session',
-      sessionId: 'session-1',
-      title: 'Session title',
-      lastAccessTime: 30
-    })
   })
 
-  it('maps topic and session filters to separate search types and groups', () => {
+  it('maps topic and assistant filters to separate search types and groups', () => {
     const response: EntitySearchResponse = {
       query: 'plan',
       groups: [
@@ -296,13 +280,13 @@ describe('globalSearchGroups', () => {
           ]
         },
         {
-          type: 'session',
+          type: 'assistant',
           items: [
             {
-              type: 'session',
-              id: 'session-1',
-              title: 'Session',
-              target: { sessionId: 'session-1', agentId: 'agent-1' }
+              type: 'assistant',
+              id: 'assistant-1',
+              title: 'Assistant',
+              target: { assistantId: 'assistant-1' }
             }
           ]
         }
@@ -310,7 +294,7 @@ describe('globalSearchGroups', () => {
     }
 
     expect(getGlobalSearchTypes('topic')).toEqual(['topic'])
-    expect(getGlobalSearchTypes('session')).toEqual(['session'])
+    expect(getGlobalSearchTypes('assistant')).toEqual(['assistant'])
     expect(
       buildGlobalSearchGroups({
         query: 'plan',
@@ -328,14 +312,14 @@ describe('globalSearchGroups', () => {
     expect(
       buildGlobalSearchGroups({
         query: 'plan',
-        filter: 'session',
+        filter: 'assistant',
         recentItems: [],
         response
       })
     ).toEqual([
       expect.objectContaining({
-        id: 'session',
-        items: [expect.objectContaining({ id: 'session:session-1' })]
+        id: 'assistant',
+        items: [expect.objectContaining({ id: 'assistant:assistant-1' })]
       })
     ])
 
@@ -346,10 +330,10 @@ describe('globalSearchGroups', () => {
         recentItems: [],
         response
       }).map((group) => group.id)
-    ).toEqual(['topic', 'session'])
+    ).toEqual(['topic', 'assistant'])
   })
 
-  it('collapses topic and session groups only in all search', () => {
+  it('collapses topic and assistant groups only in all search', () => {
     const response: EntitySearchResponse = {
       query: 'plan',
       groups: [
@@ -363,12 +347,12 @@ describe('globalSearchGroups', () => {
           }))
         },
         {
-          type: 'session',
+          type: 'assistant',
           items: Array.from({ length: GLOBAL_SEARCH_ENTITY_GROUP_COLLAPSED_LIMIT + 1 }, (_, index) => ({
-            type: 'session',
-            id: `session-${index}`,
-            title: `Session ${index}`,
-            target: { sessionId: `session-${index}`, agentId: 'agent-1' }
+            type: 'assistant',
+            id: `assistant-${index}`,
+            title: `Assistant ${index}`,
+            target: { assistantId: `assistant-${index}` }
           }))
         }
       ]
@@ -390,7 +374,7 @@ describe('globalSearchGroups', () => {
       })
     )
     expect(collapsedGroups[0]?.items).toHaveLength(GLOBAL_SEARCH_ENTITY_GROUP_COLLAPSED_LIMIT)
-    expect(collapsedGroups[1]?.items).toHaveLength(GLOBAL_SEARCH_ENTITY_GROUP_COLLAPSED_LIMIT)
+    expect(collapsedGroups[1]?.items).toHaveLength(GLOBAL_SEARCH_ENTITY_GROUP_COLLAPSED_LIMIT + 1)
 
     const expandedGroups = buildGlobalSearchGroups({
       expandedGroupIds: new Set(['topic']),
@@ -448,9 +432,8 @@ describe('globalSearchGroups', () => {
   })
 
   it('maps message search source filters and groups message results by parent', () => {
-    expect(getMessageSearchSources('all')).toEqual(['topic', 'session'])
+    expect(getMessageSearchSources('all')).toEqual(['topic'])
     expect(getMessageSearchSources('topic')).toEqual(['topic'])
-    expect(getMessageSearchSources('session')).toEqual(['session'])
 
     const groups = buildGlobalMessageSearchGroups({
       expandedParentIds: new Set(),
@@ -466,10 +449,12 @@ describe('globalSearchGroups', () => {
           createdAt: `2026-01-01T00:00:0${index}.000Z`
         })),
         {
-          sourceType: 'session',
+          sourceType: 'topic',
           messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session',
+          topicId: 'topic-2',
+          topicCreatedAt: '2026-01-01T00:00:00.000Z',
+          topicUpdatedAt: '2026-01-01T00:00:00.000Z',
+          topicName: 'Other Topic',
           snippet: 'Session snippet',
           createdAt: '2026-01-01T00:00:10.000Z'
         }
@@ -488,9 +473,9 @@ describe('globalSearchGroups', () => {
     )
     expect(groups[1]).toEqual(
       expect.objectContaining({
-        id: 'session:session-1',
-        sourceType: 'session',
-        title: 'Session',
+        id: 'topic:topic-2',
+        sourceType: 'topic',
+        title: 'Other Topic',
         total: 1
       })
     )

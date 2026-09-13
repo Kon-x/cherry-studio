@@ -71,7 +71,7 @@ export function useConversationTurnController<TInput, TConversation>({
         if (!isCurrentScope()) return ack.mode !== 'blocked'
 
         if (ack.mode === 'blocked') {
-          toast.error(getStreamBlockedMessage(ack))
+          toast.error(getStreamBlockedMessage())
           if (isCurrentScope()) setPhase('ready')
           return false
         }

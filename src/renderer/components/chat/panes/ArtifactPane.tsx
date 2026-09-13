@@ -56,12 +56,12 @@ const logger = loggerService.withContext('ArtifactPane')
 
 const ARTIFACT_FILE_TREE_ERROR_KEYS = {
   invalid_path: {
-    description: 'agent.preview_pane.tree_error.invalid_path.description',
-    title: 'agent.preview_pane.tree_error.invalid_path.title'
+    description: 'chat.preview_pane.tree_error.invalid_path.description',
+    title: 'chat.preview_pane.tree_error.invalid_path.title'
   },
   load_error: {
-    description: 'agent.preview_pane.tree_error.load_error.description',
-    title: 'agent.preview_pane.tree_error.load_error.title'
+    description: 'chat.preview_pane.tree_error.load_error.description',
+    title: 'chat.preview_pane.tree_error.load_error.title'
   }
 } as const satisfies Record<ArtifactFileTreeErrorKind, { description: string; title: string }>
 
@@ -244,8 +244,8 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
     }
     toast.error(
       fileSession.unsupportedReason === 'size'
-        ? t('agent.preview_pane.too_large.description', { limit: ARTIFACT_PREVIEW_MAX_SIZE_LABEL })
-        : t('agent.preview_pane.edit.unsupported')
+        ? t('chat.preview_pane.too_large.description', { limit: ARTIFACT_PREVIEW_MAX_SIZE_LABEL })
+        : t('chat.preview_pane.edit.unsupported')
     )
     onEditModeChange?.('preview')
   }, [editMode, fileSession?.status, fileSession?.unsupportedReason, onEditModeChange, t])
@@ -255,9 +255,9 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
   useEffect(() => {
     if (!fileSession?.saveError) return
     if (fileSession.metadataRecoveryPending) {
-      toast.warning(t('agent.preview_pane.edit.metadata_pending'))
+      toast.warning(t('chat.preview_pane.edit.metadata_pending'))
     } else {
-      toast.error(t('agent.preview_pane.edit.save_failed'))
+      toast.error(t('chat.preview_pane.edit.save_failed'))
     }
   }, [fileSession?.metadataRecoveryPending, fileSession?.saveError, t])
 
@@ -298,7 +298,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
     if (editModeRef.current === 'edit' && reload && !isEditDirtyRef.current) {
       void reload().catch((error: unknown) => {
         logger.error('Failed to refresh editable file snapshot', error as Error)
-        toast.error(t('agent.preview_pane.edit.refresh_failed'))
+        toast.error(t('chat.preview_pane.edit.refresh_failed'))
       })
     }
   }, [refresh, reloadExpandedDirectories, t])
@@ -343,7 +343,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
         {
           type: 'item',
           id: 'copy-path',
-          label: t('agent.preview_pane.copy_path'),
+          label: t('chat.preview_pane.copy_path'),
           icon: <Copy size={16} />,
           onSelect: () => void copyPath(getCopyableAbsolutePath(targetPath, isWin))
         }
@@ -352,7 +352,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
         copyItems.push({
           type: 'item',
           id: 'copy-relative-path',
-          label: t('agent.preview_pane.copy_relative_path'),
+          label: t('chat.preview_pane.copy_relative_path'),
           icon: <CopySlash size={16} />,
           onSelect: () => void copyPath(node.id)
         })
@@ -372,13 +372,13 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
   // per-keystroke re-renders the draft causes — React then skips the subtree.
   const refreshButton = useMemo(
     () => (
-      <Tooltip content={t('agent.preview_pane.refresh')} delay={800}>
+      <Tooltip content={t('chat.preview_pane.refresh')} delay={800}>
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           className="text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label={t('agent.preview_pane.refresh')}
+          aria-label={t('chat.preview_pane.refresh')}
           onClick={handleRefresh}>
           <RotateCw size={16} />
         </Button>
@@ -415,7 +415,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
       setContentRefreshToken((value) => value + 1)
     } catch (error) {
       logger.error('Failed to reload artifact file after a write conflict', error as Error)
-      toast.error(t('agent.preview_pane.edit.refresh_failed'))
+      toast.error(t('chat.preview_pane.edit.refresh_failed'))
     }
   }, [fileSession, t])
 
@@ -472,7 +472,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
         {
           type: 'item' as const,
           id: 'artifact-pane.overlay.refresh',
-          label: t('agent.preview_pane.refresh'),
+          label: t('chat.preview_pane.refresh'),
           icon: <RotateCw size={14} />,
           onSelect: handleRefresh
         },
@@ -480,7 +480,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
         {
           type: 'item' as const,
           id: 'artifact-pane.overlay.close',
-          label: t('agent.preview_pane.close'),
+          label: t('chat.preview_pane.close'),
           icon: <X size={14} />,
           onSelect: handleClosePreview
         }
@@ -565,8 +565,8 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
             {overlaySelection && isEditDirty ? (
               <span
                 className="size-1.5 shrink-0 rounded-full bg-warning"
-                aria-label={t('agent.preview_pane.edit.unsaved')}
-                title={t('agent.preview_pane.edit.unsaved')}
+                aria-label={t('chat.preview_pane.edit.unsaved')}
+                title={t('chat.preview_pane.edit.unsaved')}
               />
             ) : null}
           </div>
@@ -619,13 +619,13 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
       <>
         <OpenTargetButton targetPath={getArtifactPaneSelectionPath(overlaySelection)} pathKind="file" />
         {refreshButton}
-        <Tooltip content={t('agent.preview_pane.close')} delay={800}>
+        <Tooltip content={t('chat.preview_pane.close')} delay={800}>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             className="text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label={t('agent.preview_pane.close')}
+            aria-label={t('chat.preview_pane.close')}
             onClick={handleClosePreview}>
             <X size={16} />
           </Button>
@@ -656,8 +656,8 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
               {isEditDirty && (
                 <span
                   className="size-1.5 shrink-0 rounded-full bg-warning"
-                  aria-label={t('agent.preview_pane.edit.unsaved')}
-                  title={t('agent.preview_pane.edit.unsaved')}
+                  aria-label={t('chat.preview_pane.edit.unsaved')}
+                  title={t('chat.preview_pane.edit.unsaved')}
                 />
               )}
             </div>
@@ -691,8 +691,8 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
             <span className="min-w-0 flex-1">
               {t(
                 fileSession.metadataRecoveryPending
-                  ? 'agent.preview_pane.edit.metadata_pending'
-                  : 'agent.preview_pane.edit.save_failed'
+                  ? 'chat.preview_pane.edit.metadata_pending'
+                  : 'chat.preview_pane.edit.save_failed'
               )}
             </span>
             {!fileSession.metadataRecoveryPending && (
@@ -711,7 +711,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
               size="sm"
               disabled={fileSession.isSaving}
               onClick={handleDiscardFailedSave}>
-              {t('agent.preview_pane.edit.discard')}
+              {t('chat.preview_pane.edit.discard')}
             </Button>
           </div>
         )}
@@ -760,7 +760,7 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
           showSearch={enableFileSearch}
           searchKeyword={searchKeyword}
           onSearchKeywordChange={onSearchKeywordChange}
-          searchPlaceholder={t('agent.preview_pane.search_placeholder')}
+          searchPlaceholder={t('chat.preview_pane.search_placeholder')}
           searchToolbar={searchToolbar}
           searchClearLabel={t('common.clear')}
           getMenuItems={getFileTreeMenuItems}
@@ -769,10 +769,10 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
               {treeErrorKeys
                 ? t(treeErrorKeys.title)
                 : trimmedFileSearch
-                  ? t('agent.preview_pane.no_search_results')
+                  ? t('chat.preview_pane.no_search_results')
                   : workspacePath
-                    ? t('agent.preview_pane.empty.title')
-                    : t('agent.preview_pane.empty.description')}
+                    ? t('chat.preview_pane.empty.title')
+                    : t('chat.preview_pane.empty.description')}
             </div>
           }
         />
@@ -807,8 +807,8 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
         {paneHeader}
         <EmptyState
           icon={Sparkles}
-          title={t('agent.preview_pane.empty.title')}
-          description={t('agent.preview_pane.empty.description')}
+          title={t('chat.preview_pane.empty.title')}
+          description={t('chat.preview_pane.empty.description')}
         />
       </div>
     )
@@ -849,10 +849,10 @@ export function ArtifactPaneView(props: ArtifactPaneViewProps) {
       <ConfirmDialog
         open={staleConflictOpen}
         onOpenChange={setStaleConflictOpen}
-        title={t('agent.preview_pane.edit.conflict.title')}
-        description={t('agent.preview_pane.edit.conflict.description')}
-        confirmText={t('agent.preview_pane.edit.conflict.reload')}
-        cancelText={t('agent.preview_pane.edit.conflict.keep_draft')}
+        title={t('chat.preview_pane.edit.conflict.title')}
+        description={t('chat.preview_pane.edit.conflict.description')}
+        confirmText={t('chat.preview_pane.edit.conflict.reload')}
+        cancelText={t('chat.preview_pane.edit.conflict.keep_draft')}
         destructive
         onConfirm={handleReloadAfterConflict}
       />

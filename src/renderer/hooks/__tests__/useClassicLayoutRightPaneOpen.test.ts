@@ -62,17 +62,4 @@ describe('useClassicLayoutRightPaneOpen', () => {
 
     expect(MockUseCacheUtils.getPersistCacheValue('ui.chat.right_pane_open_override')).toBe(true)
   })
-
-  it('keeps chat and agent overrides independent', () => {
-    const chat = renderHook(() => useClassicLayoutRightPaneOpen('chat', { enabled: true, defaultOpen: true }))
-    const agent = renderHook(() => useClassicLayoutRightPaneOpen('agent', { enabled: true, defaultOpen: false }))
-
-    const setChatOpen = chat.result.current[1]
-    const setAgentOpen = agent.result.current[1]
-    act(() => setChatOpen(false))
-    act(() => setAgentOpen(true))
-
-    expect(MockUseCacheUtils.getPersistCacheValue('ui.chat.right_pane_open_override')).toBe(false)
-    expect(MockUseCacheUtils.getPersistCacheValue('ui.agent.right_pane_open_override')).toBe(true)
-  })
 })

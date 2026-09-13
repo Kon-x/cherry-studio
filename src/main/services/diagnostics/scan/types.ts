@@ -12,7 +12,7 @@
  * Multiple rules may match the same record; each aggregates independently.
  */
 
-export const DIAGNOSTIC_DOMAINS = ['provider', 'network', 'agent', 'mcp', 'chat', 'environment'] as const
+export const DIAGNOSTIC_DOMAINS = ['provider', 'network', 'mcp', 'chat', 'environment'] as const
 export type DiagnosticDomain = (typeof DIAGNOSTIC_DOMAINS)[number]
 
 /**

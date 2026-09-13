@@ -29,11 +29,6 @@ vi.mock('@renderer/hooks/useModel', () => ({
   useModels: () => ({ models: [] })
 }))
 
-vi.mock('@renderer/hooks/agent/useAgentModelFilter', () => ({
-  useAgentModelFilter: () => () => true,
-  useAgentModelDisabled: () => () => false
-}))
-
 vi.mock('@renderer/ipc', () => ({
   ipcApi: { request: ipc.request }
 }))
@@ -81,7 +76,6 @@ vi.mock('../steps/SystemPromptStep', () => ({
     </button>
   )
 }))
-vi.mock('../steps/CapabilityStep', () => ({ CapabilityStep: () => <div /> }))
 
 vi.mock('@cherrystudio/ui/lib/utils', () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(' ')

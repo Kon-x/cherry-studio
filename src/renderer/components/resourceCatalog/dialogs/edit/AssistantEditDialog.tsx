@@ -240,7 +240,7 @@ function AssistantEditDialogContent({
   const tabs = useMemo<EditDialogTab[]>(
     () => [
       { id: 'basic', label: t('library.config.dialogs.edit.basic_tab') },
-      { id: 'advanced', label: t('library.config.agent.model_config') },
+      { id: 'advanced', label: t('library.config.assistant.model_config') },
       { id: 'prompt', label: t('library.config.dialogs.edit.prompt_tab') },
       { id: 'prompts', label: t('settings.prompts.binding.tabTitle') },
       {
@@ -248,7 +248,7 @@ function AssistantEditDialogContent({
         label: t('library.config.dialogs.edit.tools_tab'),
         children: [
           { id: 'tools.knowledge', label: t('library.config.dialogs.edit.knowledge_tab') },
-          { id: 'tools.mcp', label: t('library.config.agent.section.tools.tab.mcp') }
+          { id: 'tools.mcp', label: t('library.config.tools.tab.mcp') }
         ]
       }
     ],

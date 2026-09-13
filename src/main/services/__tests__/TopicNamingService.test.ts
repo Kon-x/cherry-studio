@@ -1,6 +1,3 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-
 import { WindowType } from '@main/core/window/types'
 import { CHERRYAI_DEFAULT_UNIQUE_MODEL_ID } from '@shared/data/presets/cherryai'
 import { MockMainPreferenceServiceUtils } from '@test-mocks/main/PreferenceService'
@@ -55,40 +52,7 @@ vi.mock('@data/services/ProviderService', () => ({
   }
 }))
 
-vi.mock('@data/services/AgentService', () => ({
-  agentService: {
-    getAgent: mocks.getAgent
-  }
-}))
-
-vi.mock('@data/services/AgentSessionService', () => ({
-  agentSessionService: {
-    getById: mocks.getSession,
-    update: mocks.updateSession
-  }
-}))
-
 const { TopicNamingService } = await import('../TopicNamingService')
-
-// Read the renderer catalog from disk rather than importing it, so the main/preload
-// boundary lint (no renderer imports) stays satisfied while still guarding that every
-// localized `common.unnamed` default name is recognized by the auto-naming service.
-const rendererI18nDir = path.join(process.cwd(), 'src/renderer/i18n')
-const unnamedTranslations = [
-  'locales/en-us',
-  'locales/zh-cn',
-  'locales/de-de',
-  'locales/el-gr',
-  'locales/es-es',
-  'locales/fr-fr',
-  'locales/ja-jp',
-  'locales/pt-pt',
-  'locales/ro-ro',
-  'locales/ru-ru',
-  'locales/tr-tr',
-  'locales/vi-vn',
-  'locales/zh-tw'
-].map((rel) => JSON.parse(fs.readFileSync(path.join(rendererI18nDir, `${rel}.json`), 'utf-8'))['common.unnamed'])
 
 function createService() {
   return new TopicNamingService()
@@ -265,54 +229,6 @@ describe('TopicNamingService', () => {
     )
   })
 
-  it('uses the quick assistant model for agent session summary naming', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'common.unnamed',
-      isNameManuallyEdited: false
-    })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.generateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        conversation: { id: 'session-1', topicId: 'session-1' },
-        uniqueModelId: 'openai::gpt-4o-mini'
-      })
-    )
-    expect(mocks.generateText.mock.calls[0][0]).not.toHaveProperty('assistantId')
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'Generated Title',
-      isNameManuallyEdited: false
-    })
-  })
-
-  it('renames default unnamed agent sessions from the first user message without generating a summary', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: '未命名',
-      isNameManuallyEdited: false
-    })
-    mocks.updateSession.mockReturnValue({ id: 'session-1' })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage(
-      'session-1',
-      'Please inspect the renderer startup path and suggest fixes'
-    )
-
-    expect(mocks.generateText).not.toHaveBeenCalled()
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'Please inspect the renderer startup path and sugge',
-      isNameManuallyEdited: false
-    })
-    expect(mocks.broadcast).toHaveBeenCalledWith('ai.agent.session.auto_renamed', { sessionId: 'session-1' })
-  })
-
   it('names a topic from the first user message when conversation auto naming is disabled', () => {
     MockMainPreferenceServiceUtils.setPreferenceValue('topic.naming.enabled', false)
 
@@ -323,41 +239,6 @@ describe('TopicNamingService', () => {
       isNameManuallyEdited: false
     })
     expect(mocks.generateText).not.toHaveBeenCalled()
-  })
-
-  it('names an agent session from the first user message when conversation auto naming is disabled', () => {
-    MockMainPreferenceServiceUtils.setPreferenceValue('topic.naming.enabled', false)
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'common.unnamed',
-      isNameManuallyEdited: false
-    })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'First user text')
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'First user text',
-      isNameManuallyEdited: false
-    })
-    expect(mocks.generateText).not.toHaveBeenCalled()
-  })
-
-  it.each(unnamedTranslations)('recognizes localized default agent session name "%s"', async (name) => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name,
-      isNameManuallyEdited: false
-    })
-    mocks.updateSession.mockReturnValue({ id: 'session-1' })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'First user text')
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'First user text',
-      isNameManuallyEdited: false
-    })
   })
 
   it('does not first-message rename a topic after a manual rename race', async () => {
@@ -456,235 +337,6 @@ describe('TopicNamingService', () => {
     expect(mocks.broadcast).not.toHaveBeenCalled()
   })
 
-  it('extracts first-message agent session names from message data', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: '未命名',
-      isNameManuallyEdited: false
-    })
-    mocks.updateSession.mockReturnValue({ id: 'session-1' })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', {
-      parts: [
-        { type: 'text', text: '  Inspect renderer startup  ' },
-        { type: 'file', url: 'file://trace.log', mediaType: 'text/plain' },
-        { type: 'text', text: 'suggest fixes' }
-      ]
-    } as never)
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'Inspect renderer startup suggest fixes',
-      isNameManuallyEdited: false
-    })
-  })
-
-  it('does not first-message rename an agent session after a manual rename race', async () => {
-    mocks.getSession
-      .mockReturnValueOnce({
-        id: 'session-1',
-        agentId: 'agent-1',
-        name: '未命名',
-        isNameManuallyEdited: false
-      })
-      .mockReturnValueOnce({
-        id: 'session-1',
-        agentId: 'agent-1',
-        name: 'Manual Session',
-        isNameManuallyEdited: true
-      })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'First user text')
-
-    expect(mocks.getSession).toHaveBeenCalledTimes(2)
-    expect(mocks.updateSession).not.toHaveBeenCalled()
-    expect(mocks.broadcast).not.toHaveBeenCalled()
-  })
-
-  it('isolates first-message agent session rename failures', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: '未命名',
-      isNameManuallyEdited: false
-    })
-    mocks.updateSession.mockImplementation(() => {
-      throw new Error('write failed')
-    })
-
-    expect(createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'First user text')).toBeUndefined()
-
-    expect(mockMainLoggerService.warn).toHaveBeenCalledWith(
-      'Failed to auto-rename agent session from first user message',
-      expect.objectContaining({
-        sessionId: 'session-1',
-        error: expect.any(Error)
-      })
-    )
-    expect(mocks.broadcast).not.toHaveBeenCalled()
-  })
-
-  it('logs read failures before skipping first-message agent session rename', async () => {
-    const error = new Error('read failed')
-    mocks.getSession.mockImplementation(() => {
-      throw error
-    })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'First user text')
-
-    expect(mockMainLoggerService.debug).toHaveBeenCalledWith('Failed to read agent session for auto-rename', {
-      sessionId: 'session-1',
-      phase: 'initial',
-      error
-    })
-    expect(mocks.updateSession).not.toHaveBeenCalled()
-    expect(mocks.broadcast).not.toHaveBeenCalled()
-  })
-
-  it('does not first-message rename an agent session that already has a real title', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'Release planning',
-      isNameManuallyEdited: true
-    })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', 'New user text')
-
-    expect(mocks.updateSession).not.toHaveBeenCalled()
-    expect(mocks.broadcast).not.toHaveBeenCalled()
-  })
-
-  it('does not summary-rename agent sessions that already have a real title', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'Release planning',
-      isNameManuallyEdited: true
-    })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.generateText).not.toHaveBeenCalled()
-    expect(mocks.updateSession).not.toHaveBeenCalled()
-  })
-
-  it('allows summary rename after the first-message temporary agent session title', async () => {
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'User request',
-      isNameManuallyEdited: false
-    })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'Generated Title',
-      isNameManuallyEdited: false
-    })
-  })
-
-  it('allows summary rename after first-message extraction and summary extraction see the same message data', async () => {
-    const userMessageData = {
-      parts: [
-        { type: 'text', text: '  first line  ' },
-        { type: 'text', text: 'second line' }
-      ]
-    }
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'common.unnamed',
-      isNameManuallyEdited: false
-    })
-
-    createService().maybeRenameAgentSessionFromFirstUserMessage('session-1', userMessageData as never)
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'first line second line',
-      isNameManuallyEdited: false
-    })
-
-    vi.clearAllMocks()
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'first line second line',
-      isNameManuallyEdited: false
-    })
-    mocks.generateText.mockResolvedValue({ text: 'Generated Title' })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', '  first line  \nsecond line', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.updateSession).toHaveBeenCalledWith('session-1', {
-      name: 'Generated Title',
-      isNameManuallyEdited: false
-    })
-  })
-
-  it('does not summary-rename an agent session after a manual rename race', async () => {
-    mocks.getSession
-      .mockReturnValueOnce({
-        id: 'session-1',
-        agentId: 'agent-1',
-        name: 'User request',
-        isNameManuallyEdited: false
-      })
-      .mockReturnValueOnce({
-        id: 'session-1',
-        agentId: 'agent-1',
-        name: 'Manual Session',
-        isNameManuallyEdited: true
-      })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.generateText).toHaveBeenCalledOnce()
-    expect(mocks.getSession).toHaveBeenCalledTimes(2)
-    expect(mocks.updateSession).not.toHaveBeenCalled()
-    expect(mocks.broadcast).not.toHaveBeenCalled()
-  })
-
-  it('falls back when the quick model points to an external-CLI (agent-only) provider', async () => {
-    MockMainPreferenceServiceUtils.setPreferenceValue('feature.quick_assistant.model_id', 'claude-code::haiku')
-    mocks.getProviderByProviderId.mockReturnValue({ authMethods: ['external-cli'] })
-    mocks.getSession.mockReturnValue({
-      id: 'session-1',
-      agentId: 'agent-1',
-      name: 'common.unnamed',
-      isNameManuallyEdited: false
-    })
-
-    await createService().maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-      role: 'assistant',
-      parts: [{ type: 'text', text: 'Agent response' }]
-    } as never)
-
-    expect(mocks.getModelByKey).not.toHaveBeenCalledWith('claude-code', 'haiku')
-    expect(mocks.generateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        uniqueModelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
-      })
-    )
-    expect(mockMainLoggerService.warn).toHaveBeenCalledWith(
-      'Quick assistant model is not usable for topic naming; falling back to managed CherryAI default',
-      { configured: 'claude-code::haiku' }
-    )
-  })
-
   it('uses an oauth login-based quick model (e.g. Codex/Grok) for topic naming', async () => {
     MockMainPreferenceServiceUtils.setPreferenceValue('feature.quick_assistant.model_id', 'openai-codex::gpt-5')
     mocks.getProviderByProviderId.mockReturnValue({ authMethods: ['oauth'] })
@@ -736,31 +388,6 @@ describe('TopicNamingService', () => {
       await flushSettles()
     })
 
-    it('maybeRenameAgentSession registers synchronously and self-removes on settle', async () => {
-      mocks.getSession.mockReturnValue({
-        id: 'session-1',
-        agentId: 'agent-1',
-        name: 'common.unnamed',
-        isNameManuallyEdited: false
-      })
-      const service = createService()
-
-      const pending = service.maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-        role: 'assistant',
-        parts: [{ type: 'text', text: 'Agent response' }]
-      } as never)
-
-      // Registered at method entry, before any await — a detached spawn is
-      // captured before its caller's promise resolves.
-      expect(service.inFlightWrites().size).toBe(1)
-      const [agentKey] = [...service.inFlightWrites().keys()]
-      expect(agentKey).toMatch(/^agent-session:session-1#\d+$/)
-
-      await pending
-      await flushSettles()
-      expect(service.inFlightWrites().size).toBe(0)
-    })
-
     it('maybeRenameFromConversationSummary registers under the topic: prefix', async () => {
       const service = createService()
 
@@ -776,24 +403,6 @@ describe('TopicNamingService', () => {
       await pending
       await flushSettles()
       expect(service.inFlightWrites().size).toBe(0)
-    })
-
-    it('removes the entry and resolves even when the rename path no-ops', async () => {
-      MockMainPreferenceServiceUtils.setPreferenceValue('topic.naming.enabled', false)
-      const service = createService()
-
-      const pending = service.maybeRenameAgentSession('agent-1', 'session-1', 'User request', {
-        role: 'assistant',
-        parts: [{ type: 'text', text: 'Agent response' }]
-      } as never)
-
-      // Even the disabled early return was registered first…
-      expect(service.inFlightWrites().size).toBe(1)
-      // …and the wrapper never rejects.
-      await expect(pending).resolves.toBeUndefined()
-      await flushSettles()
-      expect(service.inFlightWrites().size).toBe(0)
-      expect(mocks.generateText).not.toHaveBeenCalled()
     })
   })
 })

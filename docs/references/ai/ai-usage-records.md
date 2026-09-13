@@ -73,8 +73,7 @@ invoices remain authoritative.
 - Provider, model, source, pricing, and serving credential identity are frozen
   before the provider call. Completion never consults current configuration or
   rotation state.
-- Every runtime route has one capture owner. Gateway-backed Agent traffic uses
-  provider-call capture; direct/external Agent traffic uses Agent SDK messages.
+- Ordinary chat captures usage at the provider invocation boundary.
 
 There is deliberately no operation table or persistence compensation layer.
 
@@ -354,62 +353,11 @@ throughput. Parallel intervals remain overlapping on the Model, Tool,
 Approval, and Other lanes; their percentages are never added as if they were
 serial.
 
-## Agent runtime ownership
+## Archived Agent usage
 
-### Direct and external CLI
-
-The connection carries `{ owner: 'agent-sdk', credentialReceipt, frozenModels }`.
-Every emitted invocation id is globally namespaced by its driver (`claude-agent:`
-`pi-agent:`, or `dsh-agent:`) before it crosses the runtime contract; the host persists that id
-verbatim for cross-runtime idempotency.
-
-Each Claude SDK assistant message supplies provider request id, actual nested
-model, and usage:
-
-- consecutive updates with the same id merge by maximum field value;
-- a new id, steer boundary, or successful result commits pending invocations;
-- abort, error, query close, or connection close commits only steps with
-  provider completion evidence and discards the current in-flight step;
-- a committed id is immutable; a late repeat logs an anomaly and is ignored;
-- the driver freezes message association when the SDK assistant event arrives:
-  an active adapter means the current turn, while no adapter means stateless;
-- the host resolves current-turn events to the active assistant message.
-  Stateless events keep `messageRef: null` and the connection's frozen source;
-- primary/plan/small nested models resolve independently against the frozen
-  model map;
-- result-level `modelUsage`, duration, and total cost are reconciliation data,
-  not record inputs.
-
-The driver commits pending usage before emitting a steer boundary, so the old
-provider call attaches to the pre-steer message and the next call attaches to
-the continuation.
-
-Pi records one invocation when each provider stream completes, including the
-streams used by compaction. Provider `responseId` is preferred; session id plus
-message timestamp/model is the stable fallback. Error/aborted responses do not
-create records, duplicate completed ids are ignored, and Pi's
-input/cache/reasoning buckets are preserved rather than re-derived from the
-message-level running total.
-
-DSH records each completed harness provider invocation by
-`sessionId + turn + sequence`, including child-session calls under the child
-session id. It preserves no-cache, cache-read, cache-write, reasoning, and
-output buckets from the harness event and carries DSH timing metrics when
-available. Duplicate completed invocation ids are ignored.
-
-### Gateway-backed Agent
-
-The connection carries `{ owner: 'provider-calls' }`; SDK usage events are
-ignored. Trusted in-process gateway context supplies the active assistant
-message id (or a reserved steer continuation id) and frozen source to the
-normal AiService language middleware.
-When a `PreToolUse` hook actually injects a steer, the driver synchronously
-asks the host to reserve the continuation message id and frozen source before
-the hook returns. The next gateway request therefore captures that reservation;
-the later `steer-boundary` persists A2 with the same id. A turn that ends
-without reaching the boundary discards the unused reservation. If no active
-turn or reservation can be resolved, the provider invocation is still recorded
-as stateless and no association is guessed.
+Agent runtimes are removed in this fork. Existing `agent-session` message references,
+Agent/mini-app source attribution, SDK request IDs, and pricing snapshots remain valid
+historical data. Usage queries and backups retain these rows without loading a runtime.
 
 ## Historical migration
 
@@ -491,11 +439,7 @@ global SWR focus/reconnect revalidation is disabled.
 | `src/main/data/db/schemas/aiUsageRecord.ts` | SQLite table and constraints |
 | `src/main/data/services/AiUsageRecordService.ts` | Capture contracts, insert owner, projection, queries, cursors, and message-stats merge policy |
 | `src/main/ai/utils/usageCapture.ts` | Immutable provider/model/key/pricing capture factories |
-| `src/main/ai/runtime/types.ts` | Agent runtime capture-owner contract |
 | `src/main/ai/hooks/billingHook.ts` | Language middleware and operation coverage |
 | `packages/aiCore/src/core/runtime/` | Embedding/image/rerank provider-call events |
-| `src/main/ai/runtime/claudeCode/ClaudeCodeRuntimeDriver.ts` | Direct Agent SDK capture |
-| `src/main/ai/runtime/pi/PiRuntimeConnection.ts` | Pi provider-stream capture |
-| `src/main/ai/runtime/dsh/DshRuntimeConnection.ts` | DSH main/child invocation capture |
 | `src/main/data/migration/v2/migrators/AiUsageRecordMigrator.ts` | v1 aggregate migration |
 | `src/renderer/pages/settings/UsageSettings/` | Usage read model consumers |

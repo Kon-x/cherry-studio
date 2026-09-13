@@ -25,7 +25,7 @@ export function ConversationRowStatus({ status, testId }: ConversationRowStatusP
   if (status === 'approval') {
     return (
       <span data-testid={testId} className={CONVERSATION_ROW_APPROVAL_BADGE_CLASS}>
-        {t('agent.toolPermission.pendingBadge')}
+        {t('message.toolPermission.pendingBadge')}
       </span>
     )
   }

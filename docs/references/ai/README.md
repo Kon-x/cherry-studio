@@ -8,8 +8,7 @@ sources:
 # AI Reference
 
 This is the entry point for Cherry Studio's AI pipeline: main-process provider
-calls, AI SDK chat execution, registered agent-session runtimes, and the
-renderer-side transport that connects to them.
+calls, AI SDK chat execution, and the renderer transport that connects to them.
 
 ## Quick navigation
 
@@ -19,8 +18,6 @@ renderer-side transport that connects to them.
 |---|---|
 | [Core Architecture](./core-architecture.md) | End-to-end call flow: `ai.stream.open` IpcApi route → context provider → AiStreamManager → runtime → broadcast / persist |
 | [Stream Manager](./stream-manager.md) | Active-stream registry, listeners, reconnect, abort, queue/yield/continuation steering, persistence backends |
-| [Agent Session Runtime](./agent-session-runtime.md) | Agent-session host/driver split, follow-up admission, resume persistence, and the registered Claude Code, Pi, and DSH drivers |
-| [Adding an Agent Runtime](./adding-a-runtime.md) | Operational checklist for a new runtime: capability descriptor, driver package, registration points, design rules |
 | [Adapter Family](./adapter-family.md) | How `provider.endpointConfigs[ep].adapterFamily` picks the right `@ai-sdk/*` package per request |
 | [Provider State Ownership](./provider-state-ownership.md) | Where provider facts, endpoint dialects, connection overrides, and per-request controls belong |
 
@@ -29,7 +26,6 @@ renderer-side transport that connects to them.
 | Document | What it covers |
 |---|---|
 | [Agent Loop](./agent-loop.md) | Main-process `Agent.stream()`: single-pass stream, hook composition, observer pattern, error/abort semantics |
-| [Agent Prompt Layers](./agent-prompt-layers.md) | Agent System Prompt, workspace `system.md`, `SOUL.md`, precedence, update boundary, and variable lifecycle |
 | [Params Pipeline](./params-pipeline.md) | `buildAgentParams` + `RequestFeature` model: how capabilities, plugins, tools, and provider-specific quirks are composed |
 | [Tool Registry](./tool-registry.md) | Built-in web/knowledge/file/image/MCP-resource tools, selected MCP tools, meta-tools, and deferred exposition |
 | [Chat Attachments](./chat-attachments.md) | How attached files reach the model: native file parts when supported, capped extracted text otherwise, `read_file` for overflow paging |
@@ -50,29 +46,15 @@ renderer-side transport that connects to them.
 
 ## Where the code lives
 
-> **Scope of the focused docs.** The reference documents in this folder map
-> the **chat / stream pipeline** (dispatch → stream manager → runtime →
-> tools → persistence → renderer transport). The `channels/`, `skills/`, and
-> `mcp/` subsystems are mapped in the tree below but do not yet have dedicated
-> deep-dive docs.
-
 ```
 src/main/ai/
 ├── AiService.ts                  ← provider operations, built-in tool init, approval decisions
-├── runtime/                      ← AI execution backends + agent-session runtime registry
-│   ├── aiSdk/                    ← Agent class, loop, observers, params/features
-│   ├── claudeCode/               ← Claude Code driver, warm query, SDK adapter
-│   ├── pi/                       ← Pi runtime connection and approval extension
-│   └── dsh/                      ← DeepSeek Harness runtime connection
-├── agentSession/                 ← agent-session topic host
-│   └── AgentSessionRuntimeService.ts
-├── agents/                       ← AgentJobsService, AgentTaskJobHandler, runAgentTask, prompt, heartbeat, builtin/
-├── channels/                     ← ChannelManager + IM adapters (discord/feishu/qq/slack/telegram/wechat) + security/
+├── runtime/aiSdk/                ← ordinary chat Agent class, loop, observers, params/features
 ├── streamManager/                ← AiStreamManager + listeners + persistence backends
 │   ├── AiStreamManager.ts        ← active-stream registry and dispatch owner
 │   ├── context/                  ← ChatContextProvider implementations + dispatch
 │   ├── lifecycle/                ← chat / prompt-only stream lifecycles
-│   ├── listeners/                ← WebContents / Persistence / SSE / channel-adapter
+│   ├── listeners/                ← WebContents / Persistence / callback
 │   ├── persistence/              ← MessageService / TemporaryChat backends
 │   └── pipeStreamLoop.ts         ← shared chunk-pipe primitive
 ├── provider/                     ← provider config, endpoint resolution, custom providers
@@ -83,7 +65,6 @@ src/main/ai/
 │   └── listModels.ts             ← per-provider model listing
 ├── mcp/                          ← McpRuntimeService / McpCatalogService, oauth/, built-in servers
 │   └── servers/                  ← in-memory MCP server implementations (browser, filesystem)
-├── skills/                       ← SkillService, SkillInstaller
 ├── contextBuild/                 ← context-window policy, compression, persisted tool output
 ├── localModel/                   ← local model catalog, acquisition, installation, utility-process inference
 ├── tokens/                       ← token estimation and modality profiles
@@ -92,8 +73,7 @@ src/main/ai/
 │       ├── aiSdk/                ← registry.ts, repair.ts; builtin/ (web_search/web_fetch/kb_*),
 │       │                            mcp/ (server → ToolEntry sync), meta/ (tool_search/inspect/invoke;
 │       │                            tool_exec defined but not injected), exposition/ (shouldDefer + applyDefer)
-│       └── claudeCode/           ← agentTools.ts (registry → Claude Code runtime)
-├── observability/                ← AI trace adapters (aiSdk / claudeCode), local projection, sinks
+├── observability/                ← AI SDK trace adapters, local projection, sinks
 ├── messages/                     ← UI part → AI SDK part conversion
 ├── types/                        ← AppProviderId, merged extension types, request types
 └── utils/                        ← reasoning / model parameters / options / websearch helpers
@@ -109,24 +89,20 @@ src/main/ai/
    `AiStreamManager.dispatch`. Stream state stays in the manager; transport
    registration stays in IpcApi.
 3. `dispatchStreamRequest` picks the first `ChatContextProvider` whose
-   `canHandle(topicId)` matches (persistent chat / temporary / agent
-   session) and calls `prepareDispatch` — that resolves models, persists
+   `canHandle(topicId)` matches (persistent or temporary chat) and calls `prepareDispatch` — that resolves models, persists
    the user message, builds listeners, and returns a `PreparedDispatch`.
 4. `AiStreamManager.send(input)` **starts** a turn (no active stream): creates
    an `ActiveStream`, launches one `StreamExecution` per model. (A chat
    resubmit on a live topic is persisted + queued as a steer and takes the
    **inject** path — the running turn yields and `onExecutionDone` chains a
-   continuation; an agent-session follow-up also injects, upserting listeners.)
+   continuation.)
 5. Each execution's `runExecutionLoop` calls `AiService.streamText(request,
    signal)`, which builds params (`buildAgentParams`) and constructs an `Agent`
    composing hooks from `RequestFeature[]` (anthropic cache, gateway usage
    normalisation, reasoning extraction, …), then calls `agent.stream(messages,
    signal)` to open the AI SDK stream and yield `UIMessageChunk`s.
-   Agent-session runtime requests are the exception: `AiService.streamText`
-   routes them to `AgentSessionRuntimeService.openTurnStream()` so the
-   registered driver can own the concrete agent runtime.
 6. `pipeStreamLoop` tees the chunk stream: one branch broadcasts to listeners
-   (WebContents / SSE / channel-adapter / persistence), one branch runs
+   (WebContents / callback / persistence), one branch runs
    `readUIMessageStream` to accumulate a `CherryUIMessage` snapshot.
 7. On terminal (done / error / aborted / paused-for-approval), listeners get
    a typed terminal callback. `PersistenceListener` writes the final

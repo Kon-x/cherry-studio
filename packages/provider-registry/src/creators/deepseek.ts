@@ -82,6 +82,7 @@ export default defineCreator({
     // Membership profiles (no knobs): reasoning SKUs beyond the knob rules above.
     { pattern: '(\\w+-)?deepseek-v3(?:\\.\\d|-\\d)(?:(\\.|-)(?!speciale$)\\w+)?$' },
     { pattern: 'deepseek-chat' },
+    { pattern: '^deepseek-flash$' },
     { pattern: 'deepseek-v(?:[4-9]\\d*|[1-9]\\d{1,})(?:\\.\\d+)?(?:-[\\w]+)*(?=$|[:/])' },
     { pattern: 'deepseek-v3\\.2-speciale' }
   ]

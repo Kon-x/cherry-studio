@@ -40,12 +40,13 @@ describe('PromptSchema', () => {
 })
 
 describe('PromptBindingRelationSchema', () => {
-  it('keeps Assistant IDs strict while accepting legacy Agent IDs', () => {
+  it('accepts assistant bindings and rejects retired Agent targets', () => {
     const binding = { promptId: prompt.id }
 
     expect(
-      PromptBindingRelationSchema.parse({ ...binding, targetType: 'agent', targetId: 'legacy-agent-id' })
-    ).toMatchObject({ targetType: 'agent', targetId: 'legacy-agent-id' })
+      PromptBindingRelationSchema.parse({ ...binding, targetType: 'assistant', targetId: prompt.id })
+    ).toMatchObject({ targetType: 'assistant', targetId: prompt.id })
+    expect(() => PromptBindingRelationSchema.parse({ ...binding, targetType: 'agent', targetId: prompt.id })).toThrow()
     expect(() =>
       PromptBindingRelationSchema.parse({ ...binding, targetType: 'assistant', targetId: 'legacy-agent-id' })
     ).toThrow()

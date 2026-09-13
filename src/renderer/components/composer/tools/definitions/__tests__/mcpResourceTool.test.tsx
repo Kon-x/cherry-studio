@@ -22,10 +22,6 @@ vi.mock('@renderer/components/QuickPanel', () => ({
   })
 }))
 
-vi.mock('@renderer/hooks/agent/useAgent', () => ({
-  useAgent: () => ({ agent: undefined })
-}))
-
 vi.mock('@renderer/hooks/useMcpServer', () => ({
   useScopedMcpServers: () => ({ servers: mocks.servers })
 }))

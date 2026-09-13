@@ -9,7 +9,7 @@ const logger = loggerService.withContext('ProtocolService:navigate')
  *
  * Examples:
  *   cherrystudio://navigate/settings/provider
- *   cherrystudio://navigate/agents
+ *   cherrystudio://navigate/app/chat
  *   cherrystudio://navigate/knowledge
  *
  * Delivery (window creation, focus, live-window event vs cold-start init data)

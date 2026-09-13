@@ -215,28 +215,6 @@ describe('toolResponse adapter', () => {
     expect(response?.tool.name).toBe('read')
   })
 
-  it('keeps real Claude Code dynamic tool calls on the provider renderer path', () => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName: 'CustomTool',
-      toolCallId: 'call-4',
-      state: 'approval-requested',
-      input: { command: 'pnpm test' },
-      approval: { id: 'approval-4' },
-      callProviderMetadata: {
-        'claude-code': {
-          rawInput: { command: 'pnpm test' },
-          parentToolCallId: null
-        }
-      }
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response?.status).toBe('pending')
-    expect(response?.tool.type).toBe('provider')
-    expect(response?.tool.name).toBe('CustomTool')
-  })
-
   it('projects a persisted denial and its reason into cancelled tool history', () => {
     const part = {
       type: 'dynamic-tool',
@@ -310,34 +288,6 @@ describe('toolResponse adapter', () => {
     expect(response?.tool.name).toBe('webSearch')
   })
 
-  it.each([
-    ['pi-agent', 'bash', 'Bash'],
-    ['dsh-agent', 'bash', 'Bash'],
-    ['dsh-agent', 'pwsh', 'Bash'],
-    ['dsh-agent', 'read', 'Read'],
-    ['dsh-agent', 'write', 'Write'],
-    ['dsh-agent', 'edit', 'Edit'],
-    ['dsh-agent', 'skill', 'Skill'],
-    ['dsh-agent', 'todo_write', 'TodoWrite']
-  ])('maps %s builtin %s to the shared %s renderer identity', (transport, toolName, expectedName) => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName,
-      toolCallId: `${transport}-${toolName}`,
-      state: 'output-available',
-      input: { command: 'ls' },
-      output: 'ok',
-      callProviderMetadata: {
-        cherry: { transport, tool: { type: 'builtin', name: toolName } }
-      }
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response?.status).toBe('done')
-    expect(response?.tool.type).toBe('provider')
-    expect(response?.tool.name).toBe(expectedName)
-  })
-
   it('does not reinterpret an untagged lowercase dynamic tool as an agent builtin', () => {
     const part = {
       type: 'dynamic-tool',
@@ -351,46 +301,6 @@ describe('toolResponse adapter', () => {
     const response = buildToolResponseFromPart(part)
     expect(response?.tool.type).toBe('mcp')
     expect(response?.tool.name).toBe('read')
-  })
-
-  it('keeps migrated agent dynamic-tool calls without metadata on the provider renderer path', () => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName: 'WebSearch',
-      toolCallId: 'legacy-call',
-      state: 'output-available',
-      input: { query: 'desktop clients' },
-      output: 'ok'
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response?.status).toBe('done')
-    expect(response?.tool.type).toBe('provider')
-    expect(response?.tool.name).toBe('WebSearch')
-  })
-
-  it('parses Claude Code MCP tool ids as MCP tools without display metadata', () => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName: 'mcp__8171b5f3-c666-4ead-b2ab-bb9ac244af57__resolve-library-id',
-      toolCallId: 'mcp-call',
-      state: 'approval-requested',
-      input: { libraryName: 'React' },
-      approval: { id: 'approval-mcp' },
-      callProviderMetadata: {
-        'claude-code': {
-          parentToolCallId: null
-        }
-      }
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response).toBeTruthy()
-    if (!response) throw new Error('Expected tool response')
-    expect(response.tool.type).toBe('mcp')
-    expect(response.tool.name).toBe('resolve-library-id')
-    expect((response.tool as any).serverId).toBe('8171b5f3-c666-4ead-b2ab-bb9ac244af57')
-    expect((response.tool as any).serverName).toBe('8171b5f3-c666-4ead-b2ab-bb9ac244af57')
   })
 
   it('uses migrated cherry tool metadata from callProviderMetadata before name fallbacks', () => {
@@ -422,45 +332,6 @@ describe('toolResponse adapter', () => {
     expect((response.tool as any).description).toBe('Search desktop docs')
     expect((response.tool as any).serverId).toBe('search-server')
     expect((response.tool as any).serverName).toBe('Search')
-  })
-
-  it('extracts parent tool id from Claude Code provider metadata', () => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName: 'Read',
-      toolCallId: 'child-call',
-      state: 'output-available',
-      input: { file_path: '/tmp/a.ts' },
-      output: 'ok',
-      callProviderMetadata: {
-        'claude-code': {
-          parentToolCallId: 'parent-call'
-        }
-      }
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response?.parentToolUseId).toBe('parent-call')
-  })
-
-  it('extracts parent tool id from the runtime-neutral cherry metadata (dsh subagents)', () => {
-    const part = {
-      type: 'dynamic-tool',
-      toolName: 'read',
-      toolCallId: 'child-call',
-      state: 'output-available',
-      input: { file_path: '/tmp/a.ts' },
-      output: 'ok',
-      callProviderMetadata: {
-        cherry: {
-          transport: 'dsh-agent',
-          parentToolCallId: 'parent-call'
-        }
-      }
-    } as unknown as CherryMessagePart
-
-    const response = buildToolResponseFromPart(part)
-    expect(response?.parentToolUseId).toBe('parent-call')
   })
 
   it('does not synthesize a tool response without an AI SDK toolCallId', () => {

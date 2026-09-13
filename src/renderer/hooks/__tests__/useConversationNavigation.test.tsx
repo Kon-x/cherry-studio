@@ -43,10 +43,10 @@ describe('useConversationNavigation', () => {
     const ctx = makeCtx([])
     ctx.openTab.mockReturnValue('new-agent-tab')
     tabsMock.ctx = ctx
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversationTab('s1', 'Session 1')
-    expect(ctx.openTab).toHaveBeenCalledWith('/app/agents?sessionId=s1', {
+    expect(ctx.openTab).toHaveBeenCalledWith('/app/chat?topicId=s1', {
       forceNew: true,
       title: 'Session 1'
     })
@@ -54,14 +54,14 @@ describe('useConversationNavigation', () => {
   })
 
   it('openConversationTab opens a new tab even when one exists', () => {
-    const ctx = makeCtx([{ id: 'tab-x', type: 'route', url: '/app/agents?sessionId=s1' }])
+    const ctx = makeCtx([{ id: 'tab-x', type: 'route', url: '/app/chat?topicId=s1' }])
     ctx.openTab.mockReturnValue('new-agent-tab')
     tabsMock.ctx = ctx
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversationTab('s1', 'Session 1')
     expect(ctx.setActiveTab).not.toHaveBeenCalled()
-    expect(ctx.openTab).toHaveBeenCalledWith('/app/agents?sessionId=s1', {
+    expect(ctx.openTab).toHaveBeenCalledWith('/app/chat?topicId=s1', {
       forceNew: true,
       title: 'Session 1'
     })
@@ -69,14 +69,14 @@ describe('useConversationNavigation', () => {
   })
 
   it('openConversationTab can force opening a duplicate tab even when one exists', () => {
-    const ctx = makeCtx([{ id: 'tab-x', type: 'route', url: '/app/agents?sessionId=s1' }])
+    const ctx = makeCtx([{ id: 'tab-x', type: 'route', url: '/app/chat?topicId=s1' }])
     ctx.openTab.mockReturnValue('duplicate-agent-tab')
     tabsMock.ctx = ctx
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversationTab('s1', 'Session 1', { forceNew: true })
     expect(ctx.setActiveTab).not.toHaveBeenCalled()
-    expect(ctx.openTab).toHaveBeenCalledWith('/app/agents?sessionId=s1', {
+    expect(ctx.openTab).toHaveBeenCalledWith('/app/chat?topicId=s1', {
       forceNew: true,
       title: 'Session 1'
     })
@@ -129,11 +129,11 @@ describe('useConversationNavigation', () => {
     ctx.openTab.mockReturnValue('new-agent-tab')
     tabsMock.ctx = ctx
     tabsMock.windowFrameMode = 'embedded'
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversation('s1', 'Session 1')
 
-    expect(ctx.openTab).toHaveBeenCalledWith('/app/agents?sessionId=s1', {
+    expect(ctx.openTab).toHaveBeenCalledWith('/app/chat?topicId=s1', {
       forceNew: true,
       title: 'Session 1'
     })
@@ -142,13 +142,13 @@ describe('useConversationNavigation', () => {
   it('openConversation routes to a detached window when the host frame is detached', () => {
     tabsMock.ctx = makeCtx([])
     tabsMock.windowFrameMode = 'window'
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversation('s1', 'Session 1')
 
     expect(ipcMock.request).toHaveBeenCalledTimes(1)
     expect(ipcMock.request.mock.calls[0][1]).toMatchObject({
-      url: '/app/agents?sessionId=s1',
+      url: '/app/chat?topicId=s1',
       title: 'Session 1',
       type: 'route'
     })
@@ -158,7 +158,7 @@ describe('useConversationNavigation', () => {
     const ctx = makeCtx([])
     tabsMock.ctx = ctx
     tabsMock.windowFrameMode = 'window'
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     expect(result.current.openConversationTab('s1', 'Session 1')).toBeUndefined()
     expect(ctx.openTab).not.toHaveBeenCalled()
@@ -167,11 +167,11 @@ describe('useConversationNavigation', () => {
 
   it('openConversation routes to a detached window without a tabs provider', () => {
     tabsMock.ctx = null
-    const { result } = renderHook(() => useConversationNavigation('agents'))
+    const { result } = renderHook(() => useConversationNavigation('assistants'))
 
     result.current.openConversation('s1')
 
     expect(ipcMock.request).toHaveBeenCalledTimes(1)
-    expect(ipcMock.request.mock.calls[0][1]).toMatchObject({ url: '/app/agents?sessionId=s1' })
+    expect(ipcMock.request.mock.calls[0][1]).toMatchObject({ url: '/app/chat?topicId=s1' })
   })
 })

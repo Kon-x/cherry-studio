@@ -167,7 +167,7 @@ describe('MessageGenerateImageToolTitle', () => {
       />
     )
 
-    expect(screen.getByText('agent.toolPermission.decisionDenied')).toBeInTheDocument()
+    expect(screen.getByText('message.toolPermission.decisionDenied')).toBeInTheDocument()
     expect(screen.getByText('Use the approved image provider instead')).toBeInTheDocument()
     expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
   })

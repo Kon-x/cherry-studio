@@ -26,7 +26,7 @@ const windowInfo = (id: string, type: WindowType, overrides: Partial<WindowInfo>
   ...overrides
 })
 
-const target = { conversationType: 'agent' as const, conversationId: 'session-1' }
+const target = { conversationType: 'assistant' as const, conversationId: 'session-1' }
 
 function ownershipRequestId(windowId = 'main-1'): string {
   const call = mocks.send.mock.calls.findLast(
@@ -179,7 +179,7 @@ describe('ConversationNavigationService', () => {
 
     const navigation = service.focusOrOpen(target, 'Refactor project')
 
-    expect(mocks.openRouteInMainWindow).toHaveBeenCalledWith('/app/agents?sessionId=session-1')
+    expect(mocks.openRouteInMainWindow).toHaveBeenCalledWith('/app/chat?topicId=session-1')
     await vi.waitFor(() =>
       expect(
         mocks.send.mock.calls.filter(([, event]) => event === 'navigation.conversation_ownership_requested')

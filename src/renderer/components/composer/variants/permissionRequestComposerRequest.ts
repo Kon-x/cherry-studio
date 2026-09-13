@@ -1,4 +1,3 @@
-import { AgentToolsType } from '@renderer/components/chat/messages/tools/shared/agentToolTypes'
 import {
   APPROVAL_REQUESTED,
   buildToolResponseFromPart,
@@ -25,12 +24,6 @@ type PermissionToolPart = CherryMessagePart & {
   state?: string
   input?: unknown
   approval?: { id?: string }
-}
-
-function getToolName(part: PermissionToolPart): string {
-  if (part.toolName?.trim()) return part.toolName
-  if (part.type.startsWith('tool-')) return part.type.replace(/^tool-/, '')
-  return ''
 }
 
 function getToolDisplayName(toolResponse: ToolResponseLike): string {
@@ -65,9 +58,8 @@ export function findNextPendingPermissionRequest(
       if (!isToolUIPart(part as UIMessagePart<never, never>)) continue
 
       const toolPart = part as PermissionToolPart
-      const toolName = getToolName(toolPart)
       const approvalId = toolPart.approval?.id
-      if (toolName === AgentToolsType.AskUserQuestion || toolPart.state !== APPROVAL_REQUESTED || !approvalId) {
+      if (toolPart.state !== APPROVAL_REQUESTED || !approvalId) {
         continue
       }
 

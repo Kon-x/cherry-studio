@@ -39,7 +39,7 @@ vi.mock('@renderer/components/feedback/DiagnosticUploadDialog', () => ({
   default: ({ open }: { open: boolean }) => (open ? <div role="dialog">diagnostic-upload-dialog</div> : null)
 }))
 
-import { FEEDBACK_GITHUB_URL, FeedbackDialog, getFeedbackAgentRoute } from '../FeedbackDialog'
+import { FEEDBACK_GITHUB_URL, FeedbackDialog } from '../FeedbackDialog'
 
 function ControlledFeedbackDialog() {
   const [open, setOpen] = useState(true)
@@ -52,36 +52,6 @@ describe('FeedbackDialog', () => {
     mocks.ipcRequest.mockResolvedValue({ sessionId: 'feedback-session' })
   })
 
-  it('shows diagnostics, Cherry Support, and GitHub in the requested order', () => {
-    render(<FeedbackDialog open onOpenChange={vi.fn()} />)
-
-    const diagnostics = screen.getByRole('button', { name: /settings.about.feedback.diagnostics.title/ })
-    const agent = screen.getByRole('button', { name: /settings.about.feedback.agent.title/ })
-    const github = screen.getByRole('button', { name: /settings.about.feedback.github.title/ })
-    const recommended = screen.getByText('settings.about.feedback.recommended')
-
-    expect(diagnostics.compareDocumentPosition(agent)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(agent.compareDocumentPosition(github)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(recommended).toHaveClass('bg-primary/10', 'text-primary')
-  })
-
-  it('uses the shared large dialog size with inset, spacious options', () => {
-    render(<FeedbackDialog open onOpenChange={vi.fn()} />)
-
-    expect(screen.getByTestId('dialog-content')).toHaveAttribute('data-size', 'lg')
-    expect(screen.getByRole('list')).toHaveClass('gap-3', 'px-2')
-  })
-
-  it('creates an isolated feedback session before opening the Agent route', async () => {
-    render(<ControlledFeedbackDialog />)
-
-    fireEvent.click(screen.getByRole('button', { name: /settings.about.feedback.agent.title/ }))
-
-    await waitFor(() => expect(mocks.ipcRequest).toHaveBeenCalledWith('ai.agent.support_session.create'))
-    await waitFor(() => expect(mocks.openRoute).toHaveBeenCalledWith(getFeedbackAgentRoute('feedback-session')))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  })
-
   it('opens the one-step diagnostic upload dialog', async () => {
     render(<ControlledFeedbackDialog />)
 
@@ -89,16 +59,6 @@ describe('FeedbackDialog', () => {
 
     await waitFor(() => expect(screen.getByText('diagnostic-upload-dialog')).toBeInTheDocument())
     expect(mocks.ipcRequest).not.toHaveBeenCalledWith('diagnostics.bundle.upload', expect.anything())
-  })
-
-  it('reports feedback-session creation failures without opening an empty Agent route', async () => {
-    mocks.ipcRequest.mockRejectedValue(new Error('restore failed'))
-    render(<FeedbackDialog open onOpenChange={vi.fn()} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /settings.about.feedback.agent.title/ }))
-
-    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('settings.about.feedback.agent_error'))
-    expect(mocks.openRoute).not.toHaveBeenCalled()
   })
 
   it('opens the GitHub issue chooser', async () => {

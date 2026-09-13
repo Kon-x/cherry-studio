@@ -57,23 +57,6 @@ function getUpdatedAtFromForTimeFilter(filter: GlobalSearchTimeFilter): string |
   }
 }
 
-function toContentSearchSource(source: 'topic' | 'session'): ContentSearchSourceType {
-  return source === 'topic' ? 'topic-message' : 'session-message'
-}
-
-function getContentSearchSources({
-  shouldSearchSessionMessages,
-  shouldSearchTopicMessages
-}: {
-  shouldSearchSessionMessages: boolean
-  shouldSearchTopicMessages: boolean
-}): ContentSearchSourceType[] {
-  return [
-    ...(shouldSearchTopicMessages ? [toContentSearchSource('topic')] : []),
-    ...(shouldSearchSessionMessages ? [toContentSearchSource('session')] : [])
-  ]
-}
-
 function getContentSearchStateKey({
   deferredQuery,
   messageSearchLimit,
@@ -94,23 +77,16 @@ function getContentSearchStateKey({
 }
 
 function mapContentSearchGroup(group: ContentSearchGroup): GlobalMessageSearchResult[] {
-  if (group.sourceType === 'topic-message') {
+  {
     return group.items.map((item) => ({
       ...item,
       sourceType: 'topic' as const
     }))
   }
-
-  return group.items.map((item) => ({
-    ...item,
-    sourceType: 'session' as const
-  }))
 }
 
 function getMessageSearchResultId(result: GlobalMessageSearchResult) {
-  return result.sourceType === 'topic'
-    ? `topic:${result.topicId}:${result.messageId}`
-    : `session:${result.sessionId}:${result.messageId}`
+  return `topic:${result.topicId}:${result.messageId}`
 }
 
 function getContentSearchNextCursors(groups: readonly ContentSearchGroup[]): ContentSearchCursorMap {
@@ -144,7 +120,7 @@ function areMessageSearchItemsEqual(a: readonly GlobalMessageSearchResult[], b: 
         return false
       }
 
-      if (item.sourceType === 'topic') {
+      {
         return (
           next.sourceType === 'topic' &&
           item.topicId === next.topicId &&
@@ -154,14 +130,6 @@ function areMessageSearchItemsEqual(a: readonly GlobalMessageSearchResult[], b: 
           item.topicUpdatedAt === next.topicUpdatedAt
         )
       }
-
-      return (
-        next.sourceType === 'session' &&
-        item.sessionId === next.sessionId &&
-        item.sessionName === next.sessionName &&
-        item.agentId === next.agentId &&
-        item.agentName === next.agentName
-      )
     })
   )
 }
@@ -192,17 +160,11 @@ export function useGlobalSearchPanelData({
   const messageSearchSources = useMemo(() => getMessageSearchSources(messageSourceFilter), [messageSourceFilter])
   const shouldSearchTopicMessages =
     shouldShowGlobalMessagePreview || (isMessageSearchMode && messageSearchSources.includes('topic'))
-  const shouldSearchSessionMessages =
-    shouldShowGlobalMessagePreview || (isMessageSearchMode && messageSearchSources.includes('session'))
   const updatedAtFrom = useMemo(() => getUpdatedAtFromForTimeFilter(timeFilter), [timeFilter])
   const messageSearchLimit = shouldShowGlobalMessagePreview ? GLOBAL_SEARCH_MESSAGE_PREVIEW_LIMIT : 50
-  const contentSearchSources = useMemo(
-    () =>
-      getContentSearchSources({
-        shouldSearchSessionMessages,
-        shouldSearchTopicMessages
-      }),
-    [shouldSearchSessionMessages, shouldSearchTopicMessages]
+  const contentSearchSources = useMemo<ContentSearchSourceType[]>(
+    () => (shouldSearchTopicMessages ? ['topic-message'] : []),
+    [shouldSearchTopicMessages]
   )
   const contentSearchStateKey = useMemo(
     () =>

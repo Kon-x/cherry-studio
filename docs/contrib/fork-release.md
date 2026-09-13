@@ -9,12 +9,17 @@ Do not merge `upstream/main`, beta tags, or RC tags into `main`.
 
 ## Fork Customizations
 
-- The API Gateway implementation, settings, IPC routes, and lifecycle registration remain removed. The shared
-  `agentApiGateway.ts` boundary exists only to reject routes that need the removed gateway.
-- Claude Code supports direct Anthropic Messages endpoints. DeepSeek Harness supports direct providers and rejects
-  Unified Gateway mode.
-- Telegram, Feishu, WeChat, QQ, Discord, and Slack bot adapters remain removed. `ChannelManager` is an inert
-  compatibility surface; channel database rows and shipped migrations remain intact.
+- Work/Agents, Mini Apps (web and local), Code Mate, DSH, Agent skills/tasks, and the built-in assistant/support
+  Agents remain removed. The launchpad contains Chat, Paintings, Translate, Knowledge, Files, and Notes.
+- The API Gateway, all channel adapters, and their runtime/lifecycle registration remain removed.
+- Normal Cherry chat, custom assistants, MCP, knowledge retrieval, tool approvals, generic background jobs,
+  and dependency management remain supported. Claude and DeepSeek API providers and Codex/Grok chat login remain.
+- Historical Agent/mini-app tables, shipped migrations, file references, usage rows, user files, working directories,
+  and external CLI installations/configuration are retained. No upgrade cleanup may delete them.
+- Retired favorites, tab URLs, launchpad entries, and search recents are filtered during restoration. Fresh installs
+  open Chat; upgrades with no surviving tabs open Launchpad. Schedules without a registered handler stay dormant.
+- Provider login windows retain proxy, language, and UA configuration. Chat HTML previews remain available.
+  Help and release notes open in the system browser; feedback offers diagnostics and GitHub.
 - Preset providers can be deleted, deleted presets stay tombstoned until recreated manually, and providers support
   batch deletion.
 - Selection Assistant explanations always use web grounding.
@@ -28,7 +33,7 @@ Run `pnpm fork:check` after every upstream merge. It fails if any protected dele
 
 Each upstream sync hits the same shapes:
 
-- Deleted-by-us gateway/channel files reappear as `DU` conflicts — `git rm` them all.
+- Deleted-by-us gateway/channel/Agent/mini-app/CLI files reappear as `DU` conflicts — `git rm` them all.
 - Any new upstream code that calls `application.get('ApiGatewayService')` must be rerouted to a direct provider
   connection or made to reject; `pnpm fork:check` catches every call site.
 - `docs/README.md` is generated — resolve with the upstream side and re-run `pnpm docs:index`. Removing a docs
@@ -70,8 +75,7 @@ git merge --no-ff --no-commit "refs/remotes/upstream-tags/$stable_tag"
 
 Never create the unmodified upstream tag in the fork. Resolve conflicts using the tagged upstream structure as the
 baseline, then restore the fork behavior listed above. Regenerate `pnpm-lock.yaml` with the pinned Node and pnpm
-versions; do not hand-edit it. Preserve upstream dependency and patch changes except the three removed channel
-dependencies.
+versions; do not hand-edit it. Preserve upstream dependency and patch changes except the removed channel, Claude Agent SDK, Pi, and DSH stacks and their patches.
 
 Commit the merge without flattening its two parents:
 
@@ -82,7 +86,7 @@ git show -s --format=raw HEAD
 ```
 
 Prepare the fork version in a second signed commit. For upstream `x.y.z`, use `x.y.z-kx.n`, update bilingual notes,
-regenerate the product manifest, and run every check below. Open a PR to `main` and merge it with a merge commit;
+and run every check below. Open a PR to `main` and merge it with a merge commit;
 squash and rebase merges destroy the upstream ancestry used by the next sync.
 
 ## Verification
@@ -92,15 +96,15 @@ pnpm install --frozen-lockfile
 pnpm fork:check
 pnpm lint
 pnpm test
-pnpm format
-pnpm build:check
+pnpm docs:check
 pnpm test:lint
 pnpm db:migrations:check
-git diff --exit-code
+pnpm build
+pnpm build:win:x64
 ```
 
 Confirm the focused contracts: provider tombstones and manual recreation, batch deletion, web-grounded explanation,
-gateway rejection, direct DeepSeek Harness routing, and inert channels. The PR `Build Windows x64` artifact must also
+gateway rejection, retired navigation filtering, historical data retention, and dormant retired schedules. The PR `Build Windows x64` artifact must also
 contain exactly one setup installer, one portable executable, and one valid `latest.yml`.
 
 ## Release

@@ -451,67 +451,6 @@ export type WebSearchOutput = z.infer<typeof webSearchOutputSchema>
 export type WebFetchInput = z.infer<typeof webFetchInputSchema>
 export type WebFetchOutput = z.infer<typeof webFetchOutputSchema>
 
-// ── to_markdown ──────────────────────────────────────────────────
-
-export const TO_MARKDOWN_TOOL_NAME = 'to_markdown'
-
-export const TO_MARKDOWN_SUPPORTED_EXTENSIONS =
-  '.doc, .docx, .docm, .ppt, .pps, .pot, .pptx, .pptm, .ppsx, .ppsm, .xls, .xlsx, .xlsm, .xlsb, .odt, .ods, .odp, .rtf, .epub, .csv, .pdf'
-
-export const toMarkdownInputSchema = z.object({
-  path: z
-    .string()
-    .trim()
-    .min(1)
-    .max(4096)
-    .describe(
-      `Required local source path. Relative paths resolve from the session workspace; absolute paths must be an attachment announced with this session or live under the agent data directory. Supported extensions: ${TO_MARKDOWN_SUPPORTED_EXTENSIONS}.`
-    )
-})
-
-export const toMarkdownOutputSchema = z.object({
-  path: z.string().describe('Absolute path to the temporary Markdown file. Read this file in slices as needed.'),
-  chars: z.number().int().nonnegative().describe('Number of characters written to the Markdown file.')
-})
-
-export const TO_MARKDOWN_DESCRIPTION =
-  'Convert one supported local document to Markdown. Relative paths resolve from the session workspace. ' +
-  `Supported extensions: ${TO_MARKDOWN_SUPPORTED_EXTENSIONS}. ` +
-  'The converter detects recognizable formats from file contents and uses the extension as fallback (required for CSV). ' +
-  'Scanned/image-only PDFs need OCR and are unsupported. The full Markdown is written to an agent-private temporary ' +
-  'file instead of being returned; read the returned path in slices as needed.'
-
-export type ToMarkdownInput = z.infer<typeof toMarkdownInputSchema>
-export type ToMarkdownOutput = z.infer<typeof toMarkdownOutputSchema>
-
-// ── report_artifacts ─────────────────────────────────────────────
-
-export const REPORT_ARTIFACTS_TOOL_NAME = 'report_artifacts'
-
-export const reportArtifactsInputSchema = z.object({
-  artifacts: z
-    .array(
-      z.object({
-        path: z.string().trim().min(1).describe('Absolute or workspace-relative path to a final deliverable file.'),
-        description: z.string().trim().min(1).optional().describe('One-line description of what this file is.')
-      })
-    )
-    .min(1)
-    .describe(
-      'The final deliverable file(s) produced for the user. List only finished outputs — never ' +
-        'intermediate, scratch, or temporary files.'
-    ),
-  summary: z.string().trim().min(1).optional().describe('One-line summary of what was produced.')
-})
-
-export const REPORT_ARTIFACTS_DESCRIPTION =
-  'Declare the final deliverable file(s) produced for the user. Call this once, at the end of the task, ' +
-  'after the requested file(s) are finished — pass the final path(s) and an optional one-line summary. ' +
-  'List only final deliverables; omit intermediate, scratch, or temporary files. Skip the call entirely ' +
-  'if the task produced no files.'
-
-export type ReportArtifactsInput = z.infer<typeof reportArtifactsInputSchema>
-
 // ── generate_image ───────────────────────────────────────────────
 
 export type { GenerateImageOutput, GenerateImageOutputItem } from './generateImageTool'
@@ -525,10 +464,6 @@ export {
 // Hosted by the same in-process `cherry-tools` MCP server as the tools above. Their input schemas
 // are plain JSON Schema `Tool` definitions in `src/main/ai/mcp/servers/cherryAutonomyTools.ts`;
 // only the names are shared (the approval policy references them).
-
-export const CRON_TOOL_NAME = 'cron'
-export const NOTIFY_TOOL_NAME = 'notify'
-export const CONFIG_TOOL_NAME = 'config'
 
 // ── read_file ────────────────────────────────────────────────────
 

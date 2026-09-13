@@ -23,10 +23,7 @@
 |----------|-------------|
 | [AI Reference](./references/ai/README.md) | Entry point mapping the AI pipeline docs, src/main/ai code layout, chat-turn flow, runtimes, and key invariants |
 | [Adapter Family](./references/ai/adapter-family.md) | How each endpoint config's adapterFamily field selects the @ai-sdk package, and the two write paths that set it |
-| [Adding an Agent Runtime](./references/ai/adding-a-runtime.md) | Operational checklist for adding an agent runtime via a capability descriptor and a main-process driver package |
 | [Agent Loop](./references/ai/agent-loop.md) | The Agent class wrapping single-pass AI SDK streaming with composeHooks-merged hook contributions and error semantics |
-| [Agent Prompt Layers](./references/ai/agent-prompt-layers.md) | Precedence and lifecycle of agent prompt sources — System Prompt, workspace system.md, SOUL.md persona, and variables |
-| [Agent Session Runtime](./references/ai/agent-session-runtime.md) | Host/driver split for agent sessions — turn lifecycle, follow-up queue, resume tokens, and shared prompt materializer |
 | [AI Usage Records](./references/ai/ai-usage-records.md) | Immutable ai_usage_record analytics — capture ownership, frozen attribution snapshots, and MessageStats projection |
 | [Chat Attachments](./references/ai/chat-attachments.md) | Per-attachment routing to native file parts or capped extracted text, with read_file paging for truncated overflow |
 | [Core Architecture](./references/ai/core-architecture.md) | End-to-end chat turn flow from renderer IPC transport through AiStreamManager and Agent loop to persistence |
@@ -35,7 +32,7 @@
 | [IPC Transport](./references/ai/ipc-transport.md) | IpcChatTransport bridging useChat to Main over ai.stream.* IpcApi routes, with dispatch ack coordination and detach vs abort |
 | [Local Models](./references/ai/local-models.md) | Local model subsystem — the bundle catalog, on-disk installation state, verified acquisition, and the worker runtime that infers over installed models |
 | [Model Retry & Fallback](./references/ai/model-retry.md) | User-configurable same-model retry plus fallback models via ai-retry wrapModel, driven by chat.retry.* preferences |
-| [Observability](./references/ai/observability.md) | OTel tracing for AI calls and agent runtimes — Cherry roots, SDK adapters, runtime spans, local projection, and sinks |
+| [Observability](./references/ai/observability.md) | OTel tracing for chat calls — Cherry roots, AI SDK spans, local projection, and sinks |
 | [Params Pipeline](./references/ai/params-pipeline.md) | buildAgentParams and the RequestFeature model composing plugins, tools, hooks, and provider quirks per request |
 | [Provider Resolution](./references/ai/provider-resolution.md) | Endpoint resolution chain from provider.endpointConfigs and adapterFamily to the AI SDK provider id and variants |
 | [Provider State Ownership](./references/ai/provider-state-ownership.md) | Ownership rules for provider facts, endpoint dialects, user connection overrides, and per-request controls |
@@ -195,22 +192,8 @@
 
 | Document | Description |
 |----------|-------------|
-| [Memory Reference](./references/memory/README.md) | Entry point for the memory mechanisms — Agent File Memory, Knowledge Base, and MCP Memory — plus the status of the v1 Global Memory feature |
-| [Memory Feature Overview](./references/memory/overview.md) | Comparison of the three memory mechanisms in Cherry Studio — Agent File Memory, Knowledge Base, and MCP Memory — plus the status of the v1 Global Memory feature |
-
-### Mini App
-
-| Document | Description |
-|----------|-------------|
-| [Mini App Reference](./references/mini-app/README.md) | Entry point for building a Cherry Studio mini app — what a package is, the host API, and where each rule lives |
-| [Activity log](./references/mini-app/activity-log.md) | What the host records about a mini app's behaviour — every refusal, every call that leaves the sandbox, every permission decision — and what it never records |
-| [Capabilities](./references/mini-app/capabilities.md) | The window.cherry API method by method — signatures, return shapes, the seven error names, quotas and rate limits |
-| [Lifecycle](./references/mini-app/lifecycle.md) | How a mini app lives and dies — no shutdown notice, write-on-change persistence, visibility and locale events, quiesce during updates |
-| [Manifest](./references/mini-app/manifest.md) | Every manifest.json field, the appId rules, permission declarations and wildcard expansion, and the network host allowlist |
-| [Packaging](./references/mini-app/packaging.md) | Building a .miniapp archive, what the installer rejects, the install consent flow, distribution manifests, updates, rollback and uninstall |
-| [Runtime probes](./references/mini-app/probes.md) | The runtime measurements behind the sandbox — WebRTC escape, Web Storage ceiling, TransformStream terminal callbacks, host-cache reuse — recorded in enough detail to rebuild each probe when Electron moves |
-| [Sandbox](./references/mini-app/sandbox.md) | What a mini app cannot do — blocked Web Storage, default-deny network, CORS on own files, navigation and popups — and what to use instead |
-| [Theming](./references/mini-app/theming.md) | Matching Cherry's look from a mini app — the served /__cherry/theme.css, the stable CSS variable contract, dark mode, fonts and Tailwind mapping |
+| [Memory Reference](./references/memory/README.md) | Entry point for the memory mechanisms — Knowledge Base and MCP Memory — plus the status of the v1 Global Memory feature |
+| [Memory Feature Overview](./references/memory/overview.md) | Comparison of the knowledge and MCP memory mechanisms in Cherry Studio — Knowledge Base and MCP Memory — plus the status of the v1 Global Memory feature |
 
 ### Provider Model
 

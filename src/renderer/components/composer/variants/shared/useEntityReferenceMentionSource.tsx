@@ -2,7 +2,7 @@ import { dataApiService } from '@data/DataApiService'
 import { toast } from '@renderer/services/toast'
 import type { Editor } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { MessageSquare, MousePointerClick } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -19,49 +19,28 @@ const REFERENCE_LIST_FETCH_LIMIT = 200
 // conversation to be worth inserting.
 const REFERENCE_MIN_ROOM_CHARS = 1000
 
-const referenceTokenId = (entityType: 'topic' | 'session', id: string) => `reference:${entityType}:${id}`
+const referenceTokenId = (entityType: 'topic', id: string) => `reference:${entityType}:${id}`
 
 interface EntityReferenceHit {
   id: string
   title: string
   subtitle?: string
-  agentId: string | null
 }
 
-async function fetchReferenceHits(entityType: 'topic' | 'session', q: string): Promise<EntityReferenceHit[]> {
+async function fetchReferenceHits(entityType: 'topic', q: string): Promise<EntityReferenceHit[]> {
   if (!q) {
-    // Empty query lists every conversation (most recently active first); /search/entities
-    // requires a non-empty q, so the plain list endpoints back the initial panel.
-    if (entityType === 'topic') {
-      const page = await dataApiService.get('/topics', { query: { limit: REFERENCE_LIST_FETCH_LIMIT } })
-      return page.items
-        .toSorted((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
-        .slice(0, REFERENCE_RESULT_LIMIT)
-        .map((topic) => ({ id: topic.id, title: topic.name, agentId: null }))
-    }
-    const page = await dataApiService.get('/agent-sessions', { query: { limit: REFERENCE_LIST_FETCH_LIMIT } })
+    const page = await dataApiService.get('/topics', { query: { limit: REFERENCE_LIST_FETCH_LIMIT } })
     return page.items
       .toSorted((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
       .slice(0, REFERENCE_RESULT_LIMIT)
-      .map((session) => ({ id: session.id, title: session.name, agentId: session.agentId }))
+      .map((topic) => ({ id: topic.id, title: topic.name }))
   }
-
   const response = await dataApiService.get('/search/entities', {
     query: { q, types: [entityType], limitPerType: REFERENCE_RESULT_LIMIT }
   })
-  const hits: EntityReferenceHit[] = []
-  for (const group of response.groups) {
-    if (group.type === 'topic') {
-      for (const hit of group.items) {
-        hits.push({ id: hit.id, title: hit.title, subtitle: hit.subtitle, agentId: null })
-      }
-    } else if (group.type === 'session') {
-      for (const hit of group.items) {
-        hits.push({ id: hit.id, title: hit.title, subtitle: hit.subtitle, agentId: hit.target.agentId })
-      }
-    }
-  }
-  return hits
+  return response.groups.flatMap((group) =>
+    group.type === 'topic' ? group.items.map((hit) => ({ id: hit.id, title: hit.title, subtitle: hit.subtitle })) : []
+  )
 }
 
 /**
@@ -93,7 +72,7 @@ function settlePendingReferenceToken(editor: Editor, tokenId: string, promptText
 
 export interface EntityReferenceMentionOptions {
   /** Which conversation entity this composer references: chat → topics, agent → sessions. */
-  entityType: 'topic' | 'session'
+  entityType: 'topic'
   /** The current conversation's id, excluded from results to avoid self-reference. */
   excludeId?: string
 }
@@ -124,8 +103,8 @@ export function useEntityReferenceMentionItems({
   const getItems = useCallback(
     async ({ query, editor }: { query: string; editor: Editor }): Promise<ComposerSuggestionItem[]> => {
       const { entityType, excludeId, t } = stateRef.current
-      const icon = entityType === 'topic' ? <MessageSquare size={16} /> : <MousePointerClick size={16} />
-      const untitledLabel = entityType === 'topic' ? t('chat.conversation.new') : t('agent.session.new')
+      const icon = <MessageSquare size={16} />
+      const untitledLabel = t('chat.conversation.new')
 
       const hits = await fetchReferenceHits(entityType, query.trim())
       const insertedTokenIds = new Set(serializeComposerDocument(editor).tokens.map((token) => token.id))
@@ -175,9 +154,7 @@ export function useEntityReferenceMentionItems({
               void (async () => {
                 try {
                   const promptText = await fetchEntityReferencePromptText(
-                    entityType === 'topic'
-                      ? { entityType, id: hit.id, name: title }
-                      : { entityType, id: hit.id, name: title, agentId: hit.agentId },
+                    { entityType, id: hit.id, name: title },
                     { maxTotalChars: remainingChars }
                   )
                   settlePendingReferenceToken(editor, tokenId, promptText)
@@ -223,7 +200,7 @@ export function useEntityReferenceMentionSource(options: EntityReferenceMentionO
           id: 'entity-reference:no-results',
           label: t(`chat.input.reference_panel.${entityType}.no_results.label`),
           description: t(`chat.input.reference_panel.${entityType}.no_results.description`),
-          icon: entityType === 'topic' ? <MessageSquare size={16} /> : <MousePointerClick size={16} />,
+          icon: <MessageSquare size={16} />,
           disabled: true,
           command: () => undefined
         }

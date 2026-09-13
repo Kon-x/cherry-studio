@@ -3,7 +3,16 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 import { application } from '@application'
+import { agentSessionTable } from '@data/db/schemas/agentSession'
+import { agentSessionMessageTable } from '@data/db/schemas/agentSessionMessage'
+import { agentWorkspaceTable } from '@data/db/schemas/agentWorkspace'
 import { fileEntryTable } from '@data/db/schemas/file'
+import {
+  agentSessionMessageFileRefTable,
+  miniAppFileRefTable,
+  miniAppLogoFileRefTable
+} from '@data/db/schemas/fileRelations'
+import { miniAppTable } from '@data/db/schemas/miniApp'
 import { BaseService } from '@main/core/lifecycle'
 import { type FileEntryId } from '@shared/data/types/file'
 import { fileErrorCodes } from '@shared/ipc/errors/file'
@@ -594,6 +603,57 @@ describe('FileManager (integration)', () => {
     // §5.3) would have refused. Silent cleanup now reclaims them in one pass.
     const swept = await fm.runSweep()
     expect(swept.entryCleanup).toMatchObject({ outcome: 'completed', deleted: 25 })
+  })
+
+  it('keeps historical Agent attachments and mini-app files while reclaiming an unreferenced file', async () => {
+    const ids = [1, 2, 3, 4].map((n): FileEntryId => `019606a0-0000-7000-8000-${String(n).padStart(12, '0')}`)
+    dbh.db
+      .insert(agentWorkspaceTable)
+      .values({ id: 'old-workspace', name: 'Old workspace', path: '/kept/workspace', type: 'user', orderKey: 'a0' })
+      .run()
+    dbh.db
+      .insert(agentSessionTable)
+      .values({ id: 'old-session', name: 'Old session', workspaceId: 'old-workspace', orderKey: 'a0' })
+      .run()
+    dbh.db
+      .insert(agentSessionMessageTable)
+      .values({ id: 'old-message', sessionId: 'old-session', role: 'user', status: 'success', data: { parts: [] } })
+      .run()
+    dbh.db
+      .insert(miniAppTable)
+      .values({ appId: 'old-app', name: 'Old app', url: 'https://example.com', orderKey: 'a0' })
+      .run()
+    dbh.db
+      .insert(fileEntryTable)
+      .values(
+        ids.map((id) => ({
+          id,
+          origin: 'internal',
+          name: id,
+          ext: 'txt',
+          size: 7,
+          cleanupPolicy: 'delete_when_unreferenced',
+          createdAt: 1,
+          updatedAt: 1
+        }))
+      )
+      .run()
+    dbh.db
+      .insert(agentSessionMessageFileRefTable)
+      .values({ fileEntryId: ids[0], sourceId: 'old-message', role: 'attachment' })
+      .run()
+    dbh.db.insert(miniAppLogoFileRefTable).values({ fileEntryId: ids[1], sourceId: 'old-app' }).run()
+    dbh.db
+      .insert(miniAppFileRefTable)
+      .values({ fileEntryId: ids[2], sourceId: 'old-app', logicalName: 'document' })
+      .run()
+    for (const id of ids) await writeFile(path.join(internalRoot, `${id}.txt`), 'payload')
+
+    const report = await fm.runSweep()
+
+    expect(report.entryCleanup).toMatchObject({ outcome: 'completed', deleted: 1 })
+    expect(fileEntryService.findById(ids[3])).toBeNull()
+    for (const id of ids.slice(0, 3)) expect((await fm.read(id)).content).toBe('payload')
   })
 
   it('INT-15a: batchCreateInternalEntries reports succeeded with sourceRef + per-item failed', async () => {

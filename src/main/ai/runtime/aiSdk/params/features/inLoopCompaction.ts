@@ -22,7 +22,6 @@
  */
 import { compactModelMessages, resolveCompressionOutputTokens } from '@cherrystudio/ai-core'
 import { loggerService } from '@logger'
-import { isAgentSessionTopic } from '@main/ai/agentSession/topic'
 import {
   COMPACTION_INPUT_SAFETY_RATIO,
   COMPACTION_MIN_INPUT_BUDGET,
@@ -141,7 +140,6 @@ export const inLoopCompactionFeature: RequestFeature = {
     if (scope.request.contextOwner === 'caller') return false
     const topicId = scope.request.conversation.topicId
     if (!topicId) return false
-    if (isAgentSessionTopic(topicId)) return false
     if (temporaryChatService.hasTopic(topicId)) return false
     return Boolean(scope.contextSettings.enabled && scope.contextSettings.compress.enabled && scope.compressionModel)
   },

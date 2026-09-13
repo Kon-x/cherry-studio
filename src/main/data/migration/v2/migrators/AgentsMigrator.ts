@@ -10,7 +10,6 @@ import { agentWorkspaceTable } from '@data/db/schemas/agentWorkspace'
 import { agentMcpServerTable } from '@data/db/schemas/assistantRelations'
 import { jobScheduleTable } from '@data/db/schemas/job'
 import type { DbType } from '@data/db/types'
-import { agentWorkspaceService } from '@data/services/AgentWorkspaceService'
 import { loggerService } from '@logger'
 import type { Trigger } from '@shared/data/api/schemas/jobs'
 import type { ExecuteResult, PrepareResult, ValidateResult, ValidationError } from '@shared/data/migration/v2/types'
@@ -1059,7 +1058,7 @@ async function deriveSessionWorkspaces(
     const createdAt = legacyTimestampToMs(row.created_at, migrationStartedAtMs)
     const updatedAt = legacyTimestampToMs(row.updated_at, createdAt)
     const workspacePath = isManagedDefault
-      ? agentWorkspaceService.buildSystemWorkspacePath(systemWorkspacesDir, row.session_id, createdAt)
+      ? buildSystemWorkspacePath(systemWorkspacesDir, row.session_id, createdAt)
       : sourceWorkspacePath
     const workspaceType = isManagedDefault ? 'system' : 'user'
 
@@ -1128,7 +1127,7 @@ function finalizeSessionWorkspaces(
     const finalAgentId = idRemap.agentIds.get(mapping.agentId) ?? mapping.agentId
     const workspace = workspacesById.get(mapping.workspaceId)
     if (workspace?.type === 'system') {
-      const workspacePath = agentWorkspaceService.buildSystemWorkspacePath(
+      const workspacePath = buildSystemWorkspacePath(
         ctx.paths.agentSystemWorkspacesDir,
         finalSessionId,
         mapping.createdAt
@@ -1842,4 +1841,15 @@ export function backfillAgentOrderKeys(db: DbType): void {
   }
   const agentCount = new Set(sessions.map((row) => row.agent_id)).size
   logger.info(`Backfilled ${sessions.length} session order keys across ${agentCount} agents`)
+}
+
+function buildSystemWorkspacePath(systemWorkspacesRoot: string, sessionId: string, createdAt: number): string {
+  if (!sessionId || sessionId === '.' || sessionId === '..' || /[\\/]/.test(sessionId)) {
+    throw new Error(`Invalid agent session id for system workspace: ${sessionId}`)
+  }
+  const date = new Date(createdAt)
+  const year = String(date.getUTCFullYear()).padStart(4, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return path.join(systemWorkspacesRoot, `${year}-${month}-${day}`, sessionId)
 }

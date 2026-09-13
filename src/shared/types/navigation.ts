@@ -1,4 +1,4 @@
 export interface ConversationNavigationTarget {
-  conversationType: 'assistant' | 'agent'
+  conversationType: 'assistant'
   conversationId: string
 }

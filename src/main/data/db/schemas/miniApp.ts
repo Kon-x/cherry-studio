@@ -8,11 +8,13 @@
  * `kind='app'` rows only) and live here, like `knowledge_item` beside `knowledge_base`.
  */
 
-import type { MiniAppManifest } from '@shared/types/miniAppManifest'
 import { sql } from 'drizzle-orm'
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 import { createUpdateTimestamps, orderKeyColumns, scopedOrderKeyIndex, uuidPrimaryKey } from './_columnHelpers'
+
+/** Archived package metadata remains opaque after the mini-app runtime is removed. */
+export type MiniAppManifest = Record<string, unknown>
 
 export type MiniAppStatus = 'enabled' | 'disabled' | 'pinned'
 

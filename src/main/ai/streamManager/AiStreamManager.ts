@@ -31,21 +31,14 @@ import type {
 import { aiStreamAdmissionReasons } from '@shared/ai/transport'
 import { isDataApiNotFoundError } from '@shared/data/api/errors'
 import type { CherryMessagePart } from '@shared/data/types/message'
-import type { MessageRuntimeSpan, MessageRuntimeTiming } from '@shared/data/types/message'
+import type { MessageRuntimeTiming } from '@shared/data/types/message'
 import type { ServiceTierSelection, UniqueModelId } from '@shared/data/types/model'
 import type { ReasoningEffortOption } from '@shared/types/aiSdk'
 import type { SerializedError } from '@shared/types/error'
 import type { UIMessageChunk } from 'ai'
 
-import { extractAgentSessionId, isAgentSessionTopic } from '../agentSession/topic'
 import { applyTurnOutputAttributes } from '../observability'
-import type {
-  AiStreamRequest,
-  ApprovalRequestedEvent,
-  CallOverrides,
-  ContextOwner,
-  InProcessUsageContext
-} from '../types'
+import type { AiStreamRequest, ApprovalRequestedEvent, CallOverrides, ContextOwner } from '../types'
 import { AiStreamAdmissionError, type LiveExecutionChangeAdmission, type LiveExecutionChangeIntent } from './admission'
 import { buildCompactReplay, mergeDeltaPayload, splitDeltaPayload } from './buildCompactReplay'
 import { dispatchStreamRequest, type MainDispatchRequest } from './context/dispatch'
@@ -73,7 +66,6 @@ import { withReasoningTimingMetadata } from './withReasoningTimingMetadata'
 
 const logger = loggerService.withContext('AiStreamManager')
 type ManagedAiStreamRequest = AiStreamRequest & {
-  usageContext?: InProcessUsageContext
   tokenUsageSource?: TokenUsageSource
 }
 
@@ -141,16 +133,6 @@ export interface SendResult {
   mode: 'started' | 'injected'
   /** Runtime identities launched by this call or currently streaming when it attached. */
   activeExecutions: ActiveExecution[]
-}
-
-export interface StartRuntimeTurnInput {
-  topicId: string
-  modelId: UniqueModelId
-  request: ManagedAiStreamRequest
-  runtimeTimingSeed?: MessageRuntimeTiming
-  listeners: StreamListener[]
-  rootSpan?: Span
-  abortController?: AbortController
 }
 
 // ── Inspection snapshots ────────────────────────────────────────────
@@ -227,14 +209,6 @@ function toActiveExecution(exec: StreamExecution): ActiveExecution {
 
 function errorFromStreamChunk(errorText: string): SerializedError {
   return { name: 'StreamError', message: errorText, stack: null }
-}
-
-function findBufferedToolInput(exec: StreamExecution, toolCallId: string): UIMessageChunk | undefined {
-  for (let index = exec.buffer.length - 1; index >= 0; index--) {
-    const chunk = exec.buffer[index].chunk
-    if (chunk.type === 'tool-input-available' && chunk.toolCallId === toolCallId) return chunk
-  }
-  return undefined
 }
 
 /** The AI SDK `error` chunk carries only `error.message`, so rebuilding from it drops the
@@ -884,8 +858,6 @@ export class AiStreamManager extends BaseService {
     reasoningEffort?: ReasoningEffortOption
     /** Idle-chunk timeout (ms) for the upstream stream; resets per chunk. Defaults to `DEFAULT_TIMEOUT`. */
     idleTimeoutMs?: number
-    /** In-process agent correlation for gateway-owned provider-request records. */
-    usageContext?: InProcessUsageContext
     /** Trusted in-process classification for remote token analytics. */
     tokenUsageSource?: TokenUsageSource
     source?: SourceSnapshot | null
@@ -900,7 +872,7 @@ export class AiStreamManager extends BaseService {
     const request: ManagedAiStreamRequest = {
       // A trusted Agent SDK call belongs to its agent session; anything else is its own conversation.
       conversation: {
-        id: input.usageContext ? input.usageContext.agentSessionId : input.streamId,
+        id: input.streamId,
         topicId: input.streamId
       },
       trigger: 'submit-message',
@@ -909,7 +881,7 @@ export class AiStreamManager extends BaseService {
       callOverrides: input.callOverrides,
       contextOwner: input.contextOwner,
       reasoningEffort: input.reasoningEffort,
-      ...(input.usageContext ? { usageContext: input.usageContext } : {}),
+      ...{},
       ...(input.tokenUsageSource ? { tokenUsageSource: input.tokenUsageSource } : {}),
       source: input.source,
       ...(input.idleTimeoutMs !== undefined || input.maxRetries !== undefined
@@ -927,51 +899,6 @@ export class AiStreamManager extends BaseService {
       listeners: Array.isArray(input.listener) ? input.listener : [input.listener],
       lifecycle: promptStreamLifecycle
     })
-  }
-
-  startRuntimeTurn(input: StartRuntimeTurnInput): SendResult {
-    const existing = this.activeStreams.get(input.topicId)
-    const carriedListeners = existing
-      ? [...existing.listeners.values()].filter(
-          (listener) => !listener.id.startsWith('persistence:') && !listener.id.startsWith('agent-runtime:')
-        )
-      : []
-
-    if (existing) this.evictStream(input.topicId)
-
-    return this.send({
-      topicId: input.topicId,
-      models: [
-        {
-          modelId: input.modelId,
-          request: input.request,
-          runtimeTimingSeed: input.runtimeTimingSeed,
-          rootSpan: input.rootSpan,
-          abortController: input.abortController
-        }
-      ],
-      listeners: [...carriedListeners, ...input.listeners],
-      isPersistentConversation: true
-    })
-  }
-
-  /**
-   * Detach one runtime execution that has produced nothing yet (prompt not admitted, or admitted but
-   * queued behind a runtime-started turn) without terminalizing its reserved assistant row. The
-   * runtime closes the upstream stream immediately after this call, then waits for the returned
-   * promise before opening the receive-only generation that preempted it.
-   */
-  async suspendUnadmittedRuntimeTurn(topicId: string): Promise<void> {
-    const stream = this.activeStreams.get(topicId)
-    if (!stream || !isLiveStatus(stream.status)) return
-
-    for (const id of stream.listeners.keys()) {
-      if (id.startsWith('persistence:') || id.startsWith('agent-runtime:')) {
-        stream.listeners.delete(id)
-      }
-    }
-
-    await Promise.allSettled([...stream.executions.values()].map((execution) => execution.loopPromise))
   }
 
   /**
@@ -1036,21 +963,6 @@ export class AiStreamManager extends BaseService {
       if (isLiveStatus(stream.status)) return true
     }
     return false
-  }
-
-  pauseRuntimeTurn(topicId: string, reason: string): boolean {
-    const stream = this.activeStreams.get(topicId)
-    if (!stream || !isLiveStatus(stream.status)) return false
-
-    logger.info('Pausing runtime stream turn', { topicId, reason })
-    for (const exec of stream.executions.values()) {
-      if (exec.status === 'streaming') {
-        exec.status = 'aborted'
-        exec.abortController.abort(reason)
-      }
-    }
-    stream.status = 'aborted'
-    return true
   }
 
   // ── Public: steer (mid-flight follow-up on chat topics) ───────────
@@ -1136,55 +1048,12 @@ export class AiStreamManager extends BaseService {
     stream?.listeners.delete(listenerId)
   }
 
-  /**
-   * Clear a live runtime tool approval as soon as the user responds, before the
-   * tool's eventual output chunk arrives. Returns whether a tracked approval changed.
-   */
-  resolveToolApproval(topicId: string, toolCallId: string, approved: boolean): boolean {
-    const stream = this.activeStreams.get(topicId)
-    if (!stream) return false
-
-    let changed = false
-    let pendingApprovalFlipped = false
-    for (const exec of stream.executions.values()) {
-      const pendingApprovals = exec.pendingApprovalToolCallIds
-      if (!pendingApprovals?.delete(toolCallId)) continue
-      exec.runtimeTiming.finishApproval({ toolCallId })
-      changed = true
-      if (approved) {
-        // AI SDK has no UI-stream approval-response chunk. Replaying the input advances the part
-        // and lets a parallel batch surface its next approval before the tools execute.
-        const inputChunk = findBufferedToolInput(exec, toolCallId)
-        if (inputChunk) this.onChunk(topicId, exec.modelId, inputChunk, exec)
-      } else {
-        this.onChunk(topicId, exec.modelId, { type: 'tool-output-denied', toolCallId }, exec)
-      }
-      if (pendingApprovals.size === 0) pendingApprovalFlipped = true
-    }
-    if (pendingApprovalFlipped && isLiveStatus(stream.status)) stream.lifecycle.onApprovalPendingChanged(stream)
-    return changed
-  }
-
-  addCompletedRuntimeSpan(topicId: string, assistantMessageId: string, span: MessageRuntimeSpan): boolean {
-    const stream = this.activeStreams.get(topicId)
-    if (!stream) return false
-    const execution = [...stream.executions.values()].find(
-      (candidate) => candidate.anchorMessageId === assistantMessageId
-    )
-    if (!execution) return false
-    execution.runtimeTiming.addCompletedSpan(span)
-    return true
-  }
-
   // ── Public: abort ─────────────────────────────────────────────────
 
   /** Abort all executions in a topic. */
   abort(topicId: string, reason: string): void {
     const stream = this.activeStreams.get(topicId)
     if (!stream || !isLiveStatus(stream.status)) {
-      if (isAgentSessionTopic(topicId)) {
-        application.get('AgentSessionRuntimeService').abortPendingTurn(extractAgentSessionId(topicId), reason)
-      }
       return
     }
     logger.info('Aborting stream', { topicId, reason })
@@ -1205,35 +1074,10 @@ export class AiStreamManager extends BaseService {
     await this.withDispatchLock(topicId, async () => {
       const stream = this.activeStreams.get(topicId)
       const loopPromises = stream ? [...stream.executions.values()].map((execution) => execution.loopPromise) : []
-      const drainedLoops = new Set(loopPromises)
+      new Set(loopPromises)
 
       this.abort(topicId, reason)
       await Promise.allSettled(loopPromises)
-
-      if (isAgentSessionTopic(topicId)) {
-        const runtimeClosing = application
-          .get('AgentSessionRuntimeService')
-          .closeSession(extractAgentSessionId(topicId))
-        const drainReplacementLoops = async (): Promise<void> => {
-          for (;;) {
-            const replacement = this.activeStreams.get(topicId)
-            const replacementLoops = replacement
-              ? [...replacement.executions.values()]
-                  .map((execution) => execution.loopPromise)
-                  .filter((loopPromise) => !drainedLoops.has(loopPromise))
-              : []
-            if (replacementLoops.length === 0) return
-
-            replacementLoops.forEach((loopPromise) => drainedLoops.add(loopPromise))
-            this.abort(topicId, reason)
-            await Promise.allSettled(replacementLoops)
-          }
-        }
-
-        await drainReplacementLoops()
-        await runtimeClosing
-        await drainReplacementLoops()
-      }
     })
   }
 
@@ -1387,13 +1231,7 @@ export class AiStreamManager extends BaseService {
     // when the runtime will continue this topic, keep the stream alive so the next turn reaches the
     // carried renderer listeners, but let the runtime drive the continuation.
     const chatChaining = stream.status === 'done' && this.hasPendingSteer(topicId)
-    const agentChaining =
-      topicDone &&
-      !chatChaining &&
-      stream.status === 'done' &&
-      isAgentSessionTopic(topicId) &&
-      application.get('AgentSessionRuntimeService').willContinueTopic(topicId)
-    const chaining = chatChaining || agentChaining
+    const chaining = chatChaining
 
     await this.broadcastExecutionDone(stream, exec, topicDone && !chaining)
 
@@ -1551,41 +1389,6 @@ export class AiStreamManager extends BaseService {
         logger.warn('broadcastTopicError listener threw', { topicId, err })
       }
     }
-  }
-
-  /**
-   * Settle a topic stream that a chaining turn kept alive (`isTopicDone=false`, terminal lifecycle
-   * skipped) when the agent runtime's queued continuation could NOT be launched — e.g. its drain
-   * re-check found the agent model deleted. `broadcastTopicError` alone only notifies current
-   * subscribers: it leaves the held stream in `activeStreams` with its terminal lifecycle un-run, so
-   * the cross-window status cache stays `streaming` and a re-attaching window still sees the stale
-   * prior turn as live. Surface the error to transport subscribers (persistence skipped — the
-   * continuation turn never opened), write the terminal status, and run the terminal lifecycle so the
-   * status cache settles and the stream is evicted. Mirrors the chat path's `failChatContinuation`.
-   */
-  terminateHeldTopicStream(topicId: string, modelId: UniqueModelId | undefined, error: SerializedError): void {
-    const stream = this.activeStreams.get(topicId)
-    if (!stream) return
-    const exec = modelId ? stream.executions.get(modelId) : undefined
-    const result: StreamErrorResult = {
-      error,
-      status: 'error',
-      modelId,
-      attemptId: exec?.attemptId,
-      topicAttemptWatermark: this.getTopicAttemptWatermark(stream),
-      anchorMessageId: exec?.anchorMessageId,
-      isTopicDone: true
-    }
-    for (const listener of stream.listeners.values()) {
-      if (listener.id.startsWith('persistence:')) continue
-      try {
-        void listener.onError(result)
-      } catch (err) {
-        logger.warn('terminateHeldTopicStream listener threw', { topicId, err })
-      }
-    }
-    stream.status = 'error'
-    this.runTerminalLifecycle(stream)
   }
 
   /** Chat defers 30 s, prompt evicts immediately. */

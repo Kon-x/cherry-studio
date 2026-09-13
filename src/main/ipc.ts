@@ -10,7 +10,6 @@ import { hasWritePermission, isPathInside, untildify } from '@main/utils/legacyF
 import { IpcChannel } from '@shared/IpcChannel'
 import { dialog } from 'electron'
 
-import { skillService } from './ai/skills/SkillService'
 import { copilotService } from './services/CopilotService'
 import { fileStorage as fileManager } from './services/FileStorage'
 import FileService from './services/FileSystemService'
@@ -77,8 +76,6 @@ export async function registerIpc() {
 
   // system
   handleGuarded(IpcChannel.System_GetHostname, getHostname)
-  // Git Bash has no IPC: the Claude Code runtime resolves it in-process via
-  // autoDiscoverGitBash() (ai/runtime/claudeCode/settingsBuilder.ts).
 
   // backup
   handleGuarded(IpcChannel.Backup_Backup, backupManager.backup.bind(backupManager))
@@ -163,25 +160,5 @@ export async function registerIpc() {
 
   // Global Skills: install / uninstall / install-from-zip / install-from-directory / list-local
   // migrated to IpcApi (skill.*). read-file / list-files stay on legacy IPC (roadmap placeholders).
-  handleGuarded(IpcChannel.Skill_ReadFile, async (_, skillId: string, filename: string) => {
-    try {
-      const data = await skillService.readFile(skillId, filename)
-      return { success: true, data }
-    } catch (error) {
-      logger.error('Failed to read skill file', { skillId, filename, error })
-      return { success: false, error }
-    }
-  })
-
-  handleGuarded(IpcChannel.Skill_ListFiles, async (_, skillId: string) => {
-    try {
-      const data = await skillService.listFiles(skillId)
-      return { success: true, data }
-    } catch (error) {
-      logger.error('Failed to list skill files', { skillId, error })
-      return { success: false, error }
-    }
-  })
-
   // MainWindow_CrashRenderProcess handler moved into MainWindowService (dev-only).
 }

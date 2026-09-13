@@ -2,7 +2,6 @@
 description: Unified aiSdk ToolEntry registry — built-in web/kb tools, MCP sync, meta-tools, and deferred exposition
 sources:
   - src/main/ai/tools/adapters/aiSdk
-  - src/main/ai/tools/adapters/claudeCode/agentTools.ts
 ---
 
 # Tool Registry
@@ -24,10 +23,7 @@ interface ToolEntry {
 `registry` (`src/main/ai/tools/adapters/aiSdk/registry.ts`) is a
 process-wide singleton. `AiService.onInit()` calls the single
 `registerBuiltinTools()` entry point; request preparation later reads the
-registry through `buildAgentParams`. Agent-session runtimes build their own
-runtime-native tool surfaces. For example,
-`tools/adapters/claudeCode/agentTools.ts` combines Claude descriptors with MCP
-tools and does not consume this AI SDK `ToolRegistry`.
+registry through `buildAgentParams`.
 
 Tests construct their own `new ToolRegistry()` to avoid singleton pollution.
 
@@ -47,8 +43,7 @@ e.g. `web_search`); they are not derived from a `__` segment convention like MCP
 The AI SDK MCP digest is derived from the stable server id plus the original
 protocol tool name. The readable slugs romanize Han characters (`tiny-pinyin`)
 so CJK names still produce a meaningful segment; kana and Hangul do not
-romanize and fall back to `server` / `tool` plus the digest. Claude Code keeps
-its separate runtime naming contract.
+romanize and fall back to `server` / `tool` plus the digest.
 
 ## Built-in tools
 
@@ -93,25 +88,19 @@ The sync is idempotent; a stale entry is overwritten on the next sync.
 
 - **`listTools(serverId)`** is cache-only — it returns the shared
   `mcp.tools.<serverId>` cache and **never connects** to the upstream MCP server.
-  Every hot path that builds an agent/chat's tool surface uses it: the Claude Code
-  SDK bridge (`createSdkMcpServerInstance`), `buildMcpToolMetadata`, the agent
-  tool-policy (`agentTools.listMcpDescriptors`), and the two AI-SDK adapters
-  above. A dead or slow server therefore cannot block agent/chat startup
-  (issue #16242).
+  Chat tool preparation reads this cache, so a dead or slow server cannot block
+  chat startup (issue #16242).
 - **`refreshTools(serverId)`** (and the private `listToolsForServer`) is the live
   path that connects, lists, and writes the cache. It is driven entirely by
   background warmers: `prewarmActiveServerTools` (at `onReady`), the
-  `onToolListChanged` refresh, the renderer's on-demand `refreshTools` (via
-  `useAgentTools`), the server-enable toggle, and `restartServer`.
+  `onToolListChanged` refresh, the renderer's on-demand `refreshTools`, the server-enable toggle, and `restartServer`.
 
 `listTools` also fires a single non-blocking `refreshTools` the first time it sees
 a never-warmed server (cache `undefined`, distinct from a warmed-but-empty `[]`),
-so headless/cron starts self-warm without re-probing dead servers.
+so chat requests can warm a missing catalog without re-probing dead servers.
 
-Trade-off: tool availability is **eventually consistent**. A server whose cache
-is still cold when a session starts contributes no tools to that session and
-appears on the next one — the Claude Agent SDK snapshots the tool list per
-session, so this cannot be made live mid-session.
+Tool availability is eventually consistent: a server whose cache is still cold
+contributes tools to later requests after its catalog refresh succeeds.
 
 ## Meta-tools
 
@@ -164,10 +153,6 @@ runs model-authored code with full Node privileges, a privilege-escalation
 surface vs the renderer's prior restrictions. It is meant to be re-enabled
 behind an explicit Preference key once there is a concrete need.
 
-This statement is specific to the AI SDK registry. The Pi agent runtime has a
-separate, Pi-native `tool_search` / `tool_describe` / `tool_call` / `tool_exec` interface over its bridged MCP tools;
-see [Pi code mode](./agent-session-runtime.md#pi-code-mode).
-
 ## `applies` and tool-call repair
 
 - `applies(scope: ToolApplyScope)` — per-entry predicate consulted at
@@ -181,8 +166,7 @@ see [Pi code mode](./agent-session-runtime.md#pi-code-mode).
 
 ## Where to read more
 
-- Code: `src/main/ai/tools/adapters/aiSdk/` (Claude Code adapter:
-  `src/main/ai/tools/adapters/claudeCode/`)
+- Code: `src/main/ai/tools/adapters/aiSdk/`
 - Tests: `tools/adapters/aiSdk/__tests__/`,
   `tools/adapters/aiSdk/builtin/__tests__/`,
   `tools/adapters/aiSdk/exposition/__tests__/`,

@@ -27,9 +27,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@application', () => ({ application: { get: mocks.applicationGet } }))
-vi.mock('@data/services/AgentSessionService', () => ({
-  agentSessionService: { getById: mocks.agentSessionGetById }
-}))
 vi.mock('@data/services/TopicService', () => ({ topicService: { getById: mocks.topicGetById } }))
 vi.mock('@logger', () => ({
   loggerService: { withContext: () => ({ error: mocks.loggerError, warn: mocks.loggerWarn }) }
@@ -196,50 +193,6 @@ describe('NotificationService', () => {
     })
     expect(mocks.preferenceGet).not.toHaveBeenCalled()
     expect(mocks.electronNotifications).toHaveLength(0)
-  })
-
-  it('shows a main-owned Agent approval notification and delegates its click to conversation navigation', () => {
-    mocks.getWindowInfosByType.mockImplementation((type: WindowType) =>
-      type === WindowType.Main ? [mainWindowInfo()] : []
-    )
-
-    emitApproval(
-      {
-        topicId: 'agent-session:session-1',
-        approvalId: 'approval-agent'
-      },
-      'agent'
-    )
-
-    expect(mocks.electronNotifications).toHaveLength(1)
-    expect(mocks.electronNotifications[0].options).toEqual({
-      title: 'Agent needs your input',
-      body: 'Refactor project'
-    })
-
-    mocks.electronNotifications[0].click?.()
-    expect(mocks.focusOrOpen).toHaveBeenCalledWith(
-      { conversationType: 'agent', conversationId: 'session-1' },
-      'Refactor project'
-    )
-    expect(mocks.broadcastToType).not.toHaveBeenCalled()
-  })
-
-  it('logs a name lookup failure and keeps notifying with the localized generic name', () => {
-    mocks.getWindowInfosByType.mockImplementation((type: WindowType) =>
-      type === WindowType.Main ? [mainWindowInfo()] : []
-    )
-    mocks.agentSessionGetById.mockImplementation(() => {
-      throw new Error('missing')
-    })
-
-    emitCompletion({ topicId: 'agent-session:missing' })
-
-    expect(mocks.electronNotifications[0].options).toEqual({ title: 'Agent task complete', body: 'New task' })
-    expect(mocks.loggerWarn).toHaveBeenCalledWith(
-      'Failed to resolve conversation name for notification',
-      expect.objectContaining({ target: { conversationType: 'agent', conversationId: 'missing' } })
-    )
   })
 
   it('does not notify in the background when the preference is disabled', () => {

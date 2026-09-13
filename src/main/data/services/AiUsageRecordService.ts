@@ -1413,15 +1413,12 @@ function insertRowsTx(
 }
 
 function messageReadModelEffects(refs: readonly MessageReadModelTarget[]): DataApiDataChangeEffect[] {
-  const chatIds = refs.filter((ref) => ref.kind === 'chat').map((ref) => ref.id)
-  const agentIds = refs.filter((ref) => ref.kind === 'agent-session').map((ref) => ref.id)
+  const chatRefs = refs.filter((ref) => ref.kind === 'chat')
   const chatIdsByTopic = new Map<string, string[]>()
-  const agentIdsBySession = new Map<string, string[]>()
-  for (const ref of refs) {
-    const idsByContainer = ref.kind === 'chat' ? chatIdsByTopic : agentIdsBySession
-    const ids = idsByContainer.get(ref.containerId) ?? []
+  for (const ref of chatRefs) {
+    const ids = chatIdsByTopic.get(ref.containerId) ?? []
     ids.push(ref.id)
-    idsByContainer.set(ref.containerId, ids)
+    chatIdsByTopic.set(ref.containerId, ids)
   }
   return [
     ...[...chatIdsByTopic].map(
@@ -1433,19 +1430,7 @@ function messageReadModelEffects(refs: readonly MessageReadModelTarget[]): DataA
           entityIds
         }) as const
     ),
-    ...(chatIds.length > 0 ? [{ endpoint: '/messages/:id', entityIds: chatIds } as const] : []),
-    ...[...agentIdsBySession].map(
-      ([sessionId, entityIds]) =>
-        ({
-          endpoint: '/agent-sessions/:sessionId/messages',
-          kind: 'projection',
-          routeParams: { sessionId },
-          entityIds
-        }) as const
-    ),
-    ...(agentIds.length > 0
-      ? [{ endpoint: '/agent-sessions/:sessionId/messages/:messageId', entityIds: agentIds } as const]
-      : [])
+    ...(chatRefs.length > 0 ? [{ endpoint: '/messages/:id', entityIds: chatRefs.map((ref) => ref.id) } as const] : [])
   ]
 }
 

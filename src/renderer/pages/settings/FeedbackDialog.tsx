@@ -1,6 +1,5 @@
 export {
   default,
   FEEDBACK_GITHUB_URL,
-  FeedbackDialog,
-  getFeedbackAgentRoute
+  FeedbackDialog
 } from '@renderer/components/feedback/FeedbackDialog'

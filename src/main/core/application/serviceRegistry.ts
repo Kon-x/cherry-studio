@@ -2,23 +2,14 @@ import { CacheService } from '@data/CacheService'
 import { DataApiService } from '@data/DataApiService'
 import { DbService } from '@data/db/DbService'
 import { PreferenceService } from '@data/PreferenceService'
-import { AgentJobsService } from '@main/ai/agents/AgentJobsService'
-import { AgentSessionDeliveryService } from '@main/ai/agentSession/AgentSessionDeliveryService'
-import { AgentSessionRuntimeService } from '@main/ai/agentSession/AgentSessionRuntimeService'
 import { AiService } from '@main/ai/AiService'
-import { ChannelManager } from '@main/ai/channels'
 import { EmbeddingInferenceService } from '@main/ai/localModel'
 import { LocalModelService } from '@main/ai/localModel'
 import { OcrInferenceService } from '@main/ai/localModel'
 import { McpCatalogService } from '@main/ai/mcp/McpCatalogService'
 import { McpPackageService } from '@main/ai/mcp/McpPackageService'
 import { McpRuntimeService } from '@main/ai/mcp/McpRuntimeService'
-import { ClaudeCodeTraceBridgeService, NodeTraceService, TraceStorageService } from '@main/ai/observability'
-import {
-  ClaudeCodeProcessManager,
-  ClaudeCodeSessionStateService,
-  ClaudeCodeWarmQueryManager
-} from '@main/ai/runtime/claudeCode'
+import { NodeTraceService, TraceStorageService } from '@main/ai/observability'
 import { AiStreamManager } from '@main/ai/streamManager'
 import { JobManager } from '@main/core/job/JobManager'
 import type { ServiceConstructor } from '@main/core/lifecycle'
@@ -28,7 +19,6 @@ import { UtilityProcessManager } from '@main/core/utilityProcess/UtilityProcessM
 import { WindowManager } from '@main/core/window/WindowManager'
 import { FileProcessingService, TesseractRuntimeService } from '@main/features/fileProcessing'
 import { KnowledgeService, KnowledgeVectorStoreService } from '@main/features/knowledge'
-import { MiniAppRuntimeService } from '@main/features/miniApp/runtime/MiniAppRuntimeService'
 import { IpcApiService } from '@main/ipc/IpcApiService'
 import { AnalyticsService } from '@main/services/AnalyticsService'
 import { AppMenuService } from '@main/services/AppMenuService'
@@ -38,19 +28,15 @@ import { AutoBackupService } from '@main/services/AutoBackupService'
 import { BinaryManager } from '@main/services/binaryManager'
 import { CherryCloudService } from '@main/services/cherryCloud/CherryCloudService'
 import { CitationPreviewService } from '@main/services/CitationPreviewService'
-import { CodeCliService } from '@main/services/codeCli'
 import { CommandService } from '@main/services/CommandService'
 import { ConversationNavigationService } from '@main/services/ConversationNavigationService'
-import { DeepSeekHarnessService } from '@main/services/deepSeekHarness'
 import { DirectoryTreeManager, FileManager } from '@main/services/file'
-import { HermesDashboardService } from '@main/services/HermesDashboardService'
 import { LanTransferService } from '@main/services/lanTransfer'
 import { MainNetworkDevtoolsService } from '@main/services/mainNetworkDevtools'
 import { MainWindowService } from '@main/services/MainWindowService'
 import { MediaProtocolService } from '@main/services/mediaProtocol'
 import { NotificationService } from '@main/services/NotificationService'
 import { OAuthRuntimeService } from '@main/services/oauth/runtime/OAuthRuntimeService'
-import { OpenClawService } from '@main/services/OpenClawService'
 import { OvmsManager } from '@main/services/OvmsManager'
 import { PdfTranslationService } from '@main/services/PdfTranslationService'
 import { ProtocolService } from '@main/services/protocol/ProtocolService'
@@ -105,13 +91,10 @@ export const services = {
   AnalyticsService,
   AppMenuService,
   AppService,
-  CodeCliService,
   CommandService,
   ConversationNavigationService,
   CitationPreviewService,
   CherryCloudService,
-  DeepSeekHarnessService,
-  HermesDashboardService,
   LanTransferService,
   FileManager,
   DirectoryTreeManager,
@@ -122,7 +105,6 @@ export const services = {
   ThemeService,
   TraceStorageService,
   NodeTraceService,
-  ClaudeCodeTraceBridgeService,
   OvmsManager,
   ProtocolService,
   MediaProtocolService,
@@ -141,23 +123,14 @@ export const services = {
   McpRuntimeService,
   McpCatalogService,
   BinaryManager,
-  OpenClawService,
   PdfTranslationService,
-  ClaudeCodeProcessManager,
-  AgentSessionRuntimeService,
-  AgentSessionDeliveryService,
-  AgentJobsService,
-  ChannelManager,
   AiService,
-  ClaudeCodeWarmQueryManager,
-  ClaudeCodeSessionStateService,
   AiStreamManager,
   EmbeddingInferenceService,
   OcrInferenceService,
   LocalModelService,
   KnowledgeService,
   KnowledgeVectorStoreService,
-  MiniAppRuntimeService,
   AppUpdaterService,
   AutoBackupService,
   ProviderRegistryUpdaterService,

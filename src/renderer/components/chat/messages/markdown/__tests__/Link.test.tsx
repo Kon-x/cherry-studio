@@ -1,6 +1,5 @@
 import type { Citation } from '@renderer/types/message'
 import { createEvent, fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { Element } from 'hast'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -89,18 +88,6 @@ describe('Link', () => {
     expect(anchor).not.toHaveAttribute('target')
     fireEvent.click(anchor)
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
-  })
-
-  it('renders a Cherry Studio route link as an in-app navigation entry', async () => {
-    const user = userEvent.setup()
-    render(<Link href="/app/paintings?source=assistant">打开画图功能</Link>)
-
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button'))
-    expect(mocks.navigateToRoute).toHaveBeenCalledWith({
-      path: '/app/paintings',
-      query: { source: 'assistant' }
-    })
   })
 
   it('uses trusted registry data when the opaque id and href agree', () => {

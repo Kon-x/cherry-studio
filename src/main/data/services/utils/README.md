@@ -71,43 +71,13 @@ Convert a guaranteed-present timestamp (millisecond epoch) to an ISO string. Use
 
 **Why the signature rejects `null | undefined`:** `new Date(null).toISOString()` silently returns the Unix epoch (`"1970-01-01T00:00:00.000Z"`). Letting the type system refuse `null | undefined` at the call site turns a silent bug into a compile error.
 
-**Behavioral note on `0`:** `0` is a legitimate timestamp (Unix epoch); this helper passes it through. This differs from `timestampToISOOrUndefined` which treats `0` as falsy.
-
-#### `timestampToISOOrUndefined(value: number | Date | null | undefined): string | undefined`
-
-Convert an optional DB timestamp to an ISO string, preserving absence as `undefined`. Reserved for construction paths where the **entire source row may not exist** — not "this column might be null". The audit columns `createdAt` / `updatedAt` are DB-level `NOT NULL` (see `createUpdateTimestamps` in `_columnHelpers.ts`), so a row read from the DB always has real values.
-
-The canonical use case is a merge between a builtin/preset definition and an optional DB preference row:
+Zero is a valid Unix-epoch timestamp and passes through unchanged.
 
 ```ts
-function builtinToMiniApp(def: BuiltinMiniAppDefinition, dbRow?: MiniAppSelect): MiniApp {
-  return {
-    /* ... builtin fields ... */
-    createdAt: timestampToISOOrUndefined(dbRow?.createdAt), // undefined when builtin has no preference row yet
-    updatedAt: timestampToISOOrUndefined(dbRow?.updatedAt)
-  }
-}
-```
+import { timestampToISO } from './rowMappers'
 
-**Behavioral note on `0`:** the helper treats `0` as falsy (matching the prior `row.x ? ... : undefined` idiom). Zero is not a valid business timestamp in this codebase.
-
-**Picking between the two helpers:**
-
-| Scenario | Call-site pattern |
-| --- | --- |
-| Standard `rowToEntity` reading a DB row (audit columns are `.notNull()`) | `timestampToISO(row.createdAt)` |
-| Merge path where the source row itself may be absent (e.g. builtin + optional preference) | `timestampToISOOrUndefined(dbRow?.createdAt)` |
-
-**Example:**
-
-```ts
-import { timestampToISO, timestampToISOOrUndefined } from './rowMappers'
-
-timestampToISO(1700000000000)                       // "2023-11-14T22:13:20.000Z"
-timestampToISO(0)                                   // "1970-01-01T00:00:00.000Z" (passes through)
-
-timestampToISOOrUndefined(1700000000000)            // "2023-11-14T22:13:20.000Z"
-timestampToISOOrUndefined(undefined)                // undefined (e.g. builtin with no preference row)
+timestampToISO(1700000000000) // "2023-11-14T22:13:20.000Z"
+timestampToISO(0)             // "1970-01-01T00:00:00.000Z"
 ```
 
 ### `orderKey.ts` — `order_key` column runtime operations

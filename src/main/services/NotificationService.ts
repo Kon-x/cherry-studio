@@ -1,8 +1,6 @@
 import { application } from '@application'
-import { agentSessionService } from '@data/services/AgentSessionService'
 import { topicService } from '@data/services/TopicService'
 import { loggerService } from '@logger'
-import { extractAgentSessionId, isAgentSessionTopic } from '@main/ai/agentSession/topic'
 import type { ConversationCompletedEvent } from '@main/ai/streamManager'
 import type { ApprovalRequestedEvent } from '@main/ai/types'
 import { BaseService, DependsOn, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
@@ -24,14 +22,14 @@ function isConversationTarget(meta: unknown): meta is ConversationNavigationTarg
 
   const candidate = meta as Partial<ConversationNavigationTarget>
   return (
-    (candidate.conversationType === 'assistant' || candidate.conversationType === 'agent') &&
+    candidate.conversationType === 'assistant' &&
     typeof candidate.conversationId === 'string' &&
     candidate.conversationId.length > 0
   )
 }
 
 @Injectable('NotificationService')
-@DependsOn(['AgentSessionRuntimeService', 'AiStreamManager', 'ConversationNavigationService'])
+@DependsOn(['AiStreamManager', 'ConversationNavigationService'])
 @ServicePhase(Phase.WhenReady)
 export class NotificationService extends BaseService {
   protected onInit(): void {
@@ -40,9 +38,6 @@ export class NotificationService extends BaseService {
     )
     this.registerDisposable(
       application.get('AiStreamManager').onApprovalRequested((event) => this.handleApprovalRequested(event))
-    )
-    this.registerDisposable(
-      application.get('AgentSessionRuntimeService').onApprovalRequested((event) => this.handleApprovalRequested(event))
     )
   }
 
@@ -70,8 +65,7 @@ export class NotificationService extends BaseService {
 
   private handleConversationCompleted({ topicId, turnId, completedAt }: ConversationCompletedEvent): void {
     const target = this.resolveConversationTarget(topicId)
-    const title =
-      target.conversationType === 'agent' ? t('notification.completion.agent') : t('notification.completion.assistant')
+    const title = t('notification.completion.assistant')
     this.deliverConversationNotification({
       id: `task-completion:${turnId}`,
       kind: 'task-completion',
@@ -87,10 +81,7 @@ export class NotificationService extends BaseService {
 
   private handleApprovalRequested({ topicId, approvalId, requestedAt }: ApprovalRequestedEvent): void {
     const target = this.resolveConversationTarget(topicId)
-    const title =
-      target.conversationType === 'agent'
-        ? t('notification.action_required.agent')
-        : t('notification.action_required.assistant')
+    const title = t('notification.action_required.assistant')
     this.deliverConversationNotification({
       id: `approval-request:${approvalId}`,
       kind: 'approval-request',
@@ -116,19 +107,14 @@ export class NotificationService extends BaseService {
   }
 
   private resolveConversationTarget(topicId: string): ConversationNavigationTarget {
-    return isAgentSessionTopic(topicId)
-      ? { conversationType: 'agent', conversationId: extractAgentSessionId(topicId) }
-      : { conversationType: 'assistant', conversationId: topicId }
+    return { conversationType: 'assistant', conversationId: topicId }
   }
 
   private resolveConversationName(target: ConversationNavigationTarget): string {
-    const fallback = target.conversationType === 'agent' ? t('agent.session.new') : t('chat.conversation.new')
+    const fallback = t('chat.conversation.new')
 
     try {
-      const name =
-        target.conversationType === 'agent'
-          ? agentSessionService.getById(target.conversationId).name
-          : topicService.getById(target.conversationId).name
+      const name = topicService.getById(target.conversationId).name
       return name.trim() || fallback
     } catch (error) {
       logger.warn('Failed to resolve conversation name for notification', { target, err: error })

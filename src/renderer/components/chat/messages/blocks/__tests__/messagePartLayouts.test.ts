@@ -68,42 +68,6 @@ describe('projectLiveMessageParts', () => {
     expect(layout[0].kind === 'process' ? indexes(layout[0].entries) : []).toEqual([1, 3, 4, 6])
   })
 
-  it('treats AskUserQuestion as a hard boundary between ordinary tool runs', () => {
-    const layout = projectLiveMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'input-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'ask',
-          toolName: 'AskUserQuestion',
-          state: 'approval-requested'
-        },
-        { type: 'dynamic-tool', toolCallId: 'edit', toolName: 'Edit', state: 'input-available' }
-      ])
-    )
-
-    expect(layout.map((item) => [item.kind, item.key])).toEqual([
-      ['process', 0],
-      ['part', 1],
-      ['process', 2]
-    ])
-  })
-
-  it('keeps approval-backed AskUserQuestion direct', () => {
-    const layout = projectLiveMessageParts(
-      entries([
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'ask',
-          toolName: 'AskUserQuestion',
-          state: 'approval-requested'
-        }
-      ])
-    )
-
-    expect(layout.map((item) => [item.kind, item.key])).toEqual([['part', 0]])
-  })
-
   it('keeps approval-gated tools in one stable process as their state advances', () => {
     const requestedLayout = projectLiveMessageParts(
       entries([
@@ -228,33 +192,6 @@ describe('projectLiveMessageParts', () => {
       ['part', 3]
     ])
     expect(layout[0].kind === 'process' ? indexes(layout[0].entries) : []).toEqual([0, 1, 2])
-  })
-
-  it('keeps a channel authentication QR result outside the live process', () => {
-    const layout = projectLiveMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'channel-auth',
-          toolName: 'mcp__cherry-tools__config',
-          state: 'output-available',
-          input: { action: 'add_channel', type: 'wechat', auth_mode: 'qr' },
-          output: {
-            content: [
-              { type: 'text', text: 'Scan this QR code' },
-              { type: 'image', data: 'BASE64', mimeType: 'image/png' }
-            ],
-            metadata: { type: 'mcp', serverId: 'cherry-tools', serverName: 'cherry-tools' }
-          }
-        }
-      ])
-    )
-
-    expect(layout.map((item) => [item.kind, item.key])).toEqual([
-      ['process', 0],
-      ['part', 1]
-    ])
   })
 
   it.each(GENERATED_IMAGE_RESULTS)('keeps %s outside the live process', (_label, toolName, output) => {
@@ -552,139 +489,6 @@ describe('projectCompletedMessageParts', () => {
     expect(layout.resultEntries).toEqual([])
   })
 
-  it('keeps a channel authentication QR tool outside completed history', () => {
-    const layout = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'channel-auth',
-          toolName: 'mcp__cherry-tools__config',
-          state: 'output-available',
-          input: { action: 'add_channel', type: 'wechat', auth_mode: 'qr' },
-          output: {
-            content: [
-              { type: 'text', text: 'Scan this QR code' },
-              { type: 'image', data: 'BASE64', mimeType: 'image/png' }
-            ],
-            metadata: { type: 'mcp', serverId: 'cherry-tools', serverName: 'cherry-tools' }
-          }
-        }
-      ])
-    )
-
-    expect(indexes(layout.historyEntries)).toEqual([0])
-    expect(indexes(layout.resultEntries)).toEqual([1])
-  })
-
-  it('keeps a deferred channel authentication QR tool outside completed history', () => {
-    const layout = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'channel-auth',
-          toolName: 'mcp__cherry-tools__config',
-          state: 'output-available',
-          input: { action: 'add_channel', type: 'feishu', auth_mode: 'qr' },
-          output: {
-            $deferredToolResult: {
-              topicId: 'agent-session:session-1',
-              messageId: 'message-1',
-              toolCallId: 'channel-auth'
-            }
-          }
-        }
-      ])
-    )
-
-    expect(indexes(layout.historyEntries)).toEqual([0])
-    expect(indexes(layout.resultEntries)).toEqual([1])
-  })
-
-  it('keeps a created Agent action outside completed history', () => {
-    const layout = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'create-agent',
-          toolName: 'mcp__assistant__create_agent',
-          state: 'output-available',
-          output: {
-            content: [
-              {
-                type: 'text',
-                text: '{"ok":true,"agentId":"agent-created","name":"Reviewer","model":"anthropic::claude-sonnet"}'
-              }
-            ]
-          }
-        },
-        { type: 'text', text: 'Created successfully.' }
-      ])
-    )
-
-    expect(indexes(layout.historyEntries)).toEqual([0])
-    expect(indexes(layout.resultEntries)).toEqual([1, 2])
-  })
-
-  it('keeps only actionable diagnostic report results outside completed history', () => {
-    const successful = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'prepare-report',
-          toolName: 'mcp__assistant__prepare_diagnostic_report',
-          state: 'output-available',
-          output: {
-            content: [{ type: 'text', text: 'Diagnostic report draft prepared.' }],
-            structuredContent: { ok: true, description: 'Editable diagnostic report draft' },
-            metadata: { type: 'mcp', serverId: 'assistant', serverName: 'assistant' }
-          }
-        }
-      ])
-    )
-    const deferred = projectCompletedMessageParts(
-      entries([
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'prepare-report',
-          toolName: 'mcp__assistant__prepare_diagnostic_report',
-          state: 'output-available',
-          output: {
-            $deferredToolResult: {
-              topicId: 'agent-session:session-1',
-              messageId: 'message-1',
-              toolCallId: 'prepare-report'
-            }
-          }
-        }
-      ])
-    )
-    const failed = projectCompletedMessageParts(
-      entries([
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'prepare-report',
-          toolName: 'mcp__assistant__prepare_diagnostic_report',
-          state: 'output-available',
-          output: {
-            content: [{ type: 'text', text: '{"ok":false,"description":"Unavailable draft"}' }],
-            metadata: { type: 'mcp', serverId: 'assistant', serverName: 'assistant' }
-          }
-        }
-      ])
-    )
-
-    expect(indexes(successful.historyEntries)).toEqual([0])
-    expect(indexes(successful.resultEntries)).toEqual([1])
-    expect(indexes(deferred.historyEntries)).toEqual([])
-    expect(indexes(deferred.resultEntries)).toEqual([0])
-    expect(indexes(failed.historyEntries)).toEqual([0])
-    expect(indexes(failed.resultEntries)).toEqual([])
-  })
-
   it.each(GENERATED_IMAGE_RESULTS)('keeps %s outside completed history', (_label, toolName, output) => {
     const layout = projectCompletedMessageParts(
       entries([
@@ -714,45 +518,5 @@ describe('projectCompletedMessageParts', () => {
 
     expect(indexes(layout.historyEntries)).toEqual([0, 1, 2])
     expect(indexes(layout.resultEntries)).toEqual([3])
-  })
-
-  it('does not let AskUserQuestion split adjacent main text', () => {
-    const layout = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        { type: 'text', text: 'PR review result' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'ask',
-          toolName: 'AskUserQuestion',
-          state: 'output-available'
-        },
-        { type: 'reasoning', text: 'Waiting for input', state: 'done' },
-        { type: 'text', text: 'Waiting for your choice' }
-      ])
-    )
-
-    expect(indexes(layout.historyEntries)).toEqual([0, 2, 3])
-    expect(indexes(layout.resultEntries)).toEqual([1, 4])
-  })
-
-  it('extracts report_artifacts without letting it split the final answer result', () => {
-    const layout = projectCompletedMessageParts(
-      entries([
-        { type: 'dynamic-tool', toolCallId: 'read', toolName: 'Read', state: 'output-available' },
-        { type: 'text', text: 'Final answer' },
-        {
-          type: 'dynamic-tool',
-          toolCallId: 'report',
-          toolName: 'mcp__cherry__report_artifacts',
-          state: 'output-available'
-        },
-        { type: 'file', mediaType: 'text/markdown', url: 'file:///report.md' }
-      ])
-    )
-
-    expect(indexes(layout.historyEntries)).toEqual([0])
-    expect(indexes(layout.resultEntries)).toEqual([1, 3])
-    expect(indexes(layout.reportEntries)).toEqual([2])
   })
 })

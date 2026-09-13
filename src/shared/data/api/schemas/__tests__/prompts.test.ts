@@ -58,7 +58,7 @@ describe('prompt DTO schemas', () => {
     ).toThrow()
   })
 
-  it('accepts an Assistant or Agent as the optional initial binding target', () => {
+  it('accepts an Assistant and rejects a retired Agent as the initial binding target', () => {
     expect(
       CreatePromptSchema.parse({
         title: 'Test',
@@ -67,14 +67,14 @@ describe('prompt DTO schemas', () => {
         bindingTarget: { type: 'assistant', id: TARGET_ID }
       })
     ).toMatchObject({ bindingTarget: { type: 'assistant', id: TARGET_ID } })
-    expect(
+    expect(() =>
       CreatePromptSchema.parse({
         title: 'Test',
         content: 'Hello',
         visibility: 'restricted',
         bindingTarget: { type: 'agent', id: 'legacy-agent-id' }
       })
-    ).toMatchObject({ bindingTarget: { type: 'agent', id: 'legacy-agent-id' } })
+    ).toThrow()
   })
 
   it('rejects an initial binding on a global prompt', () => {
@@ -148,7 +148,7 @@ describe('prompt DTO schemas', () => {
     expect(() => ListPromptsQuerySchema.parse({ tagIds: ['tag-1'] })).toThrow()
   })
 
-  it('requires a complete Assistant or Agent target when filtering the list', () => {
+  it('requires a complete Assistant target when filtering the list', () => {
     expect(ListPromptsQuerySchema.parse({ targetType: 'assistant', targetId: TARGET_ID, includeGlobal: true })).toEqual(
       {
         targetType: 'assistant',
@@ -168,24 +168,20 @@ describe('prompt DTO schemas', () => {
     expect(() => ListPromptsQuerySchema.parse({ targetType: 'assistant' })).toThrow()
     expect(() => ListPromptsQuerySchema.parse({ targetId: TARGET_ID })).toThrow()
     expect(() => ListPromptsQuerySchema.parse({ targetType: 'painting', targetId: TARGET_ID })).toThrow()
-    expect(
+    expect(() =>
       ListPromptsQuerySchema.parse({ targetType: 'agent', targetId: 'legacy-agent-id', includeGlobal: false })
-    ).toEqual({
-      targetType: 'agent',
-      targetId: 'legacy-agent-id',
-      includeGlobal: false
-    })
+    ).toThrow()
   })
 
   it('validates binding route parameters', () => {
-    expect(PromptBindingParamsSchema.parse({ id: PROMPT_ID, targetType: 'agent', targetId: TARGET_ID })).toEqual({
+    expect(PromptBindingParamsSchema.parse({ id: PROMPT_ID, targetType: 'assistant', targetId: TARGET_ID })).toEqual({
       id: PROMPT_ID,
-      targetType: 'agent',
+      targetType: 'assistant',
       targetId: TARGET_ID
     })
-    expect(
+    expect(() =>
       PromptBindingParamsSchema.parse({ id: PROMPT_ID, targetType: 'agent', targetId: 'legacy-agent-id' })
-    ).toEqual({ id: PROMPT_ID, targetType: 'agent', targetId: 'legacy-agent-id' })
+    ).toThrow()
     expect(() =>
       PromptBindingParamsSchema.parse({ id: PROMPT_ID, targetType: 'assistant', targetId: 'invalid' })
     ).toThrow()

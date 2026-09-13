@@ -3,7 +3,7 @@ import { loggerService } from '@logger'
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { useCodeStyle } from '@renderer/hooks/useCodeStyle'
 import { useTimer } from '@renderer/hooks/useTimer'
-import type { McpToolResponse } from '@renderer/types/mcpTool'
+import type { McpToolResponse, NormalToolResponse } from '@renderer/types/mcpTool'
 import { ShieldCheck } from 'lucide-react'
 import { parse as parsePartialJson } from 'partial-json'
 import type { ComponentPropsWithoutRef, FC } from 'react'
@@ -23,7 +23,7 @@ import { ToolDisclosure, type ToolDisclosureItem } from '../shared/ToolDisclosur
 import { truncateOutput } from '../shared/truncateOutput'
 
 interface Props {
-  toolResponse: McpToolResponse
+  toolResponse: McpToolResponse | NormalToolResponse
 }
 
 const TOOL_RESPONSE_RENDER_DELAY_MS = 40
@@ -50,8 +50,8 @@ const MessageMcpTool: FC<Props> = ({ toolResponse }) => {
 
   // Use the unified approval hook
   const { id, tool, status, response, partialArguments } = toolResponse
-  const approval = useToolApproval(toolResponse, tool)
-  const autoApproved = isToolAutoApproved?.(tool) ?? false
+  const approval = useToolApproval(toolResponse, tool.type === 'mcp' ? tool : undefined)
+  const autoApproved = tool.type === 'mcp' ? (isToolAutoApproved?.(tool) ?? false) : false
   const isDone = status === 'done'
   const isError = status === 'error'
   const isStreaming = status === 'streaming'
@@ -111,9 +111,7 @@ const MessageMcpTool: FC<Props> = ({ toolResponse }) => {
         <MessageTitleLabel>
           <TitleContent>
             <ToolName className="min-w-0 items-center gap-1">
-              <span className="truncate">
-                {tool.serverName} : {tool.name}
-              </span>
+              <span className="truncate">{tool.type === 'mcp' ? `${tool.serverName} : ${tool.name}` : tool.name}</span>
             </ToolName>
             <TitleActions>
               {progress > 0 ? (

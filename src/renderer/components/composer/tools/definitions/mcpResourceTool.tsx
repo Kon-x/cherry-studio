@@ -4,7 +4,6 @@ import type { ComposerToolLauncher } from '@renderer/components/composer/toolLau
 import { defineTool, type ToolRenderContext, TopicType } from '@renderer/components/composer/tools/types'
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
 import { type QuickPanelCallBackOptions, type QuickPanelListItem, useQuickPanel } from '@renderer/components/QuickPanel'
-import { useAgent } from '@renderer/hooks/agent/useAgent'
 import { useScopedMcpServers } from '@renderer/hooks/useMcpServer'
 import { ipcApi } from '@renderer/ipc'
 import { toast } from '@renderer/services/toast'
@@ -38,7 +37,7 @@ export function isTextLikeMcpResource(mimeType?: string): boolean {
 }
 
 export const McpResourceComposerRuntime = ({ context }: { context: McpResourceToolContext }) => {
-  const { actions, assistant, launcher, model, scope, session, t } = context
+  const { actions, assistant, launcher, model, t } = context
   const { isVisible, symbol, updateList } = useQuickPanel()
   const [dataRequested, setDataRequested] = useState(false)
   const [resources, setResources] = useState<McpResource[]>([])
@@ -55,24 +54,12 @@ export const McpResourceComposerRuntime = ({ context }: { context: McpResourceTo
     }
   }, [])
 
-  /**
-   * Which reader a deferred (reference) pick can rely on. Agent sessions read resources through the
-   * MCP bridge their runtime already speaks; chat reads them with the `mcp_resource_read` builtin,
-   * which only exists for a model that can call function tools. Neither is available otherwise, and
-   * a reference promising a reader that is not there is worse than refusing the pick.
-   */
-  const resourceReader = useMemo<'runtime' | 'mcp_resource_read' | null>(() => {
-    if (scope === TopicType.Session) return 'runtime'
-    return isSupportedToolUse(model) ? 'mcp_resource_read' : null
-  }, [model, scope])
-
-  const { agent } = useAgent(dataRequested && scope === TopicType.Session ? (session?.agentId ?? null) : null)
+  const resourceReader = isSupportedToolUse(model) ? 'mcp_resource_read' : null
   const boundServerIds = useMemo<readonly string[] | 'all' | null>(() => {
-    if (scope === TopicType.Session) return agent?.mcps ?? []
     const mode = assistant ? (assistant.settings?.mcpMode ?? DEFAULT_MCP_MODE) : 'disabled'
     if (mode === 'disabled') return null
     return mode === 'auto' ? 'all' : (assistant?.mcpServerIds ?? [])
-  }, [agent?.mcps, assistant, scope])
+  }, [assistant])
   const { servers } = useScopedMcpServers(boundServerIds, { enabled: dataRequested })
 
   useEffect(() => {
@@ -107,7 +94,7 @@ export const McpResourceComposerRuntime = ({ context }: { context: McpResourceTo
   const insertReferenceToken = useCallback(
     (resource: McpResource, options?: QuickPanelCallBackOptions) => {
       const inputAdapter = options?.inputAdapter
-      const token = mcpResourceToComposerToken(resource, { reader: resourceReader ?? 'runtime' })
+      const token = mcpResourceToComposerToken(resource)
       if (inputAdapter?.insertToken) {
         inputAdapter.insertToken(token)
         inputAdapter.focus()
@@ -116,7 +103,7 @@ export const McpResourceComposerRuntime = ({ context }: { context: McpResourceTo
       // Composers without a token-capable adapter (plain textarea) still get the sentence.
       actions.onTextChange?.((prev) => `${prev}${token.promptText ?? ''}`)
     },
-    [actions, resourceReader]
+    [actions]
   )
 
   const insertText = useCallback(
@@ -260,7 +247,7 @@ export const McpResourceComposerRuntime = ({ context }: { context: McpResourceTo
 const mcpResourceTool = defineTool({
   key: 'mcp_resources',
   label: (t) => t('chat.input.mcp_resources.title'),
-  visibleInScopes: [TopicType.Chat, TopicType.Session],
+  visibleInScopes: [TopicType.Chat],
 
   dependencies: {
     actions: ['onTextChange'] as const

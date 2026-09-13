@@ -38,7 +38,7 @@ class StreamDispatchService {
       .request('ai.stream.open', request)
       .then((ack) => {
         if (ack.mode === 'blocked') {
-          toast.error(getStreamBlockedMessage(ack))
+          toast.error(getStreamBlockedMessage())
         }
         this.notify({ ok: true, topicId, ack })
       })

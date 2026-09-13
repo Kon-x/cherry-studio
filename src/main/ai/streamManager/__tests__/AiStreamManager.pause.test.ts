@@ -65,14 +65,7 @@ vi.mock('@main/services/TopicNamingService', () => ({
   topicNamingService: { inFlightWrites: () => namingWrites }
 }))
 
-// `startAgentSessionRun`'s quiesce gate must throw BEFORE prepareDispatch writes rows.
-const prepareDispatchMock = vi.fn()
-vi.mock('../context/AgentChatContextProvider', () => ({
-  agentChatContextProvider: { prepareDispatch: prepareDispatchMock }
-}))
-
 const { AiStreamManager } = await import('../AiStreamManager')
-const { startAgentSessionRun } = await import('../api/startAgentSessionRun')
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -105,10 +98,6 @@ const fakeSubscriber = {} as StreamListener
 const openReq = (topicId: string) => ({ trigger: 'submit-message', topicId, messages: [] }) as never
 const steerReq = (topicId: string, userMessageId: string) =>
   ({ trigger: 'steer-continuation', topicId, userMessageId }) as never
-
-function streamListener(id: string): StreamListener {
-  return { id, onChunk: vi.fn(), onDone: vi.fn(), onPaused: vi.fn(), onError: vi.fn(), isAlive: () => true }
-}
 
 /** Drain pending microtasks + the async-mutex acquire (which resolves on a macrotask). */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -250,15 +239,6 @@ describe('AiStreamManager pause / drainInFlight (write quiesce)', () => {
       expect(internals(mgr).pendingSteers.get('t')).toEqual([{ userMessageId: 'u1' }, { userMessageId: 'u2' }])
       expect(internals(mgr).suppressedChatContinuationTopicIds.has('t')).toBe(true)
       expect(mockDispatchStreamRequest).not.toHaveBeenCalled()
-    })
-
-    it('rejects a paused startAgentSessionRun before prepareDispatch writes any rows', async () => {
-      mgr.pause('test: agent-session gate')
-
-      await expect(
-        startAgentSessionRun({ sessionId: 's1', userParts: [], listeners: [streamListener('l1')] })
-      ).rejects.toThrow(/write-quiesced/)
-      expect(prepareDispatchMock).not.toHaveBeenCalled()
     })
   })
 

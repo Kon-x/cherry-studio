@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -122,14 +121,6 @@ describe('MessageHeader', () => {
     expect(container.querySelector('.message-body-column')).toBeNull()
   })
 
-  it('explains a runtime-started assistant turn with its origin', () => {
-    // A goal round has no user message above it; the badge is the transcript's only explanation.
-    const { getByText } = render(
-      <MessageHeader message={createMessage('assistant', { turnOrigin: { kind: 'goal-round', round: 2 } })} />
-    )
-    expect(getByText('Goal round 2')).toBeTruthy()
-  })
-
   it('renders no origin badge for a prompted assistant turn', () => {
     const { queryByText } = render(<MessageHeader message={createMessage('assistant')} />)
     expect(queryByText(/Goal round/)).toBeNull()
@@ -198,69 +189,5 @@ describe('MessageHeader', () => {
     const { container } = render(<MessageHeader message={createMessage()} />)
 
     expect(container.querySelector('[data-message-select-checkbox]')).not.toBeNull()
-  })
-
-  it('shows durable sender attribution without transport status on a received message', () => {
-    const sender = { agentId: 'agent-a', sessionId: 'session-a' }
-    const { container, getByText } = render(
-      <MessageHeader
-        message={createMessage('user', {
-          delivery: {
-            version: 1,
-            sender,
-            receiver: { agentId: 'agent-b', sessionId: 'session-b' },
-            senderSnapshot: { agentName: 'Agent A', sessionName: 'Research' },
-            receiverSnapshot: { agentName: 'Agent B', sessionName: 'Build' },
-            replyPolicy: 'none',
-            turnRef: null,
-            sourceMessageId: null,
-            outcome: null,
-            error: null,
-            statusAt: '2026-06-06T00:00:01.000Z',
-            status: 'accepted',
-            inReplyTo: null
-          }
-        })}
-      />
-    )
-
-    expect(getByText('From Agent A / Research')).toBeTruthy()
-    expect(container.querySelector('.lucide-mouse-pointer-click')).not.toBeNull()
-    expect(screen.queryByText('agent.session_delivery.status.accepted')).toBeNull()
-  })
-
-  it('opens the sending session from durable attribution', async () => {
-    const user = userEvent.setup()
-    const navigateToRoute = vi.fn()
-    providerState.actions = { navigateToRoute }
-
-    render(
-      <MessageHeader
-        message={createMessage('user', {
-          delivery: {
-            version: 1,
-            sender: { agentId: 'agent-a', sessionId: 'session-source' },
-            receiver: { agentId: 'agent-b', sessionId: 'session-current' },
-            senderSnapshot: { agentName: 'Agent A', sessionName: 'Research' },
-            receiverSnapshot: { agentName: 'Agent B', sessionName: 'Build' },
-            replyPolicy: 'none',
-            turnRef: null,
-            sourceMessageId: null,
-            outcome: null,
-            error: null,
-            statusAt: '2026-06-06T00:00:01.000Z',
-            status: 'accepted',
-            inReplyTo: null
-          }
-        })}
-      />
-    )
-
-    await user.click(screen.getByRole('button', { name: /From Agent A \/ Research/ }))
-
-    expect(navigateToRoute).toHaveBeenCalledWith({
-      path: '/app/agents',
-      query: { sessionId: 'session-source' }
-    })
   })
 })

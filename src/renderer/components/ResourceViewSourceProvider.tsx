@@ -1,11 +1,8 @@
 import {
-  type AgentSessionsSource,
-  AgentSessionsSourceContext,
   type AssistantTopicsSource,
   AssistantTopicsSourceContext,
   type AssistantTopicsView,
   deriveAssistantTopicsView,
-  useRawAgentSessionsSource,
   useRawAssistantTopicsSource
 } from '@renderer/hooks/resourceViewSources'
 import { useTabs } from '@renderer/hooks/tab'
@@ -14,12 +11,10 @@ import type { Tab } from '@shared/data/cache/cacheValueTypes'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
-const EMPTY_PIN_IDS = new Map<string, string>()
 const EMPTY_TOPICS: ReturnType<typeof useRawAssistantTopicsSource>['topics'] = []
 const EMPTY_ASSISTANT_TOPICS_VIEW: AssistantTopicsView = { rendererTopics: [], orderSignature: '' }
 
 type AssistantTopicsSnapshot = Pick<ReturnType<typeof useRawAssistantTopicsSource>, 'pages' | 'topics'>
-type AgentSessionsSnapshot = Pick<ReturnType<typeof useRawAgentSessionsSource>, 'pinIdBySessionId' | 'sessions'>
 
 export function shouldLoadResourceViewSource(
   tabs: readonly Tab[],
@@ -100,94 +95,6 @@ function useCommittedAssistantTopicsSource(enabled: boolean, retainDerivedView: 
   )
 }
 
-function useCommittedAgentSessionsSource(enabled: boolean): AgentSessionsSource {
-  const rawSource = useRawAgentSessionsSource({ enabled })
-  const [snapshot, setSnapshot] = useState<AgentSessionsSnapshot | null>(null)
-  const rawSourceReady =
-    enabled &&
-    rawSource.isFullyLoaded &&
-    !rawSource.isValidating &&
-    !rawSource.isPinsLoading &&
-    !rawSource.isPinsRefreshing &&
-    !rawSource.error
-
-  useEffect(() => {
-    if (!rawSourceReady) return
-
-    setSnapshot((currentSnapshot) =>
-      currentSnapshot?.pinIdBySessionId === rawSource.pinIdBySessionId &&
-      currentSnapshot?.sessions === rawSource.sessions
-        ? currentSnapshot
-        : {
-            pinIdBySessionId: rawSource.pinIdBySessionId,
-            sessions: rawSource.sessions
-          }
-    )
-  }, [rawSource.pinIdBySessionId, rawSource.sessions, rawSourceReady])
-
-  const isColdLoading = enabled && snapshot === null
-  const snapshotIsCurrent =
-    snapshot?.pinIdBySessionId === rawSource.pinIdBySessionId && snapshot?.sessions === rawSource.sessions
-  // See useCommittedAssistantTopicsSource: a failed background refresh serves
-  // the stale snapshot and reports refreshing only while a fetch is in flight,
-  // never as a perpetual error-idle state.
-  const isBackgroundRefreshing =
-    enabled &&
-    snapshot !== null &&
-    (rawSource.isValidating ||
-      rawSource.isPinsRefreshing ||
-      (!rawSource.error && (!rawSource.isFullyLoaded || (rawSourceReady && !snapshotIsCurrent))))
-
-  return useMemo(
-    () => ({
-      sessions: snapshot?.sessions ?? (enabled ? rawSource.sessions : []),
-      // `togglePin` decides pin vs unpin from the raw map, so the rendered pin
-      // state has to come from that same map. A snapshot frozen by a failed
-      // refresh would otherwise make the button do the opposite of its label.
-      // `/pins` is a plain cached key, so reading it directly costs no flicker.
-      pinIdBySessionId: enabled ? rawSource.pinIdBySessionId : (snapshot?.pinIdBySessionId ?? EMPTY_PIN_IDS),
-      hasMore: snapshot || !enabled ? false : rawSource.hasMore,
-      error: snapshot ? undefined : rawSource.error,
-      refreshError: snapshot ? rawSource.error : undefined,
-      isLoading: isColdLoading && rawSource.isLoading,
-      isLoadingMore: snapshot || !enabled ? false : rawSource.isLoadingMore,
-      isValidating: isBackgroundRefreshing || (isColdLoading && rawSource.isValidating),
-      reload: rawSource.reload,
-      deleteSession: rawSource.deleteSession,
-      deleteSessions: rawSource.deleteSessions,
-      reorderSession: rawSource.reorderSession,
-      togglePin: rawSource.togglePin,
-      loadLatestSession: rawSource.loadLatestSession,
-      reuseOrCreateSession: rawSource.reuseOrCreateSession,
-      isFullyLoaded: snapshot !== null,
-      isLoadingAll: isColdLoading && rawSource.isLoadingAll,
-      isPinsLoading: isColdLoading && rawSource.isPinsLoading
-    }),
-    [
-      enabled,
-      isBackgroundRefreshing,
-      isColdLoading,
-      rawSource.deleteSession,
-      rawSource.deleteSessions,
-      rawSource.error,
-      rawSource.hasMore,
-      rawSource.isLoading,
-      rawSource.isLoadingAll,
-      rawSource.isLoadingMore,
-      rawSource.isPinsLoading,
-      rawSource.isValidating,
-      rawSource.loadLatestSession,
-      rawSource.reuseOrCreateSession,
-      rawSource.pinIdBySessionId,
-      rawSource.reload,
-      rawSource.reorderSession,
-      rawSource.sessions,
-      rawSource.togglePin,
-      snapshot
-    ]
-  )
-}
-
 export function ResourceViewSourceProvider({ children }: { children: ReactNode }) {
   const { activeTabId, tabs } = useTabs()
   const assistantTopicsEnabled = useMemo(
@@ -199,16 +106,6 @@ export function ResourceViewSourceProvider({ children }: { children: ReactNode }
     if (!app) return false
     return tabs.some((tab) => tab.type === 'route' && !tab.isDormant && tabBelongsToApp(app, tab.url))
   }, [tabs])
-  const agentSessionsEnabled = useMemo(
-    () => shouldLoadResourceViewSource(tabs, activeTabId, 'agents'),
-    [activeTabId, tabs]
-  )
   const assistantTopicsSource = useCommittedAssistantTopicsSource(assistantTopicsEnabled, retainAssistantTopicsView)
-  const agentSessionsSource = useCommittedAgentSessionsSource(agentSessionsEnabled)
-
-  return (
-    <AssistantTopicsSourceContext value={assistantTopicsSource}>
-      <AgentSessionsSourceContext value={agentSessionsSource}>{children}</AgentSessionsSourceContext>
-    </AssistantTopicsSourceContext>
-  )
+  return <AssistantTopicsSourceContext value={assistantTopicsSource}>{children}</AssistantTopicsSourceContext>
 }

@@ -10,7 +10,6 @@
 
 import { application } from '@application'
 import { notifyDataApiDataChange } from '@data/dataApiDataChange'
-import { agentTable } from '@data/db/schemas/agent'
 import { assistantTable } from '@data/db/schemas/assistant'
 import { promptBindingTable, promptTable } from '@data/db/schemas/prompt'
 import type { DbType } from '@data/db/types'
@@ -122,8 +121,10 @@ export class PromptService {
         targetId: promptBindingTable.targetId
       })
       .from(promptBindingTable)
+      .where(eq(promptBindingTable.targetType, 'assistant'))
       .orderBy(asc(promptBindingTable.targetType), asc(promptBindingTable.targetId), asc(promptBindingTable.promptId))
       .all()
+      .map(({ promptId, targetId }) => ({ promptId, targetId, targetType: 'assistant' }))
   }
 
   listBoundToTarget(target: PromptBindingTarget): Prompt[] {
@@ -150,12 +151,10 @@ export class PromptService {
     const rows = tx
       .select({ type: promptBindingTable.targetType, id: promptBindingTable.targetId })
       .from(promptBindingTable)
-      .where(eq(promptBindingTable.promptId, promptId))
+      .where(and(eq(promptBindingTable.promptId, promptId), eq(promptBindingTable.targetType, 'assistant')))
       .orderBy(asc(promptBindingTable.targetType), asc(promptBindingTable.targetId))
       .all()
-    return rows.map((row) =>
-      row.type === 'assistant' ? { type: 'assistant', id: row.id } : { type: 'agent', id: row.id }
-    )
+    return rows.map((row) => ({ type: 'assistant', id: row.id }))
   }
 
   createRestrictedForTargetTx(
@@ -478,23 +477,13 @@ export class PromptService {
   }
 
   private assertBindingTargetExistsTx(tx: Pick<DbType, 'select'>, target: PromptBindingTarget): void {
-    const row =
-      target.type === 'assistant'
-        ? tx
-            .select({ id: assistantTable.id })
-            .from(assistantTable)
-            .where(and(eq(assistantTable.id, target.id), isNull(assistantTable.deletedAt)))
-            .limit(1)
-            .get()
-        : tx
-            .select({ id: agentTable.id })
-            .from(agentTable)
-            .where(and(eq(agentTable.id, target.id), isNull(agentTable.deletedAt)))
-            .limit(1)
-            .get()
-    if (!row) {
-      throw DataApiErrorFactory.notFound(target.type === 'assistant' ? 'Assistant' : 'Agent', target.id)
-    }
+    const row = tx
+      .select({ id: assistantTable.id })
+      .from(assistantTable)
+      .where(and(eq(assistantTable.id, target.id), isNull(assistantTable.deletedAt)))
+      .limit(1)
+      .get()
+    if (!row) throw DataApiErrorFactory.notFound('Assistant', target.id)
   }
 
   delete(id: string): void {

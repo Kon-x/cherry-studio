@@ -4,8 +4,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 import { application } from '@application'
-import { agentSessionMessageService } from '@data/services/AgentSessionMessageService'
-import { agentSessionService } from '@data/services/AgentSessionService'
 import { messageService } from '@data/services/MessageService'
 import { topicService } from '@data/services/TopicService'
 import { diagnosticsErrorCodes } from '@shared/ipc/errors/diagnostics'
@@ -46,12 +44,6 @@ vi.mock('electron', () => ({
 vi.mock('../CherryDiagnosticUploadClient', () => ({
   cherryDiagnosticUploadClient: uploadMocks
 }))
-vi.mock('@data/services/AgentSessionMessageService', () => ({
-  agentSessionMessageService: { getSessionMessage: vi.fn() }
-}))
-vi.mock('@data/services/AgentSessionService', () => ({
-  agentSessionService: { getById: vi.fn() }
-}))
 vi.mock('@data/services/MessageService', () => ({
   messageService: { getById: vi.fn() }
 }))
@@ -75,7 +67,7 @@ function chatCandidate(
   latestAt: number,
   [messageRecord, contextRecord]: [ChatRecordReference, ChatRecordReference]
 ): ChatRecordCandidate {
-  const source = id.startsWith('agent-session-message:') ? 'agent-session' : 'normal-chat'
+  const source = 'normal-chat' as const
   return {
     contextId: contextRecord.key.slice(contextRecord.key.indexOf(':') + 1),
     contextRecord,
@@ -134,8 +126,6 @@ describe('DiagnosticBundleService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    vi.mocked(agentSessionMessageService.getSessionMessage).mockReset()
-    vi.mocked(agentSessionService.getById).mockReset()
     vi.mocked(messageService.getById).mockReset()
     vi.mocked(topicService.getById).mockReset()
     workDir = await mkdtemp(path.join(tmpdir(), 'diagnostic-service-'))
@@ -275,7 +265,7 @@ describe('DiagnosticBundleService', () => {
     expect(manifestText).not.toContain(userDataDir)
   })
 
-  it('exports canonical normal-chat and agent-session records with manifest v2 statistics', async () => {
+  it('exports canonical normal-chat records with manifest v2 statistics', async () => {
     const topic = { id: 'topic-1', name: 'Topic' }
     const message = {
       id: 'message-1',
@@ -284,32 +274,14 @@ describe('DiagnosticBundleService', () => {
       data: { parts: [{ type: 'text', text: 'hello' }] },
       createdAt: '2026-08-25T00:02:00.000Z'
     }
-    const session = { id: 'session-1', agentId: 'agent-1', name: 'Agent session' }
-    const agentMessage = {
-      id: 'agent-message-1',
-      sessionId: session.id,
-      role: 'assistant',
-      data: { parts: [{ type: 'text', text: 'agent reply' }] },
-      createdAt: '2026-08-25T00:01:00.000Z'
-    }
     const candidates = [
       chatCandidate('message:message-1', Date.parse(message.createdAt), [
         chatRecordReference('chats/messages.jsonl', 'message:message-1', message),
         chatRecordReference('chats/topics.jsonl', 'topic:topic-1', topic)
-      ]),
-      chatCandidate('agent-session-message:agent-message-1', Date.parse(agentMessage.createdAt), [
-        chatRecordReference(
-          'chats/agent-session-messages.jsonl',
-          'agent-session-message:agent-message-1',
-          agentMessage
-        ),
-        chatRecordReference('chats/agent-sessions.jsonl', 'agent-session:session-1', session)
       ])
     ]
     vi.mocked(messageService.getById).mockReturnValue(message as never)
     vi.mocked(topicService.getById).mockReturnValue(topic as never)
-    vi.mocked(agentSessionMessageService.getSessionMessage).mockReturnValue(agentMessage as never)
-    vi.mocked(agentSessionService.getById).mockReturnValue(session as never)
     const collection = chatCollection(candidates)
     const collectSpy = vi.spyOn(chatRecordCollector, 'collectChatRecords').mockReturnValue(collection)
     const service = new DiagnosticBundleService()
@@ -320,29 +292,21 @@ describe('DiagnosticBundleService', () => {
         'main-window'
       )
 
-      expect(result).toMatchObject({ status: 'saved', includedFileCount: 4, omittedFileCount: 0 })
+      expect(result).toMatchObject({ status: 'saved', includedFileCount: 2, omittedFileCount: 0 })
       const zip = await readZip(destination)
-      expect(zip.entries).toEqual([
-        'chats/agent-session-messages.jsonl',
-        'chats/agent-sessions.jsonl',
-        'chats/messages.jsonl',
-        'chats/topics.jsonl',
-        'diagnostics.json'
-      ])
+      expect(zip.entries).toEqual(['chats/messages.jsonl', 'chats/topics.jsonl', 'diagnostics.json'])
       expect(JSON.parse(zip.contents['chats/topics.jsonl'].toString('utf8'))).toEqual(topic)
       expect(JSON.parse(zip.contents['chats/messages.jsonl'].toString('utf8'))).toEqual(message)
-      expect(JSON.parse(zip.contents['chats/agent-sessions.jsonl'].toString('utf8'))).toEqual(session)
-      expect(JSON.parse(zip.contents['chats/agent-session-messages.jsonl'].toString('utf8'))).toEqual(agentMessage)
 
       const manifest = JSON.parse(zip.contents['diagnostics.json'].toString())
-      const expectedBytes = jsonlBytes(topic, message, session, agentMessage)
+      const expectedBytes = jsonlBytes(topic, message)
       expect(manifest).toMatchObject({
         schemaVersion: 2,
         privacy: { containsUnredactedData: true },
         selection: { includeChatRecords: true },
         sources: {
           chatRecords: {
-            included: { bytes: expectedBytes, messageCount: 2, recordCount: 4 },
+            included: { bytes: expectedBytes, messageCount: 1, recordCount: 2 },
             omitted: { bytes: 0, messageCount: 0, recordCount: 0 }
           }
         }
@@ -575,62 +539,6 @@ describe('DiagnosticBundleService', () => {
     } finally {
       collectSpy.mockRestore()
       stageSpy.mockRestore()
-    }
-  })
-
-  it('counts only missing chat archives when one chat family cannot be hydrated', async () => {
-    const topic = { id: 'topic-1', name: 'Topic' }
-    const message = {
-      id: 'message-1',
-      topicId: topic.id,
-      role: 'user',
-      data: { parts: [{ type: 'text', text: 'hello' }] },
-      createdAt: '2026-08-25T00:01:00.000Z'
-    }
-    const session = { id: 'session-1', agentId: 'agent-1', name: 'Agent session' }
-    const agentMessage = {
-      id: 'agent-message-1',
-      sessionId: session.id,
-      role: 'assistant',
-      data: { parts: [{ type: 'text', text: 'agent reply' }] },
-      createdAt: '2026-08-25T00:02:00.000Z'
-    }
-    const candidates = [
-      chatCandidate('agent-session-message:agent-message-1', Date.parse(agentMessage.createdAt), [
-        chatRecordReference(
-          'chats/agent-session-messages.jsonl',
-          'agent-session-message:agent-message-1',
-          agentMessage
-        ),
-        chatRecordReference('chats/agent-sessions.jsonl', 'agent-session:session-1', session)
-      ]),
-      chatCandidate('message:message-1', Date.parse(message.createdAt), [
-        chatRecordReference('chats/messages.jsonl', 'message:message-1', message),
-        chatRecordReference('chats/topics.jsonl', 'topic:topic-1', topic)
-      ])
-    ]
-    vi.mocked(agentSessionMessageService.getSessionMessage).mockImplementation(() => {
-      throw new Error('agent chat unavailable')
-    })
-    vi.mocked(messageService.getById).mockReturnValue(message as never)
-    vi.mocked(topicService.getById).mockReturnValue(topic as never)
-    const collectSpy = vi.spyOn(chatRecordCollector, 'collectChatRecords').mockReturnValue(chatCollection(candidates))
-    const service = new DiagnosticBundleService()
-
-    try {
-      const result = await service.exportBundle(
-        { includeChatRecords: true, includeLogs: false, includeTraces: false, range: '24h' },
-        'main-window'
-      )
-
-      expect(result).toMatchObject({ status: 'saved', hasWarnings: true, includedFileCount: 2, omittedFileCount: 2 })
-      const zip = await readZip(destination)
-      expect(zip.entries).toContain('chats/messages.jsonl')
-      expect(zip.entries).toContain('chats/topics.jsonl')
-      expect(zip.entries).not.toContain('chats/agent-session-messages.jsonl')
-      expect(zip.entries).not.toContain('chats/agent-sessions.jsonl')
-    } finally {
-      collectSpy.mockRestore()
     }
   })
 

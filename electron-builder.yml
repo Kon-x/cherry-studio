@@ -67,7 +67,6 @@ files:
   - "!node_modules/selection-hook/prebuilds/**/*" # we rebuild .node, don't use prebuilds
   - "!node_modules/selection-hook/node_modules" # we don't need what in the node_modules dir
   - "!node_modules/selection-hook/src" # we don't need source files
-  - "!**/node_modules/node-pty/build/**" # ship upstream prebuilds; the rebuilt binary needs GLIBC_2.34 and is never cross-compiled
   - "!node_modules/tesseract.js-core/{tesseract-core.js,tesseract-core.wasm,tesseract-core.wasm.js}" # we don't need source files
   - "!node_modules/tesseract.js-core/{tesseract-core-lstm.js,tesseract-core-lstm.wasm,tesseract-core-lstm.wasm.js}" # we don't need source files
   - "!node_modules/tesseract.js-core/{tesseract-core-simd-lstm.js,tesseract-core-simd-lstm.wasm,tesseract-core-simd-lstm.wasm.js}" # we don't need source files
@@ -82,19 +81,10 @@ asarUnpack:
   - "!resources/devtools/**"
   - "**/*.{metal,exp,lib}"
   - "node_modules/@img/sharp-*/**"
-  # DSH runs as an external Node process: bundle its JS and unpack only native/runtime files.
-  - "node_modules/@cherrystudio/dsh-bridge/dist/runtime/**"
   - "node_modules/sharp/**"
   - "node_modules/@img/colour/**"
   - "node_modules/detect-libc/**"
   - "node_modules/semver/**"
-  - "node_modules/node-pty/**"
-  - "node_modules/koffi/**"
-  - "node_modules/@koromix/koffi-*/**"
-  - "node_modules/@deepseek-ai/dsh-sandbox-windows-acl/**"
-  - "node_modules/@deepseek-ai/node-addon-landlock-run*/**"
-  - "node_modules/@anthropic-ai/claude-agent-sdk-*/**" # native CLI binary must live on disk to be spawned
-  - "node_modules/@silvia-odwyer/photon-node/**" # pi SDK WASM dep: photon_rs.js does fs.readFileSync(__dirname/photon_rs_bg.wasm)
   - "node_modules/@aiany/sqlite-vec-*/**" # sqlite-vec extension (.dylib/.so/.dll) is dlopen'd at runtime — must live on disk
   - "node_modules/@node-rs/xxhash-*/**" # native N-API binary must be unpacked for runtime loading
   - "node_modules/@firecrawl/anydoc-*/**" # native N-API binary must be unpacked for runtime loading
@@ -184,22 +174,20 @@ releaseInfo:
     
     🍒 Fork Release
     - [Cherry Cloud] Sign-in remains unavailable in this build: upstream 2.0.14 requires a client signing key this fork does not configure. All other providers and local features are unaffected.
-    - Keep the API Gateway and channel bot adapters removed; Claude Code and DeepSeek Harness use direct provider connections only.
+    - Remove Work/Agents, web and local Mini Apps, Code Mate, DSH, Agent skills/tasks, and built-in assistant/support Agents.
+    - Keep Chat, Paintings, Translate, Knowledge, Files, Notes, MCP, and ordinary tool approvals. Historical data and external CLI installations remain on disk.
     - Preserve deletable preset providers, batch provider deletion, and web-grounded selection explanations.
     - Setup builds update only from Kon-x/cherry-studio stable releases. Portable builds remain manually updated.
     
     Cherry Studio 2.0.14 - New Features, Fixes, and Performance
 
     ✨ New Features
-    - [Agent] Agent sessions now label self-started replies — “Goal round N” for DSH goal continuations, or “Continued after background work” — so users understand why a new message appears.
     - [Models] DeepSeek V4.1 Flash Expires-On-0910 vision model is now available in the catalog.
     - [Cherry Cloud] Cloud sessions are now bound to the current computer, preserving free-grant history across credential resets.
 
     🐛 Bug Fixes
-    - [Startup] Fixed Cherry Studio failing to start after an upgrade when the built-in Support Agent still needs to be created.
     - [Local Models] Windows cleanup now tolerates transient DLL release failures after an inference utility process exits.
     - [Knowledge Base] Fixed tables from PDFs imported through Mistral OCR being dropped; table contents are now indexed as Markdown tables.
-    - [Pi] Fix OpenCode Go/Zen requests failing with MissingSessionID by preserving the agent session header.
     - [Export] Notion export now waits for the page body to be written and reports failed writes as errors instead of success.
     - [Obsidian] Fix invalid front matter when the note title contains “: “ or starts with “#”, and export tags as a proper YAML list.
     - [Prompt Polish] Add cancellation and a 60-second timeout so stalled requests return to a retryable state.
@@ -217,17 +205,16 @@ releaseInfo:
     Cherry Studio 2.0.13 highlights
     
     - [Models] GPT-6 Astra support; TokenDance and Jalapeno Cloud added as built-in providers; the Yi (01.AI) provider retired after its service shutdown.
-    - [Scheduled Tasks] Daily, weekdays, and weekly presets now support multiple times per day (e.g. 09:00 and 18:00).
-    - [Chat] Topic and session titles, branch switching from the header, and exporting individual branches as Markdown.
+    - [Chat] Topic titles, branch switching from the header, and exporting individual branches as Markdown.
     - [Image Export] Message image export now uses Chromium's compositor for pixel-perfect output.
     - [Translate] Streamed translation output is rendered with rich Markdown formatting.
-    - [Agent] Numerous stability fixes across task logs, Bash tool output, tool-argument repair, Claude Code diagnostics, and the context-usage indicator.
     
     Cherry Studio 2.0.14-kx.1 - 基于上游 2.0.14 的 Kon-x 稳定定制版
     
     🍒 定制版发布
     - [樱桃云] 本构建登录仍不可用：上游 2.0.14 要求客户端签名密钥，本定制版未配置。其他服务商与本地功能不受影响。
-    - 继续移除 API Gateway 与频道机器人适配器；Claude Code 和 DeepSeek Harness 仅允许直连服务商。
+    - 移除工作（Agent）、网页与本地小程序、编码搭档、DSH、Agent 技能和定时任务，以及内置小助手和反馈智能体。
+    - 保留聊天、绘画、翻译、知识库、文件、笔记、MCP 和普通工具审批；历史数据及外部 CLI 安装继续保留。
     - 保留预置服务商删除、批量删除服务商和划词解释强制联网能力。
     - 安装版仅从 Kon-x/cherry-studio 稳定 Release 自动更新；便携版仍需手动更新。
     
@@ -235,15 +222,12 @@ releaseInfo:
     Cherry Studio 2.0.14 - 新功能、修复与性能优化
 
     ✨ 新功能
-    - [智能体] 智能体会话现在为自动发起的回复添加标签——DSH 目标推进显示”目标推进 · 第 N 轮”，后台工作后继续显示”后台工作后继续”——让用户了解为什么出现了新消息。
     - [模型] DeepSeek V4.1 Flash Expires-On-0910 视觉模型现已上架模型目录。
     - [樱桃云] 云会话现已绑定当前设备，在凭证重置后保留免费额度历史。
 
     🐛 问题修复
-    - [启动] 修复升级后需要首次创建内置产品反馈 Agent 时 Cherry Studio 无法启动的问题。
     - [本地模型] 修复 Windows 下 inference utility process 退出后 DLL 短暂占用导致模型清理偶发失败的问题。
     - [知识库] 修复通过 Mistral OCR 导入的 PDF 表格丢失问题；表格内容现在以 Markdown 表格形式索引。请重新索引已有条目以获取表格内容。
-    - [Pi] 修复 OpenCode Go/Zen 请求因 MissingSessionID 失败的问题，现已保留智能体会话头部。
     - [导出] Notion 导出现在等待页面正文写入完成，写入失败时正确报错而非显示成功。
     - [Obsidian] 修复笔记标题包含”: “或以”#”开头时导出无效前置数据的问题，并将标签导出为正确的 YAML 列表。
     - [提示词润色] 支持取消和 60 秒超时，卡住的请求可立即恢复为可重试状态。
@@ -260,10 +244,9 @@ releaseInfo:
     Cherry Studio 2.0.13 亮点
     
     - [模型] 新增 GPT-6 Astra 支持；新增 TokenDance 与 Jalapeno Cloud 内置服务商；因服务关停下架零一万物 (Yi) 服务商。
-    - [定时任务] 每天、工作日和每周预设现在支持每天多个时间点（如 09:00 和 18:00）。
-    - [对话] 显示话题和会话标题，从标题栏切换分支，并将单个分支导出为 Markdown。
+    - [对话] 显示话题标题，从标题栏切换分支，并将单个分支导出为 Markdown。
     - [图片导出] 对话消息图片导出现在使用 Chromium 合成器，输出像素完美匹配屏幕显示。
     - [翻译] 翻译输出使用富 Markdown 格式流式渲染。
-    - [智能体] 大量稳定性修复：任务日志、Bash 工具输出、工具参数修复、Claude Code 诊断与上下文用量指示器等。
     
     <!--LANG:END-->
+

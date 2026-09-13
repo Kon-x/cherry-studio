@@ -1,4 +1,3 @@
-import { isKnownNavigationPath, NavigateToolInline } from '@renderer/components/chat/messages/tools/agent'
 import Favicon from '@renderer/components/icons/FallbackFavicon'
 import { scrollToMarkdownAnchor, shouldShowMarkdownLinkFavicon } from '@renderer/components/markdown'
 import type { Citation } from '@renderer/types/message'
@@ -66,13 +65,6 @@ const Link: React.FC<LinkProps> = (props) => {
       </a>
     )
   }
-
-  if (props.href && isKnownNavigationPath(props.href)) {
-    const [path, search] = props.href.split('?', 2)
-    const query = search ? Object.fromEntries(new URLSearchParams(search)) : undefined
-    return <NavigateToolInline input={{ path, query }} />
-  }
-
   // File-path links (`[SKILL.md](.agents/skills/gh-create-pr/SKILL.md)`, `[Design](./DESIGN.md)`,
   // `[README](README.md)`): a workspace file, not a web page. Keep the link's own text but route the
   // click to the host opener (which resolves the path against the workspace and routes dir vs file),

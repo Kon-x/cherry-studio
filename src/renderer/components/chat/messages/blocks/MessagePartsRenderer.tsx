@@ -38,7 +38,7 @@ import type { FileHandle } from '@shared/data/types/file'
 import type { CherryMessagePart, ContentReference, ReasoningUIPart } from '@shared/data/types/message'
 import type { CherryProviderMetadata, ComposerMessageSnapshot, ComposerMessageToken } from '@shared/data/types/uiParts'
 import { readCherryMeta } from '@shared/data/types/uiParts'
-import { getToolName, isDataUIPart, isFileUIPart, isToolUIPart } from 'ai'
+import { isDataUIPart, isFileUIPart, isToolUIPart } from 'ai'
 import { AnimatePresence, motion, type Variants } from 'motion/react'
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -52,14 +52,7 @@ import {
   useMessagePriorCitationParts,
   useMessageRenderConfig
 } from '../MessageListProvider'
-import {
-  getSessionToolTarget,
-  isReportArtifactsToolResponse,
-  MessageReportArtifacts,
-  SessionResultCards
-} from '../tools/agent'
-import MessageTools, { canRenderMessageTool } from '../tools/MessageTools'
-import { isAskUserQuestionToolName } from '../tools/shared/agentToolTypes'
+import MessageTools from '../tools/MessageTools'
 import { hasPartParentToolCallId } from '../tools/toolParentMetadata'
 import { buildToolResponseFromPart, type ToolRenderItem, type ToolResponseLike } from '../tools/toolResponse'
 import type { MessageListItem } from '../types'
@@ -268,7 +261,6 @@ interface RenderGroupedEntryOptions {
   citationProjectionByPart?: ReadonlyMap<CherryMessagePart, ResolvedCitationMarkers>
   readOnlyFilePreviews?: ReadonlyMap<string, ReadOnlyComposerFileTokenPreview>
   hiddenComposerTokens?: ReadonlySet<ComposerMessageToken>
-  onTextPlayoutSettledChange?: (partId: string, settled: boolean) => void
   onTextPartExpandedChange?: (partId: string, expanded: boolean) => void
   reasoningDisplay?: 'content' | 'disclosure'
   settleActiveTools?: boolean
@@ -292,10 +284,6 @@ function groupPartEntries(entries: readonly PartEntry[]): GroupedEntry[] {
         acc.push([entry])
       }
     } else if (isToolUIPart(part)) {
-      if (isAskUserQuestionToolName(getToolName(part))) {
-        acc.push(entry)
-        return acc
-      }
       const prev = acc[acc.length - 1]
       if (Array.isArray(prev) && isToolUIPart(prev[0].part)) {
         prev.push(entry)
@@ -533,7 +521,7 @@ function isPotentiallyVisibleEntry(entry: PartEntry, messageId: string): boolean
   }
   if (isToolUIPart(part)) {
     const toolResponse = getCachedToolProjection(part, `${messageId}-part-${entry.index}`).toolResponse
-    return !!toolResponse && (canRenderMessageTool(toolResponse) || isReportArtifactsToolResponse(toolResponse))
+    return !!toolResponse
   }
   if (partType === 'file') return !!(part as { url?: string }).url
   if (partType === 'data-video' || partType === 'data-error') return 'data' in part && !!part.data
@@ -679,7 +667,6 @@ function renderPart(
           readOnlyFilePreviews={options?.readOnlyFilePreviews}
           hiddenComposerTokens={options?.hiddenComposerTokens}
           userContentExpanded={message.role === 'user' ? options?.expandedTextPartIds?.has(partId) : undefined}
-          onPlayoutSettledChange={options?.onTextPlayoutSettledChange}
           onUserContentExpandedChange={
             message.role === 'user' && options?.onTextPartExpandedChange
               ? (expanded) => options.onTextPartExpandedChange?.(partId, expanded)
@@ -700,7 +687,6 @@ function renderPart(
           inlineHtmlPreviewMode={inlineHtmlPreviewMode}
           isStreaming={isStreaming}
           role={message.role}
-          onPlayoutSettledChange={options?.onTextPlayoutSettledChange}
         />
       )
     }
@@ -798,7 +784,7 @@ function getCachedToolProjection(part: CherryMessagePart, partId: string): Cache
 
   const toolResponse = buildToolResponseFromPart(part, partId)
   const projection: CachedToolProjection = { toolResponse }
-  if (toolResponse && canRenderMessageTool(toolResponse)) {
+  if (toolResponse) {
     projection.renderItem = { id: partId, toolResponse }
   }
   projectionsById.set(partId, projection)
@@ -843,18 +829,6 @@ function buildToolRenderItems(
     const renderItem = getCachedToolProjection(e.part, id).renderItem
     return renderItem ? [settleActiveTools ? settleToolRenderItem(renderItem) : renderItem] : []
   })
-}
-
-function getReportArtifactToolResponses(entries: readonly PartEntry[], messageId: string) {
-  return entries.flatMap((entry) => {
-    const toolResponse = getCachedToolProjection(entry.part, `${messageId}-part-${entry.index}`).toolResponse
-    return toolResponse && isReportArtifactsToolResponse(toolResponse) ? [toolResponse] : []
-  })
-}
-
-function isReportArtifactEntry(entry: PartEntry, messageId: string): boolean {
-  const toolResponse = getCachedToolProjection(entry.part, `${messageId}-part-${entry.index}`).toolResponse
-  return !!toolResponse && isReportArtifactsToolResponse(toolResponse)
 }
 
 function useStableItemArray<T>(items: T[]): T[] {
@@ -1010,14 +984,6 @@ function groupNestedHistoryEntries(entries: readonly PartEntry[]): NestedHistory
 
   for (const entry of entries) {
     if (isHiddenPart(entry.part)) continue
-
-    if (isToolUIPart(entry.part) && isAskUserQuestionToolName(getToolName(entry.part))) {
-      flushProcess()
-      flushContent()
-      result.push({ kind: 'content', key: entry.index, entry })
-      continue
-    }
-
     if ((entry.part.type as string) === 'reasoning' || isToolUIPart(entry.part)) {
       flushContent()
       processEntries.push(entry)
@@ -1268,15 +1234,7 @@ const MessageProcessLayout = React.memo(function MessageProcessLayout({
   message: MessageListItem
   renderOptions: RenderGroupedEntryOptions
 }) {
-  const projectedLiveItems = useMemo(
-    () =>
-      isActive
-        ? projectLiveMessageParts(entries).filter(
-            (item) => item.kind !== 'part' || !isReportArtifactEntry(item.entry, message.id)
-          )
-        : [],
-    [entries, isActive, message.id]
-  )
+  const projectedLiveItems = useMemo(() => (isActive ? projectLiveMessageParts(entries) : []), [entries, isActive])
   const liveProcessBoundary = useMemo(() => findLastLiveProcessBoundaryIndex(projectedLiveItems), [projectedLiveItems])
   // Preserve hard-boundary parts in the ordered process prefix; only the trailing result stays outside.
   const liveProcessItems = projectedLiveItems.slice(0, liveProcessBoundary + 1)
@@ -1452,9 +1410,6 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
     notifySuccess?.(t('translate.closed'))
   }, [message.id])
   const [expandedTextPartIds, setExpandedTextPartIds] = React.useState<ReadonlySet<string>>(() => new Set())
-  const [unsettledTextPlayoutPartIds, setUnsettledTextPlayoutPartIds] = React.useState<ReadonlySet<string>>(
-    () => new Set()
-  )
   const handleTextPartExpandedChange = React.useCallback((partId: string, expanded: boolean) => {
     setExpandedTextPartIds((current) => {
       const hasPartId = current.has(partId)
@@ -1469,41 +1424,11 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
       return next
     })
   }, [])
-  const handleTextPlayoutSettledChange = React.useCallback((partId: string, settled: boolean) => {
-    setUnsettledTextPlayoutPartIds((current) => {
-      const isUnsettled = current.has(partId)
-      if (isUnsettled === !settled) return current
-
-      const next = new Set(current)
-      if (settled) {
-        next.delete(partId)
-      } else {
-        next.add(partId)
-      }
-      return next
-    })
-  }, [])
-
   const partEntries = useMemo(
     () => messageParts.flatMap((part, index) => (hasPartParentToolCallId(part) ? [] : [{ part, index }])),
     [messageParts]
   )
   const placeholderStatus = useMemo(() => getProcessingPlaceholderStatus(partEntries), [partEntries])
-  const nextReportArtifactToolResponses = useMemo(
-    () => getReportArtifactToolResponses(partEntries, message.id),
-    [partEntries, message.id]
-  )
-  const reportArtifactToolResponses = useStableItemArray(nextReportArtifactToolResponses)
-  const sessionTargets = useMemo(
-    () =>
-      isActiveTurnProcessing
-        ? []
-        : buildToolRenderItems(partEntries, message.id, true).flatMap((item) => {
-            const target = getSessionToolTarget(item.toolResponse)
-            return target ? [target] : []
-          }),
-    [isActiveTurnProcessing, message.id, partEntries]
-  )
   const nextReadOnlyFilePreviews = useMemo(() => getReadOnlyFileTokenPreviews(messageParts), [messageParts])
   const readOnlyFilePreviews = useStableReadOnlyFilePreviews(nextReadOnlyFilePreviews)
   const visibleComposerFileTokens = useMemo(
@@ -1516,10 +1441,7 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
   )
   const displayEntries = displayProjection.entries
   const hasVisibleNonArtifactEntry = useMemo(
-    () =>
-      displayEntries.some(
-        (entry) => isPotentiallyVisibleEntry(entry, message.id) && !isReportArtifactEntry(entry, message.id)
-      ),
+    () => displayEntries.some((entry) => isPotentiallyVisibleEntry(entry, message.id)),
     [displayEntries, message.id]
   )
   // Settled tool parts keep their identity across streaming chunks, so citations only re-resolve
@@ -1550,7 +1472,6 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
       messageCitations,
       readOnlyFilePreviews,
       hiddenComposerTokens: displayProjection.hiddenImageTokens,
-      onTextPlayoutSettledChange: handleTextPlayoutSettledChange,
       onTextPartExpandedChange: handleTextPartExpandedChange,
       onRemoveTranslation: canRemoveTranslation ? handleRemoveTranslation : undefined
     }),
@@ -1559,22 +1480,18 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
       expandedTextPartIds,
       citationProjectionByPart,
       handleTextPartExpandedChange,
-      handleTextPlayoutSettledChange,
       handleRemoveTranslation,
       messageCitations,
       readOnlyFilePreviews,
       displayProjection.hiddenImageTokens
     ]
   )
-  const canRenderReportArtifacts =
-    !isActiveTurnProcessing && unsettledTextPlayoutPartIds.size === 0 && reportArtifactToolResponses.length > 0
-
   // No parts to render — normal for user messages (content is in message text, not parts)
   // But if the message is processing (pending/streaming), show the loading placeholder.
   // Report-artifact entries don't count as renderable here: the live layout filters
   // them out and the card itself is gated on canRenderReportArtifacts, so a message
   // whose only content is report_artifacts must keep its placeholder until the card can show.
-  if (partEntries.length === 0 || (!hasVisibleNonArtifactEntry && !canRenderReportArtifacts)) {
+  if (partEntries.length === 0 || !hasVisibleNonArtifactEntry) {
     if (isActiveTurnProcessing) {
       const placeholder = (
         <AnimatedBlockWrapper key="message-loading-placeholder" enableAnimation={true}>
@@ -1605,16 +1522,6 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
         renderOptions={renderOptions}
       />
       {isActiveTurnProcessing && activeTurnStatus?.(null)}
-      {unsettledTextPlayoutPartIds.size === 0 && sessionTargets.length > 0 && (
-        <AnimatedBlockWrapper key={`session-results-${message.id}`} enableAnimation={false} animation="fade">
-          <SessionResultCards targets={sessionTargets} />
-        </AnimatedBlockWrapper>
-      )}
-      {canRenderReportArtifacts && (
-        <AnimatedBlockWrapper key={`report-artifacts-${message.id}`} enableAnimation={false} animation="fade">
-          <MessageReportArtifacts toolResponses={reportArtifactToolResponses} />
-        </AnimatedBlockWrapper>
-      )}
     </AnimatePresence>
   )
 })

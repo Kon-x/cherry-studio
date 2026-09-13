@@ -1,24 +1,10 @@
 import type { CommandContextMenuExtraItem } from '@renderer/components/command'
 import type { ReactNode } from 'react'
 
-export interface SidebarMiniApp {
-  id: string
-  color?: string
-  url?: string
-  logo?: string
-}
-
-export interface SidebarMiniAppTab {
-  title: string
-  miniApp: SidebarMiniApp
-}
-
 /** The active-route state a resolved entry matches itself against. */
 export interface SidebarActiveState {
   /** Active built-in app id. */
   activeItem: string
-  /** Active mini app id (concrete mini app route). */
-  activeTabId?: string
 }
 
 /**
@@ -32,7 +18,7 @@ export interface ResolvedSidebarEntry {
   /** Stable identity — react key and reorder-matching key (`${type}:${id}`). */
   key: string
   label: string
-  renderIcon: (size: number, miniAppSize: 'md' | 'lg') => ReactNode
+  renderIcon: (size: number, entityIconSize: 'md' | 'lg') => ReactNode
   isActive: (active: SidebarActiveState) => boolean
   onOpen: () => void
   onOpenNewTab?: () => void

@@ -13,6 +13,7 @@ import { ipcApi, useIpcOn } from '@renderer/ipc'
 import { TabLruManager } from '@renderer/services/TabLruManager'
 import { getDefaultRouteTitle, isPageTitledRoute, isTopLevelRoute } from '@renderer/utils/routeTitle'
 import type { Tab, TabSavedState } from '@shared/data/cache/cacheValueTypes'
+import { isRetiredNavigationUrl } from '@shared/utils/navigationPath'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,78 +48,23 @@ function hibernateTab(tab: Tab, hibernatedIds: ReadonlySet<string>): Tab {
   return { ...tab, isDormant: true, savedState }
 }
 
-// Route no longer served — its orphaned pinned tabs are dropped on restore.
-const LEGACY_LIBRARY_ROUTE_PATH = '/app/library'
-// OpenClaw was folded into the Code page (its sidebar entry + `/app/openclaw` route were removed),
-// so an already-persisted OpenClaw pin is redirected here rather than restoring to a dead route.
-const LEGACY_OPENCLAW_ROUTE_PATH = '/app/openclaw'
-const CODE_ROUTE_PATH = '/app/code'
-
-function routePathOfTab(tab: Tab): string | null {
-  if (tab.type !== 'route') return null
-  try {
-    return new URL(tab.url, 'https://www.cherry-ai.com').pathname
-  } catch {
-    return null
-  }
+function isRestorableTab(tab: Tab): boolean {
+  return tab.type === 'route' && !tab.metadata?.transientMiniApp && !isRetiredNavigationUrl(tab.url)
 }
 
-function isTransientMiniAppTab(tab: Tab): boolean {
-  return tab.metadata?.transientMiniApp === true
-}
-
-/**
- * Reconcile persisted pinned tabs against routes that have since been removed or relocated: drop
- * `/app/library` pins outright, and redirect `/app/openclaw` pins to `/app/code` (deduping so the
- * redirect never produces a second Code pin). `changed` is true when anything was dropped or
- * rewritten, signalling the caller to write the reconciled list back to the persistent cache.
- */
+/** Drop retired feature tabs without changing the remaining order or titles. */
 export function migratePinnedTabs(pinnedTabs: Tab[]): { tabs: Tab[]; changed: boolean } {
-  let hasCodePin = pinnedTabs.some((tab) => routePathOfTab(tab) === CODE_ROUTE_PATH)
-  const tabs: Tab[] = []
-  let changed = false
-  for (const tab of pinnedTabs) {
-    if (isTransientMiniAppTab(tab)) {
-      changed = true
-      continue
-    }
-    const path = routePathOfTab(tab)
-    if (path === LEGACY_LIBRARY_ROUTE_PATH) {
-      changed = true
-      continue
-    }
-    if (path === LEGACY_OPENCLAW_ROUTE_PATH) {
-      changed = true
-      if (hasCodePin) continue // a Code pin already exists — drop rather than duplicate it
-      hasCodePin = true
-      tabs.push({ ...tab, url: CODE_ROUTE_PATH, title: getDefaultRouteTitle(CODE_ROUTE_PATH) })
-      continue
-    }
-    tabs.push(tab)
-  }
-  return { tabs, changed }
+  const tabs = pinnedTabs.filter(isRestorableTab)
+  return { tabs, changed: tabs.length !== pinnedTabs.length }
 }
 
 function withLocalizedRouteTitle(tab: Tab): Tab {
   if (tab.type !== 'route') return tab
-  // Chat / agent tabs are page-titled (topic / session name + assistant / agent
-  // emoji set by their page) — never auto-localize, or the route title clobbers
-  // the page title even for the bare `/app/chat` default tab.
+  // Preserve the active topic title and assistant emoji supplied by the page.
   if (isPageTitledRoute(tab.url)) {
     return tab.title ? tab : { ...tab, title: getDefaultRouteTitle(tab.url) }
   }
-  // Only auto-localize titles for top-level and settings routes. Parameterized
-  // routes (e.g. /app/mini-app/<id>) preserve the title supplied at openTab
-  // time so callers can pass per-entity names like a mini-app's display name.
-  //
-  // The `home` tab follows the SAME rule — it must not be special-cased into an
-  // unconditional route-default title. When the home tab is reused for a
-  // per-entity route (e.g. opening a mini-app from the sidebar), forcing the
-  // route default here clobbers the caller-supplied title every render and
-  // fights MiniAppPage's title-sync effect, spinning into an infinite
-  // `updateTab` loop ("Maximum update depth exceeded"). On top-level / settings
-  // routes the branch below still relocalizes the home tab, so language changes
-  // are unaffected.
+  // Nested routes may supply their own per-entity title.
   if (!isTopLevelRoute(tab.url) && !isSettingsRouteTab(tab)) return tab
   return { ...tab, title: getDefaultRouteTitle(tab.url) }
 }
@@ -147,9 +93,10 @@ function computeInitialSession(params: {
   pinnedTabs: Tab[]
   persistedNormalTabs: Tab[]
   persistedActiveTabId: string
+  hadPinnedTabs: boolean
 }): InitialSession {
   const { includePinnedTabs, initialDefaultTab, pinnedTabs, persistedNormalTabs, persistedActiveTabId } = params
-  const restorableNormalTabs = persistedNormalTabs.filter((tab) => !isTransientMiniAppTab(tab))
+  const restorableNormalTabs = persistedNormalTabs.filter(isRestorableTab)
 
   const freshSession: InitialSession = {
     normalTabs: initialDefaultTab ? [initialDefaultTab] : [],
@@ -162,13 +109,22 @@ function computeInitialSession(params: {
 
   const pinnedHasActive = !!persistedActiveTabId && pinnedTabs.some((t) => t.id === persistedActiveTabId)
 
+  if (
+    restorableNormalTabs.length === 0 &&
+    pinnedTabs.length === 0 &&
+    (persistedNormalTabs.length > 0 || params.hadPinnedTabs)
+  ) {
+    const fallback = createLaunchpadFallbackTab()
+    return { normalTabs: [fallback], pinnedTabs: [], activeTabId: fallback.id }
+  }
+
   // Empty persisted session (incl. first-ever launch) → fresh default. If the last active tab was a
   // pinned one (no unpinned tabs were open), honor that selection — the default tab stays as a
   // dormant fallback so the user lands back on the pinned tab they left.
   if (restorableNormalTabs.length === 0) {
-    const activeTabId = pinnedHasActive ? persistedActiveTabId : (initialDefaultTab?.id ?? pinnedTabs[0]?.id ?? '')
+    const activeTabId = pinnedHasActive ? persistedActiveTabId : (pinnedTabs[0]?.id ?? initialDefaultTab?.id ?? '')
     return {
-      normalTabs: restoreTabs(freshSession.normalTabs, activeTabId),
+      normalTabs: persistedNormalTabs.length > 0 ? [] : restoreTabs(freshSession.normalTabs, activeTabId),
       pinnedTabs: restoreTabs(pinnedTabs, activeTabId),
       activeTabId
     }
@@ -244,6 +200,7 @@ export function TabsProvider({
       // Check the active-pinned tab against the migrated set that actually renders, not the raw
       // persisted pins — a pin dropped/redirected by migratePinnedTabs must not resolve as active.
       pinnedTabs: availablePinnedTabs,
+      hadPinnedTabs: restoredPinnedTabs.length > 0,
       persistedNormalTabs: persistedNormalTabs ?? [],
       persistedActiveTabId: persistedActiveTabId ?? ''
     })
@@ -280,7 +237,7 @@ export function TabsProvider({
   // coalesces redundant writes.
   useEffect(() => {
     if (!includePinnedTabs) return
-    setPersistedNormalTabs(normalTabs.filter((tab) => !isTransientMiniAppTab(tab)))
+    setPersistedNormalTabs(normalTabs.filter(isRestorableTab))
   }, [includePinnedTabs, normalTabs, setPersistedNormalTabs])
 
   useEffect(() => {
@@ -540,7 +497,7 @@ export function TabsProvider({
   const pinTab = useCallback(
     (id: string) => {
       const tab = tabs.find((t) => t.id === id)
-      if (!tab || tab.isPinned || isTransientMiniAppTab(tab)) return
+      if (!tab || tab.isPinned || !isRestorableTab(tab)) return
 
       // Remove from normalTabs
       setNormalTabs((prev) => prev.filter((t) => t.id !== id))

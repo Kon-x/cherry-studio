@@ -8,7 +8,6 @@
 
 import { application } from '@application'
 import { mcpServerTable } from '@data/db/schemas/mcpServer'
-import { agentService } from '@data/services/AgentService'
 import { loggerService } from '@logger'
 import { DataApiErrorFactory } from '@shared/data/api/errors'
 import type { CreateMcpServerDto, ListMcpServersQuery, UpdateMcpServerDto } from '@shared/data/api/schemas/mcpServers'
@@ -192,10 +191,7 @@ export class McpServerService {
    */
   delete(id: string): void {
     this.getById(id)
-
-    let affectedAgentIds: string[] = []
     application.get('DbService').withWriteTx((tx) => {
-      affectedAgentIds = agentService.removeMcpFromAllAgentsTx(tx, id)
       tx.delete(mcpServerTable).where(eq(mcpServerTable.id, id)).run()
     })
 
@@ -203,16 +199,6 @@ export class McpServerService {
     // best-effort post-commit refresh (fresh reads) whose failure must NOT
     // reject delete() — the server row is already gone. Log the un-refreshed
     // agents so warm sessions can be reconciled, then swallow.
-    try {
-      agentService.emitAgentUpdatedForIds(affectedAgentIds, 'mcps')
-    } catch (error) {
-      logger.error('MCP server deleted but agent refresh failed; affected agents may retain stale tool policy', {
-        mcpServerId: id,
-        affectedAgentIds,
-        error
-      })
-    }
-
     logger.info('Deleted MCP server', { id })
   }
 

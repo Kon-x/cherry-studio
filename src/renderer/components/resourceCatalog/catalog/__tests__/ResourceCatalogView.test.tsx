@@ -92,11 +92,6 @@ vi.mock('@renderer/components/resourceCatalog/dialogs/skill', () => {
   }
 })
 
-vi.mock('@renderer/hooks/agent/useAgentModelFilter', () => ({
-  useAgentModelFilter: () => () => true,
-  useAgentModelDisabled: () => () => false
-}))
-
 vi.mock('@renderer/hooks/resourceCatalog/useResourceCatalogController', () => ({
   useResourceCatalogController: resourceCatalogControllerMock
 }))
@@ -177,50 +172,6 @@ describe('ResourceCatalogView', () => {
     resourceCatalogControllerMock.mockReturnValue(createController())
   })
 
-  it('loads dialog implementations only after activation and keeps the dialog host mounted', async () => {
-    const inactiveController = createController()
-    resourceCatalogControllerMock.mockReturnValue(inactiveController)
-    const { rerender } = render(<ResourceCatalogView resourceType="assistant" />)
-
-    expect(dialogImplementationsLoadedMock).not.toHaveBeenCalled()
-
-    resourceCatalogControllerMock.mockReturnValue({
-      ...inactiveController,
-      dialogs: {
-        ...inactiveController.dialogs,
-        createDialogKind: 'assistant',
-        createDialogOpen: true
-      }
-    })
-    rerender(<ResourceCatalogView resourceType="assistant" />)
-
-    expect(await screen.findByTestId('resource-create-wizard')).toHaveAttribute('data-kind', 'assistant')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('create')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('detail')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('edit')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('import')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('skill')
-    expect(dialogImplementationsLoadedMock).toHaveBeenCalledWith('assistant-library')
-
-    resourceCatalogControllerMock.mockReturnValue(inactiveController)
-    rerender(<ResourceCatalogView resourceType="assistant" />)
-
-    expect(screen.queryByTestId('resource-create-wizard')).not.toBeInTheDocument()
-    expect(resourceCreateWizardMock).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }))
-
-    resourceCatalogControllerMock.mockReturnValue({
-      ...inactiveController,
-      dialogs: {
-        ...inactiveController.dialogs,
-        selectedSkill: { id: 'skill-1' } as never
-      }
-    })
-    rerender(<ResourceCatalogView resourceType="assistant" />)
-
-    expect(await screen.findByTestId('skill-detail-dialog')).toHaveAttribute('data-skill-id', 'skill-1')
-    expect(skillDetailDialogMock).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }))
-  })
-
   it('keeps toolbar leading in the resource grid success state', () => {
     render(
       <ResourceCatalogView resourceType="assistant" toolbarLeading={<button type="button">Toggle sidebar</button>} />
@@ -245,23 +196,5 @@ describe('ResourceCatalogView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
     expect(refetchMock).toHaveBeenCalledOnce()
-  })
-
-  it('opens system skill management without agent enablement semantics', async () => {
-    const controller = createController()
-    resourceCatalogControllerMock.mockReturnValue({
-      ...controller,
-      dialogs: {
-        ...controller.dialogs,
-        systemSkillOpen: true
-      }
-    })
-
-    render(<ResourceCatalogView resourceType="skill" />)
-
-    expect(resourceGridMock).toHaveBeenCalledWith(expect.objectContaining({ onOpenSystemSkills: expect.any(Function) }))
-    await vi.waitFor(() =>
-      expect(systemSkillDialogMock).toHaveBeenCalledWith(expect.objectContaining({ mode: 'manage' }))
-    )
   })
 })

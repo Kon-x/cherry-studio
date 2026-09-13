@@ -6,11 +6,6 @@ const moduleMocks = vi.hoisted(() => ({
   assistantLoaded: vi.fn()
 }))
 
-vi.mock('../AgentHistoryRecords', () => {
-  moduleMocks.agentLoaded()
-  return { default: () => <div>Agent history implementation</div> }
-})
-
 vi.mock('../AssistantHistoryRecords', () => {
   moduleMocks.assistantLoaded()
   return { default: () => <div>Assistant history implementation</div> }
@@ -35,9 +30,4 @@ it('loads neither implementation while closed and only the selected implementati
   expect(await screen.findByText('Assistant history implementation')).toBeInTheDocument()
   expect(moduleMocks.assistantLoaded).toHaveBeenCalledOnce()
   expect(moduleMocks.agentLoaded).not.toHaveBeenCalled()
-
-  rerender(<HistoryRecordsView {...props} mode="agent" open />)
-
-  expect(await screen.findByText('Agent history implementation')).toBeInTheDocument()
-  expect(moduleMocks.agentLoaded).toHaveBeenCalledOnce()
 })

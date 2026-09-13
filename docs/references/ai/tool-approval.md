@@ -2,7 +2,6 @@
 description: Main-as-writer tool approval through ai.tool.respond_approval, approval-requested parts, and persistent MCP decisions
 sources:
   - src/main/ai/AiService.ts
-  - src/main/ai/agentSession/AgentSessionRuntimeService.ts
   - src/main/ipc/handlers/ai.ts
   - src/renderer/hooks/useToolApprovalBridge.ts
   - src/renderer/components/chat/messages/tools/hooks/useToolApproval.ts
@@ -22,8 +21,7 @@ persists, and resumes the stream.
 1. **Tool needs approval** — at `execute` time, the wrapper checks
    `tool.needsApproval` and the assistant's auto-approve policy. If
    approval is required, the wrapper writes an `approval-requested` part
-   and resolves the tool's promise into a held state (agent-session runtime:
-   holds its registered approval; MCP: stream pauses on the approval part).
+   and pauses the stream on that approval part.
 
 2. **Stream pauses** — `AiStreamManager` transitions the topic to
    `awaiting-approval`. The `topic.stream.statuses.<topicId>` shared-cache
@@ -35,23 +33,11 @@ persists, and resumes the stream.
    calls `ipcApi.request('ai.tool.respond_approval', ...)` with `approvalId`,
    `approved`, optional `reason` / `updatedInput`, `topicId`, `anchorId`.
 
-4. **Main applies** — the IpcApi handler in `src/main/ipc/handlers/ai.ts`
-   delegates to `AiService.respondToolApproval`, which branches on transport
-   **before** touching the topic-message DB:
-   - **Agent-session registry path**: hands the decision to
-     `AgentSessionRuntimeService.respondToolApproval`, which settles any
-     persisted interaction card and dispatches the live approval registry
-     entry so the existing runtime proceeds. When a live entry handles it, the handler
-     **early-returns — no DB read happens** (and `topicId` / `anchorId`
-     are not required).
-   - **MCP path** (reached only when no live entry matched; requires
-     `topicId` + `anchorId`): reads the anchor message's current `parts`
-     from DB, applies the decision, and **writes only when the target
-     `approval-requested` part is present on the DB row** — guarding the
-     overlay-only case (approval received before the part has persisted).
-     When all approvals on the turn are decided it dispatches a synthetic
-     `continue-conversation` request through `dispatchStreamRequest`; the
-     provider applies the decision when it reads parts.
+4. **Main applies** — the IpcApi handler delegates to `AiService.respondToolApproval`.
+   It requires `topicId` and `anchorId`, waits for terminal persistence, and applies the decision
+   to the DB-authoritative anchor with `MessageService.applyToolApprovalDecisions`. Duplicate
+   decisions do not start another continuation. Once every approval on the row is decided,
+   Main dispatches `continue-conversation` through the ordinary chat executor.
 
 5. **Awaiting-approval clears** — the moment the continue stream
    broadcasts `pending`, the shared-cache entry flips back. Every window
@@ -64,8 +50,7 @@ persists, and resumes the stream.
 exposes an `autoApprove` action **only for MCP tools** — when an `mcpTool`
 descriptor is passed. It persists the opt-out by PATCHing the server's
 `disabledAutoApproveTools`, so the MCP settings page reflects it and
-subsequent calls of that tool skip the approval card. There is no generic
-per-tool default for non-MCP agent-runtime tools.
+subsequent calls of that tool skip the approval card.
 
 ## Why this design
 

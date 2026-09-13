@@ -304,53 +304,6 @@ describe('QuickPhrasesToolRuntime', () => {
     )
   })
 
-  it('labels the current Agent prompt management action without changing its target', async () => {
-    const launcher = createLauncherApi()
-    const agentId = 'agent-1'
-
-    render(<QuickPhrasesToolRuntime launcher={launcher} setInputValue={vi.fn()} agentId={agentId} />)
-
-    await waitFor(() => expect(launcher.registerLaunchers).toHaveBeenCalled())
-    expect(mocks.useQuery).toHaveBeenCalledWith('/prompts', {
-      enabled: false,
-      swrOptions: { keepPreviousData: false },
-      query: { targetType: 'agent', targetId: agentId, includeGlobal: true }
-    })
-
-    const [quickPhrasesLauncher] = vi.mocked(launcher.registerLaunchers).mock.calls[0][0]
-    act(() => {
-      quickPhrasesLauncher.action?.({
-        parentPanel: { list: [], symbol: '/' },
-        queryAnchor: 0,
-        quickPanel: {} as never,
-        source: 'root-panel',
-        triggerInfo: { type: 'button' }
-      })
-    })
-
-    await waitFor(() =>
-      expect(mocks.useQuery).toHaveBeenCalledWith('/prompts', {
-        enabled: true,
-        swrOptions: { keepPreviousData: false },
-        query: { targetType: 'agent', targetId: agentId, includeGlobal: true }
-      })
-    )
-
-    const footerActions = getRegisteredFooterActions(launcher)
-    const manageItem = footerActions.find(
-      (item: { ariaLabel: string }) => item.ariaLabel === 'settings.prompts.manageCurrentAgent'
-    )!
-    act(() => {
-      manageItem.action({} as never)
-    })
-
-    expect(mocks.openResourceEditDialog).toHaveBeenCalledWith({
-      kind: 'agent',
-      id: agentId,
-      initialTab: 'prompts'
-    })
-  })
-
   it('restores composer focus after closing the add prompt dialog opened from quick panel', async () => {
     const launcher = createLauncherApi()
     const inputAdapter = { focus: vi.fn() }

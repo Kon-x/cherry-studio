@@ -5,9 +5,7 @@ import mcpPromptTool from './definitions/mcpPromptTool'
 import mcpResourceTool from './definitions/mcpResourceTool'
 import mcpStatusTool from './definitions/mcpStatusTool'
 import noteReferenceTool from './definitions/noteReferenceTool'
-import permissionModeTool from './definitions/permissionModeTool'
 import quickPhrasesTool from './definitions/quickPhrasesTool'
-import slashCommandsTool from './definitions/slashCommandsTool'
 import webSearchTool from './definitions/webSearchTool'
 import type { ComposerToolScope, ToolContext, ToolDefinition } from './types'
 
@@ -23,8 +21,6 @@ export const BUILTIN_COMPOSER_TOOLS: ToolDefinition<any, any>[] = [
   webSearchTool,
   knowledgeBaseTool,
   generateImageTool,
-  slashCommandsTool,
-  permissionModeTool,
   mcpStatusTool,
   mcpPromptTool,
   mcpResourceTool,

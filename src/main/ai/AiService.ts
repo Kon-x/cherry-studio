@@ -26,7 +26,6 @@ import { BaseService, DependsOn, Injectable, Phase, ServicePhase } from '@main/c
 import { messageService } from '@main/data/services/MessageService'
 import { modelService } from '@main/data/services/ModelService'
 import { providerService } from '@main/data/services/ProviderService'
-import { installBuiltinSkills } from '@main/utils/builtinSkills'
 import { downloadImageAsBase64 } from '@main/utils/downloadAsBase64'
 import type { CompactionSink } from '@shared/ai/compaction'
 import type { AiToolApprovalRespondRequest, AiToolApprovalRespondResponse } from '@shared/ai/transport'
@@ -47,7 +46,6 @@ import {
   type UIMessageChunk
 } from 'ai'
 
-import { isAgentSessionTopic } from './agentSession/topic'
 import { createAnalyticsHook } from './hooks/analyticsHook'
 import { createAiUsagePlugin } from './hooks/billingHook'
 import { resolveAttachmentBudget } from './messages/attachmentBudget'
@@ -72,7 +70,6 @@ import {
   createRetryableWrap,
   readRetryPolicy
 } from './runtime/aiSdk'
-import { skillService } from './skills/SkillService'
 import { type MessageRuntimeTimingSink, WebContentsListener } from './streamManager'
 import { resolveModelTokenDialect } from './tokens/dialect'
 import { registerBuiltinTools } from './tools/adapters/aiSdk/builtin/registerBuiltinTools'
@@ -82,7 +79,6 @@ import type {
   AiStreamRequest,
   AiTransportOptions,
   AppProviderSettingsMap,
-  InProcessUsageContext,
   ListModelsRequest
 } from './types'
 import { installProviderUserAgentInterceptor } from './utils/customFetch'
@@ -247,7 +243,6 @@ export type AsInProcess<T extends AiRequest> = Omit<T, 'requestOptions'> & {
 
 /** Chat requests additionally carry the turn's correlation and the stream manager's sinks. */
 export type AsInProcessChat<T extends AiChatRequest> = AsInProcess<T> & {
-  usageContext?: InProcessUsageContext
   runtimeTimingSink?: MessageRuntimeTimingSink
   /**
    * Emits compaction lifecycle events as `data-compaction-anchor` chunks.
@@ -392,15 +387,6 @@ export class AiService extends BaseService {
     // always runs after builtin skills have synced to agent_global_skill this boot,
     // regardless of whether the install succeeded. Fire-and-forget as a pair so
     // neither blocks init.
-    void installBuiltinSkills()
-      .catch((error) => {
-        logger.error('Failed to install built-in skills', error as Error)
-      })
-      .then(() =>
-        skillService.reconcileSkills().catch((error) => {
-          logger.error('Failed to reconcile skills', error)
-        })
-      )
     logger.info('AiService initialized')
   }
 
@@ -416,17 +402,6 @@ export class AiService extends BaseService {
   ): Promise<AiToolApprovalRespondResponse> {
     // Claude-Agent path: the runtime settles any persisted interaction card, then unblocks
     // the exact `canUseTool` invocation that issued this approval id.
-    const dispatched = application.get('AgentSessionRuntimeService').respondToolApproval(
-      payload.approvalId,
-      {
-        approved: payload.approved,
-        reason: payload.reason,
-        updatedInput: payload.updatedInput
-      },
-      payload.anchorId
-    )
-    if (dispatched) return { ok: true }
-
     // MCP path: write decisions to DB, then dispatch continue-conversation when nothing is pending.
     if (!payload.topicId || !payload.anchorId) {
       logger.warn('Tool-approval response had no live registry entry and no anchor context', {
@@ -550,19 +525,6 @@ export class AiService extends BaseService {
     if (!signal) {
       throw new Error('streamText requires requestOptions.signal — no AbortController was attached by the caller')
     }
-
-    if (request.runtime?.kind === 'agent-session') {
-      return application.get('AgentSessionRuntimeService').openTurnStream({
-        sessionId: request.runtime.sessionId,
-        turnId: request.runtime.turnId,
-        signal
-      })
-    }
-
-    if (isAgentSessionTopic(request.conversation.topicId)) {
-      throw new Error(`Agent session stream ${request.conversation.topicId} requires an agent-session runtime request`)
-    }
-
     const repairUsagePlugins: { current?: AiPlugin[] } = {}
     const {
       sdkConfig,
@@ -585,14 +547,8 @@ export class AiService extends BaseService {
       credentialReceipt,
       // Agent turns win FIRST, `null` included — `usageContext` means "already decided", so a
       // `??` here would attribute a deliberately-anonymous agent turn to some assistant.
-      source: request.usageContext
-        ? request.usageContext.source
-        : (request.source ?? sourceSnapshotForAssistant(assistant)),
-      messageRef: request.usageContext
-        ? { kind: 'agent-session', id: request.usageContext.assistantMessageId }
-        : request.messageId
-          ? { kind: 'chat', id: request.messageId }
-          : null
+      source: request.source ?? sourceSnapshotForAssistant(assistant),
+      messageRef: request.messageId ? { kind: 'chat', id: request.messageId } : null
     })
     const usagePlugin = createAiUsagePlugin(usageContext)
     repairUsagePlugins.current = [usagePlugin]

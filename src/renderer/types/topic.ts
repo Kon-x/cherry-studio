@@ -1,8 +1,7 @@
 import type { Message } from './newMessage'
 
 export enum TopicType {
-  Chat = 'chat',
-  Session = 'session'
+  Chat = 'chat'
 }
 
 export type Topic = {

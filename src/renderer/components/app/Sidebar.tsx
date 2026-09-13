@@ -1,14 +1,11 @@
 import { usePersistCache } from '@data/hooks/useCache'
 import { usePreference } from '@data/hooks/usePreference'
 import { arrayMove } from '@dnd-kit/sortable'
-import { useAgents } from '@renderer/hooks/agent/useAgent'
 import { useTabs } from '@renderer/hooks/tab'
 import { useAssistantsApi } from '@renderer/hooks/useAssistant'
 import useAvatar from '@renderer/hooks/useAvatar'
-import { useMiniApps } from '@renderer/hooks/useMiniApps'
 import { useSidebarFavorites } from '@renderer/hooks/useSidebarFavorites'
 import { openSettingsTab } from '@renderer/services/mainWindowNavigation'
-import { MINI_APP_ROUTE_PREFIX, miniAppIdFromTabUrl } from '@renderer/utils/miniAppKeepAlive'
 import { getDefaultRouteTitle } from '@renderer/utils/routeTitle'
 import type { SidebarAppId } from '@renderer/utils/sidebar'
 import {
@@ -46,30 +43,15 @@ export default function Sidebar({
 }) {
   const { t } = useTranslation()
   const [userName] = usePreference('app.user.name')
-  const {
-    favorites,
-    appFavorites,
-    miniAppFavoriteIds,
-    agentFavoriteIds,
-    assistantFavoriteIds,
-    setAppPinned,
-    removeMiniApp,
-    removeAgent,
-    removeAssistant,
-    reorderFavorites
-  } = useSidebarFavorites()
-  const { activeTab, tabs, updateTab, openTab, setActiveTab } = useTabs()
-  const { miniApps, pinned } = useMiniApps({ enabled: miniAppFavoriteIds.length > 0 })
-  const { agents } = useAgents({ enabled: agentFavoriteIds.length > 0 })
+  const { favorites, appFavorites, assistantFavoriteIds, setAppPinned, removeAssistant, reorderFavorites } =
+    useSidebarFavorites()
+  const { activeTab, updateTab, openTab } = useTabs()
   const { assistants } = useAssistantsApi({ enabled: assistantFavoriteIds.length > 0 })
   const [defaultPaintingProvider] = usePreference('feature.paintings.default_provider')
   // Pinned entity rows render through the same icon renderers as their rails, so they
   // follow the same icon-type preferences instead of always showing the emoji.
   const [assistantIconType] = usePreference('assistant.icon_type')
-  const [agentIconType] = usePreference('agent.icon_type')
   const [defaultModelId] = usePreference('chat.default_model_id')
-
-  const installedAgents = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents])
   const installedAssistants = useMemo(
     () => new Map(assistants.map((assistant) => [assistant.id, assistant])),
     [assistants]
@@ -124,18 +106,6 @@ export default function Sidebar({
 
   // Menu items
   const pathname = activeTab?.url || '/'
-  const activeMiniAppId = miniAppIdFromTabUrl(activeTab?.url) ?? undefined
-  const openableMiniAppById = useMemo(() => {
-    const appById = new Map<string, (typeof miniApps)[number]>()
-    for (const app of miniApps) {
-      appById.set(app.appId, app)
-    }
-    for (const app of pinned) {
-      appById.set(app.appId, app)
-    }
-    return appById
-  }, [miniApps, pinned])
-
   const handleRemoveSidebarFavorite = useCallback(
     (favorite: SidebarAppId) => {
       setAppPinned(favorite, false)
@@ -156,13 +126,6 @@ export default function Sidebar({
 
       if (activeTab?.isPinned) {
         openTab(path, { forceNew: true, title, icon: options?.icon })
-        return
-      }
-
-      // Keep a Mini App's owning tab intact when leaving it so the global
-      // WebView pool can preserve the guest instead of treating it as closed.
-      if (miniAppIdFromTabUrl(activeTab?.url)) {
-        openTab(path, { title, icon: options?.icon })
         return
       }
 
@@ -211,44 +174,8 @@ export default function Sidebar({
     setFeedbackDialogMounted(true)
     setFeedbackOpen(true)
   }, [])
-
-  const handleOpenMiniAppTab = useCallback(
-    (appId: string, options?: { inNewTab?: boolean }) => {
-      const app = openableMiniAppById.get(appId)
-      if (!app) return
-
-      const path = `${MINI_APP_ROUTE_PREFIX}${app.appId}`
-      const title = app.nameKey ? t(app.nameKey) : app.name
-      // Uploaded logo → main-resolved `logoSrc`; preset key → `logo`.
-      const icon = app.logoSrc ?? app.logo
-      if (options?.inNewTab) {
-        navigateRouteTab(path, title, { ...options, icon })
-        return
-      }
-
-      if (activeTab?.url === path) return
-
-      const existingTab = tabs.find((tab) => tab.type === 'route' && tab.url === path)
-      if (existingTab) {
-        setActiveTab(existingTab.id)
-        return
-      }
-
-      navigateRouteTab(path, title, { ...options, icon })
-    },
-    [activeTab, navigateRouteTab, openableMiniAppById, setActiveTab, t, tabs]
-  )
-
-  // Pinned entities reuse tabs like mini apps do; the route interceptor turns the
+  // Pinned assistants reuse tabs; the route interceptor turns the
   // `agentId` / `assistantId` param into that entity's most recent conversation.
-  const handleOpenAgentTab = useCallback(
-    (agentId: string, options?: { inNewTab?: boolean }) => {
-      const agent = installedAgents.get(agentId)
-      if (!agent) return
-      navigateRouteTab(`/app/agents?agentId=${encodeURIComponent(agentId)}`, agent.name, options)
-    },
-    [installedAgents, navigateRouteTab]
-  )
   const handleOpenAssistantTab = useCallback(
     (assistantId: string, options?: { inNewTab?: boolean }) => {
       const assistant = installedAssistants.get(assistantId)
@@ -264,45 +191,31 @@ export default function Sidebar({
     () => ({
       t,
       defaultPaintingProvider,
-      installedMiniApps: openableMiniAppById,
-      installedAgents,
       installedAssistants,
       assistantIconType,
-      agentIconType,
       defaultModelId,
       visibleAppCount: appFavorites.length,
       openApp: handleNavigate,
-      openMiniApp: handleOpenMiniAppTab,
-      openAgent: handleOpenAgentTab,
       openAssistant: handleOpenAssistantTab,
       removeApp: handleRemoveSidebarFavorite,
-      removeMiniApp,
-      removeAgent,
       removeAssistant
     }),
     [
       t,
       defaultPaintingProvider,
-      openableMiniAppById,
-      installedAgents,
       installedAssistants,
       assistantIconType,
-      agentIconType,
       defaultModelId,
       appFavorites.length,
       handleNavigate,
-      handleOpenMiniAppTab,
-      handleOpenAgentTab,
       handleOpenAssistantTab,
       handleRemoveSidebarFavorite,
-      removeMiniApp,
-      removeAgent,
       removeAssistant
     ]
   )
 
-  // One continuous list: built-in apps and mini apps interleaved in their stored
-  // favorites order. Unrenderable rows (no route/icon, or an uninstalled mini app)
+  // One continuous list: built-in apps and assistants interleaved in their stored
+  // favorites order. Unrenderable rows (no route/icon, or a deleted assistant)
   // are dropped here but stay in the preference.
   const entries = useMemo(
     () =>
@@ -359,7 +272,7 @@ export default function Sidebar({
   const sidebarProps = {
     isFullscreen,
     entries,
-    active: { activeItem, activeTabId: activeMiniAppId },
+    active: { activeItem, activeTabId: undefined },
     title: sidebarUser.name,
     logo: sidebarLogo,
     onHeaderClick: sidebarUser.onClick,

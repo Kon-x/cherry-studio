@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import { FileSearch, Globe, Image, Paperclip, Pointer, Zap } from 'lucide-react'
+import { FileSearch, Globe, Image, Paperclip, Zap } from 'lucide-react'
 
 import { type ComposerToolScope, type ToolComposerToolbarContribution, TopicType } from './types'
 
@@ -21,7 +21,7 @@ export const ATTACHMENT_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition = {
     icon: <Paperclip />
   },
   label: (t) => t('chat.input.upload.attachment'),
-  visibleInScopes: [TopicType.Chat, TopicType.Session, 'quick-assistant', 'painting']
+  visibleInScopes: [TopicType.Chat, 'quick-assistant', 'painting']
 }
 
 export const GENERATE_IMAGE_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition = {
@@ -54,7 +54,7 @@ export const KNOWLEDGE_BASE_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition 
     icon: <FileSearch />
   },
   label: (t) => t('chat.input.knowledge_base'),
-  visibleInScopes: [TopicType.Chat, TopicType.Session]
+  visibleInScopes: [TopicType.Chat]
 }
 
 export const QUICK_PHRASES_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition = {
@@ -65,18 +65,7 @@ export const QUICK_PHRASES_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition =
     icon: <Zap />
   },
   label: (t) => t('settings.prompts.title'),
-  visibleInScopes: [TopicType.Chat, TopicType.Session, 'quick-assistant', 'painting']
-}
-
-export const PERMISSION_MODE_TOOLBAR_MANIFEST: ComposerToolbarManifestDefinition = {
-  toolbar: {
-    id: 'permission-mode',
-    kind: 'group',
-    order: 80,
-    icon: <Pointer size={18} color="#00b96b" />
-  },
-  label: (t) => t('agent.settings.permissionMode.title', 'Permission Mode'),
-  visibleInScopes: [TopicType.Session]
+  visibleInScopes: [TopicType.Chat, 'quick-assistant', 'painting']
 }
 
 const COMPOSER_TOOLBAR_MANIFESTS: ComposerToolbarManifestDefinition[] = [
@@ -84,8 +73,7 @@ const COMPOSER_TOOLBAR_MANIFESTS: ComposerToolbarManifestDefinition[] = [
   GENERATE_IMAGE_TOOLBAR_MANIFEST,
   WEB_SEARCH_TOOLBAR_MANIFEST,
   KNOWLEDGE_BASE_TOOLBAR_MANIFEST,
-  QUICK_PHRASES_TOOLBAR_MANIFEST,
-  PERMISSION_MODE_TOOLBAR_MANIFEST
+  QUICK_PHRASES_TOOLBAR_MANIFEST
 ]
 
 /**
