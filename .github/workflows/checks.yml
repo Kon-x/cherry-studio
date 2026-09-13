@@ -54,5 +54,25 @@ jobs:
       - name: Check database migrations
         run: pnpm db:migrations:check
 
+      - name: Protect shipped migrations
+        run: |
+          git fetch --no-tags --depth=1 origin refs/tags/v2.0.14-kx.1
+          git diff --exit-code --diff-filter=DMRT FETCH_HEAD -- migrations/sqlite-drizzle ':!migrations/sqlite-drizzle/meta/_journal.json'
+          node <<'NODE'
+          const assert = require('node:assert/strict')
+          const { execFileSync } = require('node:child_process')
+          const { readFileSync } = require('node:fs')
+          const journalPath = 'migrations/sqlite-drizzle/meta/_journal.json'
+          const shipped = JSON.parse(execFileSync('git', ['show', `FETCH_HEAD:${journalPath}`], { encoding: 'utf8' }))
+          const current = JSON.parse(readFileSync(journalPath, 'utf8'))
+          assert.deepEqual({ ...current, entries: current.entries.slice(0, shipped.entries.length) }, shipped)
+          NODE
+
+      - name: Generate migrations and check for schema drift
+        run: |
+          pnpm db:migrations:generate
+          git diff --exit-code -- migrations/sqlite-drizzle
+          test -z "$(git ls-files --others --exclude-standard -- migrations/sqlite-drizzle)"
+
       - name: Require a clean generated tree
         run: git diff --exit-code

@@ -86,10 +86,28 @@ git show -s --format=raw HEAD
 ```
 
 Prepare the fork version in a second signed commit. For upstream `x.y.z`, use `x.y.z-kx.n`, update bilingual notes,
-and run every check below. Open a PR to `main` and merge it with a merge commit;
+and open a PR to `main` for the CI verification below. Merge it with a merge commit;
 squash and rebase merges destroy the upstream ancestry used by the next sync.
 
 ## Verification
+
+Use the existing **Checks** and **Build Windows x64** PR workflows as the completion gate. Require both to succeed
+for the latest PR commit; an earlier successful run does not validate follow-up changes. A draft PR runs the same
+checks and build without publishing a release.
+
+- **Checks** retains the full test suite, formatting, types, translations, docs, strict lint, and fork invariants.
+  It checks the migration chain, protects the SQL, snapshots, and existing journal entries shipped in
+  `v2.0.14-kx.1`, then generates migrations and rejects tracked or untracked schema drift.
+- **Build Windows x64** builds natively on Windows and inspects `app.asar` plus its external resources for retired
+  SDKs, compiled runtimes, preloads, and bundled assets. Generic provider icons and historical data types are valid.
+  Playwright then exercises Chat/Launchpad, persisted streaming chat, MCP allow/deny, knowledge indexing and recall,
+  provider login session settings, HTML previews, and system-browser help links. Each Electron instance has a
+  temporary profile; model, embedding, MCP, and login traffic use local test services.
+- Failed Electron runs upload logs, screenshots, and traces as `electron-verification-<run-id>`. Windows builds
+  upload the validated installers and checksums. Setup and portable sizes are compared with `v2.0.14-kx.1` in
+  the Actions summary and `windows-x64-size-comparison-<run-id>` artifact, using release asset metadata.
+
+For local reproduction, use the pinned Node and pnpm versions and the corresponding commands:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -99,13 +117,16 @@ pnpm test
 pnpm docs:check
 pnpm test:lint
 pnpm db:migrations:check
+pnpm db:migrations:generate
+git status --short -- migrations/sqlite-drizzle
 pnpm build
-pnpm build:win:x64
+pnpm test:e2e
 ```
 
 Confirm the focused contracts: provider tombstones and manual recreation, batch deletion, web-grounded explanation,
-gateway rejection, retired navigation filtering, historical data retention, and dormant retired schedules. The PR `Build Windows x64` artifact must also
-contain exactly one setup installer, one portable executable, and one valid `latest.yml`.
+gateway rejection, retired navigation filtering, historical data retention, and dormant retired schedules. The PR
+`Build Windows x64` artifact must contain exactly one setup installer, one portable executable, and one valid
+`latest.yml`. Passing verification does not authorize merging or releasing; those are separate steps.
 
 ## Release
 

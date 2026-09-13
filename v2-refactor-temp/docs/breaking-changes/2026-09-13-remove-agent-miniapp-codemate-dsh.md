@@ -2,7 +2,7 @@
 title: Work, Mini Apps, Code Mate, and DSH removed from the fork
 category: removed
 severity: breaking
-introduced_in_pr: pending-local-change
+introduced_in_pr: 8
 date: 2026-09-13
 ---
 
@@ -20,4 +20,4 @@ Use ordinary Cherry chat or custom assistants, with MCP, web search, knowledge t
 
 ## Notes for release manager
 
-Supersedes the earlier Agent/mini-app/Code Mate feature notices for this fork. Keep all shipped SQLite migrations and historical file references. Replace `introduced_in_pr` with the resulting PR number or commit hash when the local change is published.
+Supersedes the earlier Agent/mini-app/Code Mate feature notices for this fork. Keep all shipped SQLite migrations and historical file references. See [fork PR #8](https://github.com/Kon-x/cherry-studio/pull/8).

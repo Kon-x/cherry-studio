@@ -88,6 +88,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Discover Electron tests
+        run: pnpm exec playwright test --list
+
       - name: Build Windows x64 without publishing
         shell: pwsh
         env:
@@ -96,6 +99,29 @@ jobs:
         run: |
           pnpm build
           pnpm exec electron-builder --win --x64 --publish never
+
+      - name: Inspect packaged feature boundaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package-validation | Out-Null
+          pnpm exec tsx scripts/check-retired-package.ts dist/win-unpacked/resources > package-validation/contents.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content package-validation/contents.json
+
+      - name: Test retained Electron workflows
+        run: pnpm test:e2e
+
+      - name: Upload Electron verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: electron-verification-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            package-validation/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Collect and validate release artifacts
         shell: pwsh
@@ -110,6 +136,41 @@ jobs:
           Copy-Item $setup[0].FullName, $portable[0].FullName, $updateManifest[0].FullName -Destination out-artifacts
           Copy-Item resources/cherry-studio/release-history.json -Destination out-artifacts
           pnpm exec tsx scripts/validate-windows-release.ts out-artifacts $env:VERSION
+
+      - name: Compare package sizes with v2.0.14-kx.1
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs')
+            const path = require('node:path')
+            const tag = 'v2.0.14-kx.1'
+            const { data: baseline } = await github.rest.repos.getReleaseByTag({ ...context.repo, tag })
+            const names = fs.readdirSync('out-artifacts')
+            const rows = ['setup', 'portable'].map(kind => {
+              const suffix = `-win-x64-${kind}.exe`
+              const previous = baseline.assets.filter(asset => asset.name.endsWith(suffix))
+              const current = names.filter(name => name.endsWith(suffix))
+              if (previous.length !== 1 || current.length !== 1) throw new Error(`Missing unique ${kind} comparison`)
+              const bytes = fs.statSync(path.join('out-artifacts', current[0])).size
+              const delta = bytes - previous[0].size
+              return { kind, baselineBytes: previous[0].size, currentBytes: bytes, deltaBytes: delta, percent: delta / previous[0].size * 100 }
+            })
+            fs.writeFileSync('package-validation/sizes.json', JSON.stringify({ baseline: tag, commit: context.sha, rows }, null, 2))
+            const mib = bytes => `${(bytes / 1024 ** 2).toFixed(2)} MiB`
+            await core.summary.addHeading('Windows x64 package size')
+              .addLink(`Baseline: ${tag}`, baseline.html_url)
+              .addTable([
+                ['Artifact', 'Baseline', 'This build', 'Change', 'Change (%)'].map(data => ({ data, header: true })),
+                ...rows.map(row => [row.kind, mib(row.baselineBytes), mib(row.currentBytes), mib(row.deltaBytes), `${row.percent.toFixed(2)}%`])
+              ]).write()
+
+      - name: Upload package size comparison
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-x64-size-comparison-${{ github.run_id }}
+          path: package-validation/sizes.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Generate SHA256 checksums
         shell: pwsh
