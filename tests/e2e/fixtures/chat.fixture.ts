@@ -56,7 +56,6 @@ export const test = base.extend<ChatFixtures>({
     await mainWindow.evaluate(async (modelId) => {
       await (window as unknown as { api: WindowApiType }).api.preference.set('chat.default_model_id', modelId)
     }, chat.id)
-    await mainWindow.reload()
     await use({ chat, embedding, assistant })
   }
 })

@@ -8,20 +8,24 @@ import { dataRequest, ipcRequest } from '../utils/ipc'
 import { uiLocator } from '../utils/ui-locator'
 
 async function sendMessage(page: Page, message: string) {
-  const input = uiLocator(page, 'part:composer-input').locator('[contenteditable="true"]')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const input = uiLocator(page, 'chat.composer')
+    .filter({ visible: true })
+    .locator('[data-ui~="part:composer-input"] [contenteditable="true"]')
   await input.fill(message)
   await input.press('Enter')
 }
 
 test('ordinary streamed chat remains readable after reloading', async ({ mainWindow, models }) => {
   await sendMessage(mainWindow, `Verify ordinary chat with ${models.chat.name}.`)
-  const reply = uiLocator(mainWindow, 'chat.message-list').getByText('Ordinary chat verification succeeded.', {
-    exact: true
-  })
+  const reply = uiLocator(mainWindow, 'chat.message-list')
+    .filter({ visible: true })
+    .getByText('Ordinary chat verification succeeded.', { exact: true })
   await expect(reply).toBeVisible({
     timeout: 30000
   })
-  await mainWindow.reload()
+  await expect(uiLocator(mainWindow, 'chat.composer.action.pause')).toHaveCount(0)
+  await mainWindow.reload({ waitUntil: 'domcontentloaded' })
   await expect(reply).toBeVisible()
 })
 
@@ -48,8 +52,6 @@ for (const decision of ['Allow', 'Deny'] as const) {
     })
     expect(await ipcRequest(mainWindow, 'mcp.server.check_connectivity', { serverId: server.id })).toBe(true)
     await ipcRequest(mainWindow, 'mcp.server.refresh_tools', { serverId: server.id })
-    await mainWindow.reload()
-
     await sendMessage(mainWindow, 'Use the verification MCP tool.')
     const allow = mainWindow.getByRole('button', { name: 'Allow', exact: true })
     await expect(allow).toBeVisible({ timeout: 30000 })
@@ -57,7 +59,9 @@ for (const decision of ['Allow', 'Deny'] as const) {
     await mainWindow.getByRole('button', { name: decision, exact: true }).click()
 
     const reply = decision === 'Allow' ? 'MCP verified after approval.' : 'MCP request was denied.'
-    await expect(uiLocator(mainWindow, 'chat.message-list').getByText(reply, { exact: true })).toBeVisible({
+    await expect(
+      uiLocator(mainWindow, 'chat.message-list').filter({ visible: true }).getByText(reply, { exact: true })
+    ).toBeVisible({
       timeout: 30000
     })
     const calls = await readFile(callsPath, 'utf8')

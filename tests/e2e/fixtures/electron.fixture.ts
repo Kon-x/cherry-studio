@@ -1,5 +1,5 @@
 import { appendFileSync } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -37,8 +37,9 @@ export const test = base.extend<ElectronFixtures>({
       CS_DEV_USER_DATA_SUFFIX: profileSuffix
     }
     delete env.ELECTRON_RUN_AS_NODE
-    const electronApp = await electron.launch({ args: ['.'], env, timeout: 60000 })
+    const electronApp = await electron.launch({ args: ['.', '--disable-gpu'], env, timeout: 60000 })
     const userData = await electronApp.evaluate(({ app }) => app.getPath('userData'))
+    const logsPath = await electronApp.evaluate(({ app }) => app.getPath('logs'))
     expect(path.basename(userData)).toContain(profileSuffix)
     electronApp.process().stdout?.on('data', (chunk) => appendFileSync(logPath, chunk))
     electronApp.process().stderr?.on('data', (chunk) => appendFileSync(logPath, chunk))
@@ -65,6 +66,7 @@ export const test = base.extend<ElectronFixtures>({
       }
       await electronApp.context().tracing.stop(failed ? { path: testInfo.outputPath('trace.zip') } : undefined)
       await electronApp.close()
+      if (failed) await cp(logsPath, testInfo.outputPath('main-logs'), { recursive: true })
       await rm(userData, { recursive: true, force: true, maxRetries: 3 })
       await rm(profile, { recursive: true, force: true, maxRetries: 3 })
     }

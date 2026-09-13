@@ -23,20 +23,24 @@ test('provider login keeps its isolated session, proxy, language and browser use
         )
       )
       .toBe(`PROXY ${new URL(server.url).host}`)
-    await electronApp.evaluate(({ session }, loginUrl) => {
-      session
-        .fromPartition('persist:webview')
-        .webRequest.onBeforeRequest({ urls: ['https://account.siliconflow.cn/oauth*'] }, (_details, callback) =>
-          callback({ redirectURL: loginUrl })
-        )
-    }, `${server.url}/login`)
+    await electronApp
+      .context()
+      .route(providerUrl, (route) => route.fulfill({ status: 302, headers: { location: `${server.url}/login` } }))
     const [login] = await Promise.all([
-      electronApp.waitForEvent('window'),
+      mainWindow.waitForEvent('popup'),
       mainWindow.evaluate((url) => {
         window.open(url, '_blank')
       }, providerUrl)
     ])
     await expect(login.getByRole('heading', { name: 'Provider login fixture' })).toBeVisible()
+    expect(
+      await electronApp.evaluate(
+        ({ BrowserWindow, session }, loginUrl) =>
+          BrowserWindow.getAllWindows().find((window) => window.webContents.getURL() === loginUrl)?.webContents
+            .session === session.fromPartition('persist:webview'),
+        `${server.url}/login`
+      )
+    ).toBe(true)
     const request = server.requests.find((request) => request.path === '/login')!
     expect(request.headers['accept-language']).toMatch(/^en-US/)
     expect(request.headers['user-agent']).not.toMatch(/Electron\/|CherryStudio\//)

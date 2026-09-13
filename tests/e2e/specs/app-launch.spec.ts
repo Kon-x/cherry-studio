@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures/electron.fixture'
 import { uiLocator } from '../utils/ui-locator'
 
 test('fresh profiles open Chat and the launchpad offers only the six retained apps', async ({ mainWindow }) => {
-  await expect(uiLocator(mainWindow, 'chat.composer')).toBeVisible()
+  await expect(uiLocator(mainWindow, 'chat.composer').filter({ visible: true })).toBeVisible()
   await uiLocator(mainWindow, 'app.tab-bar').getByRole('button', { name: 'Launchpad', exact: true }).click()
   const apps = mainWindow
     .locator('section')
@@ -18,7 +18,7 @@ test('fresh profiles open Chat and the launchpad offers only the six retained ap
     'Notes'
   ])
   await apps.getByRole('button', { name: 'Conversations', exact: true }).and(apps.locator('button')).click()
-  await expect(uiLocator(mainWindow, 'chat.composer')).toBeVisible()
+  await expect(uiLocator(mainWindow, 'chat.composer').filter({ visible: true })).toBeVisible()
 })
 
 test('help actions hand their destinations to the system browser', async ({ electronApp, mainWindow }) => {
