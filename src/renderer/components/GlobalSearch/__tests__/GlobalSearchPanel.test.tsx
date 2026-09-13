@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 
-import type {
-  EntitySearchResponse,
-  SessionMessageContentSearchItem,
-  TopicMessageContentSearchItem
-} from '@shared/data/api/schemas/search'
+import type { EntitySearchResponse, TopicMessageContentSearchItem } from '@shared/data/api/schemas/search'
 import type { GlobalSearchRecentEntry, Tab } from '@shared/data/cache/cacheValueTypes'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -30,7 +26,6 @@ const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
   queryResult: undefined as EntitySearchResponse | undefined,
   messageQueryResult: undefined as { items: TopicMessageContentSearchItem[]; nextCursor?: string } | undefined,
-  sessionMessageQueryResult: undefined as { items: SessionMessageContentSearchItem[]; nextCursor?: string } | undefined,
   keepStaleContentSearchData: false,
   recentItems: [] as GlobalSearchRecentEntry[],
   pinnedMiniApps: [] as any[],
@@ -235,10 +230,6 @@ vi.mock('@renderer/components/icons/SvgIcon', () => ({
   OpenClawSidebarIcon: (props: React.ComponentProps<'svg'>) => <svg aria-hidden="true" {...props} />
 }))
 
-vi.mock('@renderer/components/icons/MiniAppIcon', () => ({
-  default: ({ app }: any) => <span aria-hidden="true">{app.logo ?? 'mini-app-icon'}</span>
-}))
-
 vi.mock('@renderer/components/VirtualList', async () => {
   const React = await vi.importActual<ReactModule>('react')
 
@@ -341,19 +332,6 @@ vi.mock('@renderer/hooks/useConversationNavigation', () => ({
       }
     }
   }
-}))
-
-vi.mock('@renderer/hooks/useMiniApps', () => ({
-  useMiniApps: () => ({
-    miniApps: [...mocks.pinnedMiniApps, ...mocks.openedMiniApps],
-    openedKeepAliveMiniApps: mocks.openedMiniApps,
-    pinned: mocks.pinnedMiniApps,
-    currentMiniAppId: '',
-    miniAppShow: false,
-    setOpenedKeepAliveMiniApps: mocks.setOpenedKeepAliveMiniApps,
-    updateAppStatus: mocks.updateMiniAppStatus,
-    removeCustomMiniApp: mocks.removeCustomMiniApp
-  })
 }))
 
 vi.mock('@renderer/utils/routeTitle', () => ({
@@ -549,8 +527,6 @@ vi.mock('react-i18next', () => ({
   })
 }))
 
-import { toast } from '@renderer/services/toast'
-
 import { GlobalSearchPanel } from '../GlobalSearchPanel'
 import { getGlobalSearchOptionDomId, GLOBAL_MESSAGE_SEARCH_LOAD_MORE_ITEM_ID } from '../useGlobalSearchKeyboard'
 
@@ -582,7 +558,6 @@ describe('GlobalSearchPanel', () => {
     mocks.tabs = []
     mocks.queryResult = undefined
     mocks.messageQueryResult = undefined
-    mocks.sessionMessageQueryResult = undefined
     mocks.preferenceValues = {
       'app.user.name': 'JD',
       'ui.sidebar.favorites': [
@@ -622,10 +597,10 @@ describe('GlobalSearchPanel', () => {
         }
 
         if (path === '/search/contents') {
-          const sources = options?.query?.sources ?? ['topic-message', 'session-message']
+          const sources = options?.query?.sources ?? ['topic-message']
           const effectiveSources =
             mocks.keepStaleContentSearchData && options?.swrOptions?.keepPreviousData !== false
-              ? ['topic-message', 'session-message']
+              ? ['topic-message']
               : sources
           const groups = [
             ...(effectiveSources.includes('topic-message') && mocks.messageQueryResult
@@ -634,15 +609,6 @@ describe('GlobalSearchPanel', () => {
                     sourceType: 'topic-message' as const,
                     items: mocks.messageQueryResult.items,
                     nextCursor: mocks.messageQueryResult.nextCursor
-                  }
-                ]
-              : []),
-            ...(effectiveSources.includes('session-message') && mocks.sessionMessageQueryResult
-              ? [
-                  {
-                    sourceType: 'session-message' as const,
-                    items: mocks.sessionMessageQueryResult.items,
-                    nextCursor: mocks.sessionMessageQueryResult.nextCursor
                   }
                 ]
               : [])
@@ -765,7 +731,7 @@ describe('GlobalSearchPanel', () => {
         enabled: true,
         query: expect.objectContaining({
           q: 'assistant',
-          types: ['topic', 'session', 'assistant', 'agent', 'knowledge-base']
+          types: ['topic', 'assistant', 'knowledge-base']
         })
       })
     )
@@ -918,28 +884,6 @@ describe('GlobalSearchPanel', () => {
     })
   })
 
-  it('updates query types when the session filter is selected', async () => {
-    const user = userEvent.setup()
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'), 'plan')
-    await user.click(screen.getByRole('button', { name: 'Search type: Task' }))
-
-    await waitFor(() => {
-      expect(mocks.useQuery).toHaveBeenLastCalledWith(
-        '/search/entities',
-        expect.objectContaining({
-          enabled: true,
-          query: expect.objectContaining({
-            q: 'plan',
-            types: ['session']
-          })
-        })
-      )
-    })
-  })
-
   it('clears the active search type filter when clicking it again', async () => {
     const user = userEvent.setup()
 
@@ -960,7 +904,7 @@ describe('GlobalSearchPanel', () => {
           enabled: true,
           query: expect.objectContaining({
             q: 'plan',
-            types: ['topic', 'session', 'assistant', 'agent', 'knowledge-base']
+            types: ['topic', 'assistant', 'knowledge-base']
           })
         })
       )
@@ -1068,82 +1012,6 @@ describe('GlobalSearchPanel', () => {
     })
   })
 
-  it('reveals the agent resource list when opening a session result', async () => {
-    const user = userEvent.setup()
-    mocks.recentItems = []
-    mocks.queryResult = {
-      query: 'session',
-      groups: [
-        {
-          type: 'session',
-          items: [
-            {
-              type: 'session',
-              id: 'session-1',
-              title: 'Session A',
-              target: { sessionId: 'session-1', agentId: 'agent-1' }
-            }
-          ]
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'session'
-    )
-    await user.click(await screen.findByRole('option', { name: /Session A/ }))
-
-    expect(mocks.emitResourceListReveal).toHaveBeenCalledWith({
-      source: 'agents',
-      tabId: 'opened-agent-tab'
-    })
-  })
-
-  it('caps topic and work groups in all search and expands them on demand', async () => {
-    const user = userEvent.setup()
-    mocks.queryResult = {
-      query: 'plan',
-      groups: [
-        {
-          type: 'topic',
-          items: Array.from({ length: 6 }, (_, index) => ({
-            type: 'topic',
-            id: `topic-${index}`,
-            title: `Topic ${index}`,
-            target: { topicId: `topic-${index}` }
-          }))
-        },
-        {
-          type: 'session',
-          items: Array.from({ length: 6 }, (_, index) => ({
-            type: 'session',
-            id: `session-${index}`,
-            title: `Work ${index}`,
-            target: { sessionId: `session-${index}`, agentId: 'agent-1' }
-          }))
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'), 'plan')
-
-    expect(await screen.findByRole('option', { name: /Topic 0/ })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /Topic 4/ })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: /Topic 5/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /Work 4/ })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: /Work 5/ })).not.toBeInTheDocument()
-
-    await user.click(screen.getAllByRole('option', { name: 'Show 1 more' })[0])
-
-    expect(screen.getByRole('option', { name: /Topic 5/ })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: /Work 5/ })).not.toBeInTheDocument()
-  })
-
   it('shows a capped message preview group in all search and switches to message search from its footer', async () => {
     const user = userEvent.setup()
     mocks.queryResult = {
@@ -1183,7 +1051,7 @@ describe('GlobalSearchPanel', () => {
           enabled: true,
           query: expect.objectContaining({
             q: 'needle',
-            sources: ['topic-message', 'session-message'],
+            sources: ['topic-message'],
             limitPerSource: GLOBAL_SEARCH_MESSAGE_PREVIEW_LIMIT
           })
         })
@@ -1279,7 +1147,7 @@ describe('GlobalSearchPanel', () => {
           enabled: true,
           query: expect.objectContaining({
             q: 'needle',
-            sources: ['topic-message', 'session-message'],
+            sources: ['topic-message'],
             limitPerSource: 50
           })
         })
@@ -1372,7 +1240,7 @@ describe('GlobalSearchPanel', () => {
           query: expect.objectContaining({
             q: 'needle',
             createdAtFrom: expect.any(String),
-            sources: ['topic-message', 'session-message']
+            sources: ['topic-message']
           })
         })
       )
@@ -1396,7 +1264,7 @@ describe('GlobalSearchPanel', () => {
     expect(screen.queryByRole('button', { name: 'Message source: Conversation messages' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Search type: All' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Search type: Conversation' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Search type: Task' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Search type: Assistant' })).toBeInTheDocument()
 
     await waitFor(() => {
       expect(mocks.useQuery).toHaveBeenCalledWith(
@@ -1405,120 +1273,6 @@ describe('GlobalSearchPanel', () => {
           enabled: true,
           query: expect.objectContaining({
             q: 'assistant'
-          })
-        })
-      )
-    })
-  })
-
-  it('passes selected message sources to message search', async () => {
-    const user = userEvent.setup()
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'report'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    await user.click(screen.getByRole('button', { name: 'Message source: Task messages' }))
-
-    await waitFor(() => {
-      expect(mocks.useQuery).toHaveBeenCalledWith(
-        '/search/contents',
-        expect.objectContaining({
-          enabled: true,
-          query: expect.objectContaining({
-            q: 'report',
-            sources: ['session-message']
-          })
-        })
-      )
-    })
-  })
-
-  it('does not keep stale task results after filtering to conversation messages', async () => {
-    const user = userEvent.setup()
-    mocks.keepStaleContentSearchData = true
-    mocks.messageQueryResult = {
-      items: [
-        {
-          messageId: 'topic-message-1',
-          topicId: 'topic-1',
-          topicName: 'Topic A',
-          topicCreatedAt: '2026-01-01T00:00:00.000Z',
-          topicUpdatedAt: '2026-01-01T00:00:00.000Z',
-          snippet: 'needle topic reply',
-          createdAt: '2026-01-01T00:00:00.000Z'
-        }
-      ]
-    }
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          snippet: 'needle session reply',
-          createdAt: '2026-01-01T00:00:01.000Z'
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'needle'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    expect(await screen.findByRole('option', { name: /needle session reply/ })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Message source: Conversation messages' }))
-
-    await waitFor(() => {
-      expect(mocks.useQuery).toHaveBeenCalledWith(
-        '/search/contents',
-        expect.objectContaining({
-          swrOptions: { keepPreviousData: false },
-          query: expect.objectContaining({
-            q: 'needle',
-            sources: ['topic-message']
-          })
-        })
-      )
-      expect(screen.getByRole('option', { name: /needle topic reply/ })).toBeInTheDocument()
-      expect(screen.queryByRole('option', { name: /needle session reply/ })).not.toBeInTheDocument()
-      expect(screen.queryByText('Session A')).not.toBeInTheDocument()
-    })
-  })
-
-  it('clears the active message source filter when clicking it again', async () => {
-    const user = userEvent.setup()
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'report'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    const sessionSourceFilter = screen.getByRole('button', { name: 'Message source: Task messages' })
-
-    await user.click(sessionSourceFilter)
-    expect(sessionSourceFilter).toHaveAttribute('aria-pressed', 'true')
-
-    await user.click(sessionSourceFilter)
-    expect(sessionSourceFilter).toHaveAttribute('aria-pressed', 'false')
-
-    await waitFor(() => {
-      expect(mocks.useQuery).toHaveBeenCalledWith(
-        '/search/contents',
-        expect.objectContaining({
-          enabled: true,
-          query: expect.objectContaining({
-            q: 'report',
-            sources: ['topic-message', 'session-message']
           })
         })
       )
@@ -1786,225 +1540,6 @@ describe('GlobalSearchPanel', () => {
     )
   })
 
-  it('opens a session message preview before routing to the agent message', async () => {
-    const user = userEvent.setup()
-    mocks.recentItems = []
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          agentId: 'agent-1',
-          agentName: 'Agent',
-          role: 'assistant',
-          snippet: 'needle session reply',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'needle'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    expect(await screen.findByText('Assistant role')).toBeInTheDocument()
-    await user.click(await screen.findByRole('option', { name: /needle session reply/ }))
-
-    const preview = screen.getByRole('complementary', { name: 'Message preview' })
-    expect(preview).toBeInTheDocument()
-    expect(within(preview).getByText('Session A')).toBeInTheDocument()
-    expect(mocks.openTab).not.toHaveBeenCalled()
-
-    await user.click(screen.getByRole('button', { name: 'Open preview target' }))
-
-    await waitFor(() => {
-      expect(mocks.invalidateCache).toHaveBeenCalledWith([
-        '/agent-sessions',
-        '/agent-sessions/session-1',
-        '/agent-sessions/session-1/messages'
-      ])
-      expect(mocks.openTab).toHaveBeenCalledWith('/app/agents?sessionId=session-1', { forceNew: true })
-      expect(mocks.eventEmit).toHaveBeenCalledWith('GLOBAL_SEARCH_SELECT_AGENT_SESSION_MESSAGE', {
-        sessionId: 'session-1',
-        messageId: 'session-message-1',
-        targetTabId: 'opened-agent-tab'
-      })
-    })
-    expect(mocks.dataApiGet).not.toHaveBeenCalled()
-    expect(mocks.invalidateCache).toHaveBeenCalledTimes(1)
-    expect(mocks.invalidateCache.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.openTab.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
-    )
-    expect(mocks.onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('jumps directly from a session message search row action', async () => {
-    const user = userEvent.setup()
-    mocks.recentItems = []
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          agentId: 'agent-1',
-          agentName: 'Agent',
-          role: 'assistant',
-          snippet: 'needle session reply',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'needle'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    const messageOption = await screen.findByRole('option', { name: /needle session reply/ })
-    fireEvent.mouseEnter(messageOption)
-    await user.click(await screen.findByRole('button', { name: 'Jump to message' }))
-
-    expect(screen.queryByRole('complementary', { name: 'Message preview' })).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(mocks.invalidateCache).toHaveBeenCalledWith([
-        '/agent-sessions',
-        '/agent-sessions/session-1',
-        '/agent-sessions/session-1/messages'
-      ])
-      expect(mocks.openTab).toHaveBeenCalledWith('/app/agents?sessionId=session-1', { forceNew: true })
-      expect(mocks.eventEmit).toHaveBeenCalledWith('GLOBAL_SEARCH_SELECT_AGENT_SESSION_MESSAGE', {
-        sessionId: 'session-1',
-        messageId: 'session-message-1',
-        targetTabId: 'opened-agent-tab'
-      })
-    })
-    expect(mocks.dataApiGet).not.toHaveBeenCalled()
-    expect(mocks.invalidateCache).toHaveBeenCalledTimes(1)
-    expect(mocks.onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('logs and toasts when opening a message result fails', async () => {
-    const user = userEvent.setup()
-    const openError = new Error('missing session')
-    mocks.recentItems = []
-    mocks.invalidateCache.mockRejectedValueOnce(openError)
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          agentId: 'agent-1',
-          agentName: 'Agent',
-          role: 'assistant',
-          snippet: 'needle session reply',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'needle'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    const messageOption = await screen.findByRole('option', { name: /needle session reply/ })
-    fireEvent.mouseEnter(messageOption)
-    await user.click(await screen.findByRole('button', { name: 'Jump to message' }))
-
-    await waitFor(() => {
-      expect(mocks.loggerError).toHaveBeenCalledWith('Failed to open global search result', openError, {
-        sourceType: 'session',
-        sessionId: 'session-1',
-        messageId: 'session-message-1'
-      })
-      expect(toast.error).toHaveBeenCalledWith('Failed to open search result')
-    })
-    expect(mocks.onClose).not.toHaveBeenCalled()
-  })
-
-  it('closes the message preview from the panel and when clearing search', async () => {
-    const user = userEvent.setup()
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          snippet: 'needle session reply',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await user.type(
-      screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...'),
-      'needle'
-    )
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    await user.click(await screen.findByRole('option', { name: /needle session reply/ }))
-
-    expect(screen.getByRole('complementary', { name: 'Message preview' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Close preview' }))
-    expect(screen.queryByRole('complementary', { name: 'Message preview' })).not.toBeInTheDocument()
-
-    await user.click(await screen.findByRole('option', { name: /needle session reply/ }))
-    expect(screen.getByRole('complementary', { name: 'Message preview' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Clear search' }))
-    expect(screen.queryByRole('complementary', { name: 'Message preview' })).not.toBeInTheDocument()
-  })
-
-  it('opens the active message preview with Enter', async () => {
-    const user = userEvent.setup()
-    mocks.sessionMessageQueryResult = {
-      items: [
-        {
-          messageId: 'session-message-1',
-          sessionId: 'session-1',
-          sessionName: 'Session A',
-          snippet: 'needle session reply',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    const input = screen.getByLabelText('Search conversations, tasks, assistants, agents, and knowledge...')
-    await user.type(input, 'needle')
-    await user.click(screen.getByRole('radio', { name: 'Messages' }))
-    await screen.findByRole('option', { name: /needle session reply/ })
-    await user.click(input)
-    await user.keyboard('{Enter}')
-
-    expect(screen.getByRole('complementary', { name: 'Message preview' })).toBeInTheDocument()
-    expect(mocks.eventEmit).not.toHaveBeenCalledWith('GLOBAL_SEARCH_SELECT_AGENT_SESSION', 'session-1')
-
-    await user.click(screen.getByRole('button', { name: 'Open preview target' }))
-
-    await waitFor(() => {
-      expect(mocks.eventEmit).toHaveBeenCalledWith('GLOBAL_SEARCH_SELECT_AGENT_SESSION_MESSAGE', {
-        sessionId: 'session-1',
-        messageId: 'session-message-1',
-        targetTabId: 'opened-agent-tab'
-      })
-    })
-    expect(mocks.onClose).toHaveBeenCalledTimes(1)
-  })
-
   it('adds updatedAtFrom when a time filter is selected', async () => {
     const user = userEvent.setup()
 
@@ -2249,60 +1784,6 @@ describe('GlobalSearchPanel', () => {
         kind: 'topic',
         topicId: 'topic-1',
         title: 'Already fresh',
-        lastAccessTime: 20
-      }
-    ])
-  })
-
-  it('refreshes recent session titles from /agent-sessions/:id on open', async () => {
-    mocks.recentItems = [
-      {
-        kind: 'session',
-        sessionId: 'session-1',
-        title: 'Stale session snapshot',
-        lastAccessTime: 20
-      }
-    ]
-    mocks.dataApiGet.mockResolvedValueOnce({ name: 'Fresh session name from server' } as never)
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await waitFor(() => {
-      expect(mocks.dataApiGet).toHaveBeenCalledWith('/agent-sessions/session-1')
-    })
-    await waitFor(() => {
-      expect(mocks.recentItems).toEqual([
-        {
-          kind: 'session',
-          sessionId: 'session-1',
-          title: 'Fresh session name from server',
-          lastAccessTime: 20
-        }
-      ])
-    })
-  })
-
-  it('keeps the cached title when /agent-sessions/:id fetch fails', async () => {
-    mocks.recentItems = [
-      {
-        kind: 'session',
-        sessionId: 'session-1',
-        title: 'Untitled Session',
-        lastAccessTime: 20
-      }
-    ]
-    mocks.dataApiGet.mockRejectedValueOnce(new Error('network'))
-
-    render(<GlobalSearchPanel onClose={mocks.onClose} />)
-
-    await waitFor(() => {
-      expect(mocks.dataApiGet).toHaveBeenCalledWith('/agent-sessions/session-1')
-    })
-    expect(mocks.recentItems).toEqual([
-      {
-        kind: 'session',
-        sessionId: 'session-1',
-        title: 'Untitled Session',
         lastAccessTime: 20
       }
     ])

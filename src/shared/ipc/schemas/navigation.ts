@@ -10,7 +10,7 @@ import { defineRoute } from '../define'
  * convention — see selection.ts / webSearch.ts).
  */
 const conversationNavigationTargetSchema: z.ZodType<ConversationNavigationTarget> = z.object({
-  conversationType: z.enum(['assistant', 'agent']),
+  conversationType: z.literal('assistant'),
   conversationId: z.string().min(1)
 })
 

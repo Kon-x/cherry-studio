@@ -93,12 +93,10 @@ function Harness({
       avatar: '💬',
       name,
       description: '',
-      agentType: 'claude-code',
-      permissionMode: 'default',
+
       modelId,
       prompt,
-      knowledgeBaseIds: [],
-      skillIds: []
+      knowledgeBaseIds: []
     }
   })
 

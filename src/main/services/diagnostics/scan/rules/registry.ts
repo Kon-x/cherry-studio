@@ -1,5 +1,4 @@
 import type { ScanRule } from '../types'
-import { agentRules } from './agent'
 import { chatRules } from './chat'
 import { environmentRules } from './environment'
 import { mcpRules } from './mcp'
@@ -33,7 +32,6 @@ export function assertValidRules(rules: readonly ScanRule[]): readonly ScanRule[
 export const SCAN_RULES: readonly ScanRule[] = assertValidRules([
   ...providerRules,
   ...networkRules,
-  ...agentRules,
   ...mcpRules,
   ...chatRules,
   ...environmentRules

@@ -1,4 +1,3 @@
-export { agentAdapter, useAgentMutations, useAgentMutationsById } from './agentAdapter'
 export {
   assistantAdapter,
   useAssistantMutations,
@@ -12,7 +11,6 @@ export {
   usePromptMutationsById,
   usePromptTargetMutations
 } from './promptAdapter'
-export { skillAdapter, useSkillMutationsById } from './skillAdapter'
 export type { ResourceAdapter, ResourceListQuery, ResourceListResult } from './types'
 export { useResourceCatalogController } from './useResourceCatalogController'
 export { useResourceLibrary, type UseResourceLibraryOptions, type UseResourceLibraryResult } from './useResourceLibrary'

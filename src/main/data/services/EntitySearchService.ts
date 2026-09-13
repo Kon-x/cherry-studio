@@ -1,5 +1,3 @@
-import { agentService } from '@data/services/AgentService'
-import { agentSessionService } from '@data/services/AgentSessionService'
 import { assistantDataService } from '@data/services/AssistantService'
 import { knowledgeBaseService } from '@data/services/KnowledgeBaseService'
 import { topicService } from '@data/services/TopicService'
@@ -74,12 +72,8 @@ export class EntitySearchService {
     switch (type) {
       case 'assistant':
         return { type, items: assistantDataService.search(input) }
-      case 'agent':
-        return { type, items: agentService.search(input) }
       case 'topic':
         return { type, items: topicService.search(input) }
-      case 'session':
-        return { type, items: agentSessionService.search(input) }
       case 'knowledge-base':
         return { type, items: knowledgeBaseService.search(input) }
       default: {

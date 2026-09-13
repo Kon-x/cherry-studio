@@ -1,6 +1,5 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@cherrystudio/ui'
 import { ErrorBoundary } from '@renderer/components/ErrorBoundary'
-import { SESSION_CREATE_TOOL_NAME } from '@shared/ai/agentSessionDelivery'
 import { PROVIDER_WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
 import type { CherryMessagePart } from '@shared/data/types/message'
 import {
@@ -9,7 +8,6 @@ import {
   Database,
   FileSearch,
   FileText,
-  GitBranchPlus,
   Globe,
   ImageIcon,
   ListChecks,
@@ -17,8 +15,6 @@ import {
   Mail,
   Sparkles,
   SquareTerminal,
-  ToolCase,
-  Workflow,
   Wrench
 } from 'lucide-react'
 import React from 'react'
@@ -27,7 +23,6 @@ import { BeatLoader } from 'react-spinners'
 
 import { useMessageDisclosureState } from '../hooks/useMessageDisclosureState'
 import MessageTools from '../tools/MessageTools'
-import { AgentToolsType } from '../tools/shared/agentToolTypes'
 import { getEffectiveStatus, type ToolStatus } from '../tools/shared/GenericTools'
 import ToolHeader, { getReadableToolActivity } from '../tools/ToolHeader'
 import { isToolPartAwaitingApproval, type ToolRenderItem, type ToolResponseLike } from '../tools/toolResponse'
@@ -74,35 +69,7 @@ function getToolHeaderCandidateKey(candidate: ToolHeaderCandidate): string {
 }
 
 const TOOL_GROUP_ICON_BY_NAME: Record<string, LucideIcon> = {
-  [SESSION_CREATE_TOOL_NAME]: GitBranchPlus,
-  [`mcp__cherry-tools__${SESSION_CREATE_TOOL_NAME}`]: GitBranchPlus,
-  [AgentToolsType.Agent]: Sparkles,
-  [AgentToolsType.Bash]: SquareTerminal,
-  [AgentToolsType.BashOutput]: SquareTerminal,
-  [AgentToolsType.Edit]: FileText,
-  [AgentToolsType.Glob]: FileSearch,
-  [AgentToolsType.Grep]: FileSearch,
-  [AgentToolsType.ListMcpResources]: FileSearch,
-  [AgentToolsType.MultiEdit]: FileText,
-  [AgentToolsType.NotebookEdit]: FileText,
-  [AgentToolsType.Read]: FileText,
-  [AgentToolsType.ReadMcpResource]: FileSearch,
-  [AgentToolsType.Search]: FileSearch,
-  [AgentToolsType.Skill]: ToolCase,
-  [AgentToolsType.Task]: ListChecks,
-  [AgentToolsType.TaskCreate]: ListChecks,
-  [AgentToolsType.TaskGet]: ListChecks,
-  [AgentToolsType.TaskList]: ListChecks,
-  [AgentToolsType.TaskOutput]: ListChecks,
-  [AgentToolsType.TaskStop]: ListChecks,
-  [AgentToolsType.TaskUpdate]: ListChecks,
-  [AgentToolsType.TodoWrite]: ListChecks,
-  [AgentToolsType.ToolSearch]: FileSearch,
-  [AgentToolsType.WebFetch]: Globe,
-  [AgentToolsType.WebSearch]: Globe,
-  [PROVIDER_WEB_SEARCH_TOOL_NAME]: Globe,
-  [AgentToolsType.Workflow]: Workflow,
-  [AgentToolsType.Write]: FileText
+  [PROVIDER_WEB_SEARCH_TOOL_NAME]: Globe
 }
 const TOOL_GROUP_ICON_CLASS_NAME =
   'size-3.5 text-foreground-tertiary transition-colors duration-150 group-hover/tool-group-trigger:text-foreground'

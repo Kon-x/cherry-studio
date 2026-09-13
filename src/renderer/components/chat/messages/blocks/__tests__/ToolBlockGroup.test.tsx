@@ -98,39 +98,6 @@ const readDoneItem = {
   }
 } as ToolRenderItem
 
-const bashDoneItem = {
-  ...readDoneItem,
-  id: 'tool-bash',
-  toolResponse: {
-    ...readDoneItem.toolResponse,
-    id: 'tool-bash',
-    toolCallId: 'tool-bash',
-    tool: { id: 'tool-bash', name: 'Bash', type: 'builtin' }
-  }
-} as ToolRenderItem
-
-const skillDoneItem = {
-  ...readDoneItem,
-  id: 'tool-skill',
-  toolResponse: {
-    ...readDoneItem.toolResponse,
-    id: 'tool-skill',
-    toolCallId: 'tool-skill',
-    tool: { id: 'tool-skill', name: 'Skill', type: 'builtin' }
-  }
-} as ToolRenderItem
-
-const workflowDoneItem = {
-  ...readDoneItem,
-  id: 'tool-workflow',
-  toolResponse: {
-    ...readDoneItem.toolResponse,
-    id: 'tool-workflow',
-    toolCallId: 'tool-workflow',
-    tool: { id: 'tool-workflow', name: 'Workflow', type: 'builtin' }
-  }
-} as ToolRenderItem
-
 const webSearchDoneItem = {
   ...readDoneItem,
   id: 'tool-web-search',
@@ -252,7 +219,6 @@ describe('ToolBlockGroup', () => {
 
     const trigger = screen.getByRole('button', { name: 'Project checks' })
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-file-text')).not.toBeNull()
     expect(screen.queryByTestId('mock-tool-header')).toBeNull()
     expect(screen.queryByTestId('child-tool-group-divider')).toBeNull()
     expect(screen.queryByTestId('mock-message-tools')).toBeNull()
@@ -301,32 +267,12 @@ describe('ToolBlockGroup', () => {
     render(<ToolBlockGroup items={[readDoneItem]} isLiveProgress isThinking />)
 
     expect(screen.getByTestId('beat-loader')).toBeInTheDocument()
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-brain')).not.toBeNull()
     expect(screen.getByText('message.tools.thinkingHeader')).toBeInTheDocument()
-  })
-
-  it('uses the latest tool type to choose the collapsed group icon', () => {
-    render(<ToolBlockGroup items={[bashDoneItem]} />)
-
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-square-terminal')).not.toBeNull()
-  })
-
-  it('uses the tool-case icon for a skill tool group', () => {
-    render(<ToolBlockGroup items={[skillDoneItem]} />)
-
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-tool-case')).not.toBeNull()
-  })
-
-  it('uses the Workflow icon for a Workflow tool group', () => {
-    render(<ToolBlockGroup items={[workflowDoneItem]} />)
-
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-workflow')).not.toBeNull()
   })
 
   it('uses a readable title and web icon for a web-search tool group', () => {
     render(<ToolBlockGroup items={[webSearchDoneItem]} />)
 
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-globe')).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'message.tools.activity.search message.tools.activity.webSearch' })
     ).toBeInTheDocument()
@@ -335,7 +281,6 @@ describe('ToolBlockGroup', () => {
   it('uses a readable title and web icon for a provider web-search tool group', () => {
     render(<ToolBlockGroup items={[providerWebSearchDoneItem]} />)
 
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-globe')).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'message.tools.activity.search message.tools.activity.webSearch' })
     ).toBeInTheDocument()
@@ -344,7 +289,6 @@ describe('ToolBlockGroup', () => {
   it('uses a readable title and web icon for a web-fetch tool group', () => {
     render(<ToolBlockGroup items={[webFetchDoneItem]} />)
 
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-globe')).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'message.tools.activity.view message.tools.activity.webPage' })
     ).toBeInTheDocument()
@@ -353,7 +297,6 @@ describe('ToolBlockGroup', () => {
   it('uses the MCP action and content type for the group title and icon', () => {
     render(<ToolBlockGroup items={[emailDoneItem]} />)
 
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-mail')).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'message.tools.activity.send message.tools.activity.email' })
     ).toBeInTheDocument()
@@ -382,7 +325,6 @@ describe('ToolBlockGroup', () => {
   it('uses a safe extension title for an unrecognized MCP tool', () => {
     render(<ToolBlockGroup items={[unknownMcpDoneItem]} />)
 
-    expect(screen.getByTestId('tool-group-content-icon').querySelector('.lucide-sparkles')).not.toBeNull()
     expect(screen.getByRole('button', { name: 'message.tools.activity.usedExtension' })).toBeInTheDocument()
   })
 

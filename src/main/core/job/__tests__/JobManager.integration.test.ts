@@ -185,6 +185,60 @@ describe('JobManager integration', () => {
   })
 
   describe('startup recovery', () => {
+    it('leaves retired Agent schedules dormant while registered background work still completes', async () => {
+      const db = MockMainDbServiceExport.dbService.getDb() as DbType
+      const at = Date.now() + 30_000
+      const schedules = db
+        .insert(jobScheduleTable)
+        .values([
+          {
+            type: 'agent.task',
+            trigger: { kind: 'once', at },
+            jobInputTemplate: { agentId: 'old-agent' },
+            enabled: true,
+            catchUpPolicy: { kind: 'after-startup', minutes: 10 }
+          },
+          {
+            type: 'task.retained',
+            trigger: { kind: 'once', at },
+            jobInputTemplate: {},
+            enabled: true,
+            catchUpPolicy: { kind: 'skip-missed' }
+          }
+        ])
+        .returning()
+        .all()
+      const { scheduler, jobManager } = await bootstrapManager({
+        handlers: [
+          [
+            'task.retained',
+            {
+              recovery: 'retry',
+              async execute() {
+                return { completed: true }
+              }
+            }
+          ]
+        ],
+        keepFakeTimers: true
+      })
+      try {
+        expect(scheduler.getNextRun(`schedule:${schedules[0].id}`)).toBeNull()
+        expect(scheduler.getNextRun(`schedule:${schedules[1].id}`)).not.toBeNull()
+        await vi.advanceTimersByTimeAsync(31_000)
+        vi.useRealTimers()
+        await drainAllQueues(jobManager)
+        expect(jobService.list({ type: 'agent.task' })).toEqual([])
+        expect(jobScheduleService.getById(schedules[0].id)?.lastRun).toBeNull()
+        expect(jobService.list({ type: 'task.retained' })).toMatchObject([
+          { status: 'completed', output: { completed: true } }
+        ])
+      } finally {
+        vi.useRealTimers()
+        await teardownManager(scheduler, jobManager)
+      }
+    })
+
     it('abandon: turns every non-terminal job into cancelled', async () => {
       const dbh = MockMainDbServiceExport.dbService.getDb() as DbType
 

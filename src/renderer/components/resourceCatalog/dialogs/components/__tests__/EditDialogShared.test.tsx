@@ -127,12 +127,10 @@ describe('EditDialogShared', () => {
           avatar: '💬',
           name: '',
           description: '',
-          agentType: 'claude-code',
-          permissionMode: 'default',
+
           modelId: null,
           prompt: '',
-          knowledgeBaseIds: [],
-          skillIds: []
+          knowledgeBaseIds: []
         }
       })
 
@@ -165,12 +163,10 @@ describe('EditDialogShared', () => {
           avatar: '💬',
           name: '',
           description: '',
-          agentType: 'claude-code',
-          permissionMode: 'default',
+
           modelId: null,
           prompt: '',
-          knowledgeBaseIds: [],
-          skillIds: []
+          knowledgeBaseIds: []
         }
       })
 
@@ -199,12 +195,10 @@ describe('EditDialogShared', () => {
           avatar: '💬',
           name: '',
           description: '',
-          agentType: 'claude-code',
-          permissionMode: 'default',
+
           modelId: null,
           prompt: '',
-          knowledgeBaseIds: [],
-          skillIds: []
+          knowledgeBaseIds: []
         }
       })
 

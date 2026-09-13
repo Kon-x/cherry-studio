@@ -7,26 +7,18 @@ const BASE_URL = 'https://www.cherry-ai.com/'
  * Route to i18n key mapping for default tab titles
  */
 const routeTitleKeys: Record<string, string> = {
-  '/app/chat': 'agent.session.group.conversation',
-  '/app/agents': 'title.work',
+  '/app/chat': 'title.chat',
   '/app/paintings': 'title.paintings',
   '/app/translate': 'title.translate',
   '/app/launchpad': 'title.launchpad',
-  '/app/mini-app': 'title.apps',
   '/app/knowledge': 'title.knowledge',
   '/app/files': 'title.files',
-  '/app/code': 'title.code',
   '/app/notes': 'title.notes',
   '/app/release-notes': 'settings.about.releases.title',
   '/settings': 'title.settings'
 }
 
-// Sub-routes of these base paths inherit the section's default title and
-// refresh on language change. Paintings qualifies because its splat route
-// ignores the URL segment (the provider comes from preference), so a
-// paintings sub-path tab has no per-entity title — the section title is the
-// only meaningful label. Contrast /app/mini-app, which is deliberately left
-// out so caller-supplied per-entity titles survive.
+// Paintings sub-routes use the section title because their provider comes from preferences.
 const autoLocalizableBasePaths = new Set(['/app/paintings'])
 
 /**
@@ -94,13 +86,8 @@ export function isTopLevelRoute(url: string): boolean {
   return !parsedUrl.search && !parsedUrl.hash && routeTitleKeys[parsedUrl.pathname] !== undefined
 }
 
-/**
- * Routes whose tab title + icon are owned by the PAGE (the active topic /
- * session name and its assistant / agent emoji), not derived from the route.
- * Callers that auto-relabel tabs from the route (route localization, url-sync)
- * must skip these, or they clobber the page-set title/icon.
- */
-const PAGE_TITLED_ROUTE_BASE_PATHS = new Set(['/app/chat', '/app/agents'])
+// Preserve the active topic's title and assistant emoji when localizing route titles.
+const PAGE_TITLED_ROUTE_BASE_PATHS = new Set(['/app/chat'])
 
 export function isPageTitledRoute(url: string): boolean {
   const pathname = new URL(url, BASE_URL).pathname

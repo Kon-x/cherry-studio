@@ -1,15 +1,13 @@
 import type { ResolvedAction } from '@renderer/components/chat/actions/actionTypes'
 import type { ResourceEntityRailItem } from '@renderer/components/chat/resourceList/ResourceEntityRail'
-import type { AgentSessionsSource, AssistantTopicsSource } from '@renderer/hooks/resourceViewSources'
+import type { AssistantTopicsSource } from '@renderer/hooks/resourceViewSources'
 import { popup } from '@renderer/services/popup'
 import { toast } from '@renderer/services/toast'
 import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { ComponentProps, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AgentResourceList } from '../AgentResourceList'
 import { AssistantResourceList } from '../AssistantResourceList'
 
 const assistantDataMocks = vi.hoisted(() => ({
@@ -257,16 +255,6 @@ vi.mock('@renderer/hooks/useAssistant', () => ({
   })
 }))
 
-vi.mock('@renderer/hooks/agent/useAgent', () => ({
-  useAgents: () => ({
-    agents: agentDataMocks.agents,
-    deleteAgent: agentDataMocks.deleteAgent,
-    error: null,
-    isLoading: false,
-    refetch: agentDataMocks.refetchAgents
-  })
-}))
-
 vi.mock('@renderer/hooks/usePins', () => ({
   usePins: () => ({
     isLoading: false,
@@ -285,33 +273,6 @@ vi.mock('@renderer/hooks/useGroups', () => ({
   useGroups: () => ({ groups: [], isLoading: false, error: undefined }),
   useGroupReorder: () => ({ reorderGroup: vi.fn() })
 }))
-
-function createAgentSessionsSource(overrides: Partial<AgentSessionsSource> = {}): AgentSessionsSource {
-  return {
-    createSession: vi.fn(),
-    deleteSession: vi.fn(),
-    deleteSessions: vi.fn(),
-    error: null,
-    hasMore: false,
-    isFullyLoaded: true,
-    isLoading: false,
-    isLoadingAll: false,
-    isLoadingMore: false,
-    isPinsLoading: false,
-    isValidating: false,
-    loadLatestSession: vi.fn().mockResolvedValue(null),
-    reuseOrCreateSession: vi.fn(),
-    loadMore: vi.fn(),
-    pinIdBySessionId: new Map(),
-    reload: vi.fn(),
-    reorderSession: vi.fn(),
-    reorderSessions: vi.fn(),
-    sessions: [{ id: 'session-1', agentId: 'agent-1', name: 'Session 1' }],
-    togglePin: vi.fn(),
-    total: 1,
-    ...overrides
-  } as unknown as AgentSessionsSource
-}
 
 function createAssistantTopicsSource(overrides: Partial<AssistantTopicsSource> = {}): AssistantTopicsSource {
   return {
@@ -372,14 +333,6 @@ vi.mock('@renderer/ipc', () => ({
 
 vi.mock('@renderer/utils/chat/topicsHelpers', () => ({
   sortTopicsForDisplayGroups: (topics: unknown[]) => topics
-}))
-
-vi.mock('@renderer/utils/chat/sessionListHelpers', () => ({
-  sortSessionsForDisplayGroups: (sessions: unknown[]) => sessions
-}))
-
-vi.mock('@renderer/utils/agent', () => ({
-  getAgentAvatarFromConfiguration: () => 'A'
 }))
 
 vi.mock('@renderer/utils/error', () => ({
@@ -486,30 +439,6 @@ describe('classic layout entity resource list actions', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.conversation.new' })[0])
 
     expect(onCreateTopic).toHaveBeenCalledWith('assistant-1')
-  })
-
-  it('shows and activates an agent without sessions', async () => {
-    const createdSession = { id: 'session-created', agentId: 'agent-1', name: 'Created Session' }
-    const onCreateSession = vi.fn().mockResolvedValue(createdSession)
-    const onSelectSession = vi.fn()
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource({ sessions: [] })}
-        onSelectSession={onSelectSession}
-        onCreateSession={onCreateSession}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    expect(screen.getByRole('region', { name: 'Agent 1' })).toBeInTheDocument()
-    expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-selected-id', 'agent-1')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Select Agent 1' }))
-
-    await waitFor(() => expect(onCreateSession).toHaveBeenCalledExactlyOnceWith('agent-1'))
-    expect(onSelectSession).toHaveBeenCalledExactlyOnceWith('session-created', createdSession)
   })
 
   it('clears assistant topics from the classic layout assistant context menu', async () => {
@@ -690,25 +619,12 @@ describe('classic layout entity resource list actions', () => {
   })
 
   it('keeps sortable rail containers mounted while refresh temporarily blocks reorder', () => {
-    const { rerender } = render(
+    render(
       <TestAssistantResourceList
         activeAssistantId="assistant-1"
         assistantTopicsSource={createAssistantTopicsSource({ isRefreshing: true })}
         onSelectTopic={vi.fn()}
         onCreateTopic={vi.fn()}
-      />
-    )
-
-    expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-sortable-container', 'enabled')
-    expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-reorder', 'disabled')
-
-    rerender(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource({ isValidating: true })}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
       />
     )
 
@@ -802,273 +718,6 @@ describe('classic layout entity resource list actions', () => {
     expect(onManageAssistants).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-selection-suppressed', 'true')
     expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-selected-id', '')
-  })
-
-  it('does not report a pin failure when the post-success agent refresh fails', async () => {
-    const user = userEvent.setup()
-    const refreshError = new Error('transient refresh failure')
-    agentDataMocks.refetchAgents.mockRejectedValueOnce(refreshError)
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    await user.click(
-      within(screen.getByTestId('agent-1-context-menu')).getByRole('button', { name: 'agent.pin.title' })
-    )
-
-    await waitFor(() => expect(agentDataMocks.toggleAgentPin).toHaveBeenCalledWith('agent-1'))
-    await waitFor(() =>
-      expect(loggerMocks.warn).toHaveBeenCalledWith(
-        'Failed to refresh agents after toggling pin from classic-layout rail',
-        { agentId: 'agent-1', err: refreshError }
-      )
-    )
-    expect(toast.error).not.toHaveBeenCalled()
-  })
-
-  it('reports a pin failure and skips the agent refresh when the pin mutation fails', async () => {
-    const user = userEvent.setup()
-    agentDataMocks.toggleAgentPin.mockRejectedValueOnce(new Error('pin mutation failed'))
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    await user.click(
-      within(screen.getByTestId('agent-1-context-menu')).getByRole('button', { name: 'agent.pin.title' })
-    )
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('common.error'))
-    expect(agentDataMocks.refetchAgents).not.toHaveBeenCalled()
-  })
-
-  it('uses delete-agent actions for the classic layout agent context and more menus', async () => {
-    const onShowMissingAgentSelection = vi.fn()
-    const onActiveAgentDeleted = vi.fn()
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={onShowMissingAgentSelection}
-        onActiveAgentDeleted={onActiveAgentDeleted}
-      />
-    )
-
-    expect(screen.getByTestId('agent-1-context-menu')).toHaveTextContent('agent.delete.title')
-    expect(screen.getByTestId('agent-1-more-menu')).toHaveTextContent('agent.delete.title')
-    expect(screen.getByTestId('agent-1-context-menu')).not.toHaveTextContent('agent.session.agent.delete.trigger')
-    expect(screen.getByTestId('agent-1-more-menu')).not.toHaveTextContent('agent.session.agent.delete.trigger')
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'agent.delete.title' })[0])
-
-    await waitFor(() =>
-      expect(popup.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'agent.delete.title' }))
-    )
-    await waitFor(() =>
-      expect(agentDataMocks.deleteAgent).toHaveBeenCalledWith({
-        params: { agentId: 'agent-1' },
-        query: { deleteSessions: true }
-      })
-    )
-    // Classic layout resets via the dedicated callback, never the draft compose.
-    await waitFor(() => expect(onActiveAgentDeleted).toHaveBeenCalledWith('agent-1'))
-    expect(onShowMissingAgentSelection).not.toHaveBeenCalled()
-  })
-
-  it('deletes only tasks for the built-in Cherry Assistant in the classic layout', async () => {
-    agentDataMocks.agents = [
-      {
-        id: 'agent-1',
-        name: 'Cherry Assistant',
-        orderKey: 'a',
-        configuration: { builtin_role: 'assistant' },
-        model: 'anthropic::claude-sonnet-4',
-        modelName: 'Claude Sonnet 4'
-      }
-    ]
-    const onActiveAgentDeleted = vi.fn()
-    agentDataMocks.deleteAgentSessions.mockResolvedValueOnce({ deletedIds: ['session-1', 'session-not-loaded'] })
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-        onActiveAgentDeleted={onActiveAgentDeleted}
-      />
-    )
-
-    expect(screen.getByTestId('agent-1-context-menu')).toHaveTextContent('agent.session.agent.delete.trigger')
-    expect(screen.getByTestId('agent-1-context-menu')).not.toHaveTextContent('agent.delete.title')
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'agent.session.agent.delete.trigger' })[0])
-
-    await waitFor(() =>
-      expect(popup.confirm).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'agent.session.agent.delete.title',
-          content: 'agent.session.agent.delete.content'
-        })
-      )
-    )
-    await waitFor(() =>
-      expect(agentDataMocks.deleteAgentSessions).toHaveBeenCalledWith({ params: { agentId: 'agent-1' } })
-    )
-    expect(agentDataMocks.deleteAgent).not.toHaveBeenCalled()
-    expect(tabsContextMocks.closeConversationTabs).toHaveBeenCalledWith('agents', ['session-1', 'session-not-loaded'])
-    expect(onActiveAgentDeleted).toHaveBeenCalledWith('agent-1')
-  })
-
-  it('creates a new session for the hovered agent row', () => {
-    const onCreateSession = vi.fn()
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={onCreateSession}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'agent.session.new' }))
-
-    expect(onCreateSession).toHaveBeenCalledWith('agent-1')
-  })
-
-  it('lets the classic agent rail switch icon display mode from the context menu', () => {
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    expect(screen.getByTestId('agent-1-context-menu')).toHaveTextContent('agent.icon.type')
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.assistant.icon.type.none' })[0])
-
-    expect(preferenceMocks.setPreference).toHaveBeenCalledWith('agent.icon_type', 'none')
-  })
-
-  it('lets the classic agent rail switch back to the workdir session view', async () => {
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'agent.session.display.workdir' }))
-
-    await waitFor(() => {
-      expect(preferenceMocks.setPreference).toHaveBeenCalledWith('agent.session.display_mode', 'workdir')
-    })
-  })
-
-  it('clears the active agent selection while a resource view is active', () => {
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        manageAgentsActive
-        onManageAgents={vi.fn()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-selected-id', '')
-  })
-
-  it('keeps classic agent rail history in the shared display menu without section toggles', () => {
-    const onOpenHistoryRecords = vi.fn()
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onOpenHistoryRecords={onOpenHistoryRecords}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'history.records.shortTitle' }))
-
-    expect(onOpenHistoryRecords).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('agent.session.group.expand_all')).not.toBeInTheDocument()
-    expect(screen.queryByText('agent.session.group.collapse_all')).not.toBeInTheDocument()
-  })
-
-  it('offers toggling an agent into the sidebar from the classic rail context menu', () => {
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    const menu = screen.getByTestId('agent-1-context-menu')
-    expect(menu).toHaveTextContent('launchpad.pin_to_sidebar')
-    expect(menu).not.toHaveTextContent('launchpad.unpin_from_sidebar')
-
-    fireEvent.click(within(menu).getByRole('button', { name: 'launchpad.pin_to_sidebar' }))
-
-    expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar.favorites', [
-      { type: 'agent', id: 'agent-1' }
-    ])
-  })
-
-  it('toggles an already-pinned agent out of the sidebar from the classic rail context menu', () => {
-    preferenceMocks.values.set('ui.sidebar.favorites', [{ type: 'agent', id: 'agent-1' }])
-
-    render(
-      <AgentResourceList
-        activeAgentId="agent-1"
-        agentSessionsSource={createAgentSessionsSource()}
-        onSelectSession={vi.fn()}
-        onCreateSession={vi.fn()}
-        onShowMissingAgentSelection={vi.fn()}
-      />
-    )
-
-    const menu = screen.getByTestId('agent-1-context-menu')
-    expect(menu).toHaveTextContent('launchpad.unpin_from_sidebar')
-
-    fireEvent.click(within(menu).getByRole('button', { name: 'launchpad.unpin_from_sidebar' }))
-
-    expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar.favorites', [])
   })
 
   it('offers toggling an assistant into the sidebar from the classic rail context menu', () => {

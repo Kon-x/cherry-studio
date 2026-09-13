@@ -61,11 +61,11 @@ function notifyPinReadModelChange(pins: readonly Pin[], kind: 'membership' | 'or
     { endpoint: '/pins/:id', entityIds: pinIds }
   ]
 
-  for (const entityType of ['topic', 'session'] as const) {
+  for (const entityType of ['topic'] as const) {
     const entityIds = [...new Set(pins.filter((pin) => pin.entityType === entityType).map((pin) => pin.entityId))]
     if (entityIds.length === 0) continue
 
-    const endpoint = entityType === 'topic' ? '/topics' : '/agent-sessions'
+    const endpoint = '/topics'
     effects.push(
       kind === 'membership'
         ? { endpoint, kind: 'membership', dimension: 'pinned', entityIds }

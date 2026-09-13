@@ -308,7 +308,7 @@ export const ComposerToolbarShortcuts = ({
     setCustomizeOrderState({ preferredOrder: [], syncedPinnedIds: pinnedIds, pendingPinnedIds: null })
     onResetPinnedIds()
   }
-  const showModelRequiredToast = () => toast.error(t('code.model_required'))
+  const showModelRequiredToast = () => toast.error(t('chat.model_required'))
 
   // Localized drag feedback so screen readers announce tool names, not internal ids (e.g. "web-search").
   const dragAccessibility = useMemo(() => {

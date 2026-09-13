@@ -1,7 +1,6 @@
 import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -12,7 +11,6 @@ import { BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecyc
 import { isWin } from '@main/core/platform'
 import { regionService } from '@main/services/RegionService'
 import {
-  dedupePathSegments,
   getBinaryIsolatedHomeEnv,
   getBinaryShimsDir,
   isPathWithin,
@@ -30,7 +28,6 @@ import {
   TOOL_KEY_RE,
   validateBinaryToolDefinition
 } from '@shared/data/presets/binaryTools'
-import { CODE_CLI_TOOL_PRESETS } from '@shared/data/presets/codeCliTools'
 import type {
   BinaryApplication,
   BinaryAvailability,
@@ -106,18 +103,6 @@ const REGISTRY_CACHE_TTL_MS = 10 * 60 * 1000
 // `mise latest` for github: backends hits the rate-limited GitHub releases API,
 // so lookups stay off the boot path and run with a small concurrency bound.
 const LATEST_VERSIONS_CONCURRENCY = 4
-const MISE_PRERELEASE_TOOLS = new Set(
-  CODE_CLI_TOOL_PRESETS.filter((preset) => preset.misePrerelease).map((preset) => preset.miseTool)
-)
-const MISE_NPM_SHELL_OUT_TOOLS = new Set(
-  CODE_CLI_TOOL_PRESETS.filter((preset) => preset.miseNpmShellOut).map((preset) => preset.miseTool)
-)
-const MISE_REQUIRED_PEERS = new Map(
-  CODE_CLI_TOOL_PRESETS.flatMap((preset) =>
-    preset.requiredPeer ? [[preset.miseTool, preset.requiredPeer] as const] : []
-  )
-)
-
 // Main-owned session state. Renderer windows receive operations only through
 // snapshots, so this belongs to CacheService's internal tier rather than its
 // cross-window shared mirror.
@@ -263,14 +248,6 @@ const FIXED_CATALOG: ReadonlyMap<string, FixedToolDefinition> = new Map<string, 
     {
       name: preset.name,
       tool: preset.tool,
-      ...(preset.npmAllowBuilds?.length ? { npmAllowBuilds: preset.npmAllowBuilds } : {})
-    }
-  ]),
-  ...CODE_CLI_TOOL_PRESETS.map((preset): [string, FixedToolDefinition] => [
-    preset.executable,
-    {
-      name: preset.executable,
-      tool: preset.miseTool,
       ...(preset.npmAllowBuilds?.length ? { npmAllowBuilds: preset.npmAllowBuilds } : {})
     }
   ])
@@ -589,9 +566,6 @@ export class BinaryManager extends BaseService {
         // Update/Uninstall authority over a foreign provider. When mise omits
         // install_path, fall back to the runnable-only check above.
         if (!(await this.isWithinInstall(activeEntry, runnable.canonical))) {
-          return { application: { status: 'broken', ...(version ? { version } : {}) } }
-        }
-        if (!this.hasRequiredRuntimeDependencies(tool, runnable.canonical)) {
           return { application: { status: 'broken', ...(version ? { version } : {}) } }
         }
         return {
@@ -984,9 +958,6 @@ export class BinaryManager extends BaseService {
     args: string[],
     opts?: {
       timeoutMs?: number
-      includePrerelease?: boolean
-      shellOutNpm?: boolean
-      prependPath?: string
       env?: Record<string, string>
       // Pins the run to an already-resolved snapshot so a sequence of related
       // runs cannot straddle a rebuild triggered halfway through.
@@ -1003,25 +974,8 @@ export class BinaryManager extends BaseService {
     }
     const isolatedEnv = (opts?.snapshot ?? (await this.getIsolatedEnv())).env
     let env = isolatedEnv
-    if (opts?.includePrerelease || opts?.shellOutNpm || opts?.prependPath || opts?.env) {
+    if (opts?.env) {
       env = { ...isolatedEnv }
-      if (opts.includePrerelease) env['MISE_PRERELEASES'] = '1'
-      if (opts.shellOutNpm) {
-        env['MISE_NPM_SHELL_OUT'] = '1'
-        env['MISE_NPM_PACKAGE_MANAGER'] = 'npm'
-      }
-      if (opts.prependPath) {
-        const pathSeparator = isWin ? ';' : path.delimiter
-        const pathKeys = Object.keys(env).filter((key) => key.toLowerCase() === 'path')
-        const pathKey = pathKeys[0] || (isWin ? 'Path' : 'PATH')
-        const pathValue = dedupePathSegments([
-          opts.prependPath,
-          ...pathKeys.flatMap((key) => (env[key] || '').split(pathSeparator))
-        ]).join(pathSeparator)
-        for (const key of pathKeys) delete env[key]
-        env[pathKey] = pathValue
-        if (!isWin) env.PATH = pathValue
-      }
       if (opts.env) Object.assign(env, opts.env)
     }
     const timeoutMs = opts?.timeoutMs ?? MISE_COMMAND_TIMEOUT_MS
@@ -1145,40 +1099,7 @@ export class BinaryManager extends BaseService {
     const activeEntry = entries.find((entry) => entry.active)
     if (!activeEntry) return false
     const runnable = await this.resolveRunnableShim(name, tool)
-    return (
-      runnable !== null &&
-      (await this.isWithinInstall(activeEntry, runnable.canonical)) &&
-      this.hasRequiredRuntimeDependencies(tool, runnable.canonical)
-    )
-  }
-
-  /**
-   * Whether a recipe declaring a required peer still has it, resolved the way the
-   * tool's own runtime would. A recipe declaring none passes untouched, so this
-   * costs nothing for the tools that install completely.
-   */
-  private hasRequiredRuntimeDependencies(tool: string, entryPath: string): boolean {
-    const required = MISE_REQUIRED_PEERS.get(tool)
-    if (!required) return true
-    let hostEntry: string
-    try {
-      hostEntry = createRequire(entryPath).resolve(required.host)
-    } catch {
-      // An absent host means the recipe restructured its packages, which is not
-      // evidence that THIS install lost the peer — never fail a tool closed on it.
-      return true
-    }
-    try {
-      createRequire(hostEntry).resolve(required.peer)
-      return true
-    } catch (error) {
-      logger.warn('Managed tool dependency tree is incomplete', {
-        tool,
-        ...required,
-        error: this.errorMessage(error)
-      })
-      return false
-    }
+    return runnable !== null && (await this.isWithinInstall(activeEntry, runnable.canonical))
   }
 
   private async resolveMiseBinaryForTool(
@@ -1197,53 +1118,7 @@ export class BinaryManager extends BaseService {
     }
   }
 
-  private async resolveExactRuntime(runtime: string): Promise<string> {
-    const separator = runtime.lastIndexOf('@')
-    const runtimeTool = runtime.slice(0, separator)
-    const requestedVersion = runtime.slice(separator + 1)
-    const exactVersion = semverValid(requestedVersion)
-    if (exactVersion) return `${runtimeTool}@${exactVersion}`
-
-    const { stdout } = await this.runMise(['latest', '--minimum-release-age', '0s', runtime])
-    const resolvedVersion = semverValid(stdout.trim().split(/\r?\n/)[0])
-    if (!resolvedVersion) throw new Error(`mise did not resolve an exact runtime version for ${runtime}`)
-    return `${runtimeTool}@${resolvedVersion}`
-  }
-
-  private async resolveHealthyNpmRuntimeBin(runtime: string): Promise<string | null> {
-    const [runtimeNode, runtimeNpm, activeNode] = await Promise.all([
-      this.resolveMiseBinaryForTool('node', runtime),
-      this.resolveMiseBinaryForTool('npm', runtime),
-      this.resolveManagedBinaryPath('node')
-    ])
-    if (!runtimeNode || !runtimeNpm || !activeNode) return null
-
-    const canonicalRuntimeNode = isWin ? runtimeNode.canonicalPath.toLowerCase() : runtimeNode.canonicalPath
-    const canonicalActiveNode = isWin ? activeNode.toLowerCase() : activeNode
-    if (canonicalRuntimeNode !== canonicalActiveNode) return null
-
-    const nodeBin = isWin ? path.dirname(runtimeNode.path).toLowerCase() : path.dirname(runtimeNode.path)
-    const npmBin = isWin ? path.dirname(runtimeNpm.path).toLowerCase() : path.dirname(runtimeNpm.path)
-    return nodeBin === npmBin ? path.dirname(runtimeNpm.path) : null
-  }
-
-  private async prepareNpmRuntime(runtime: string): Promise<string> {
-    const exactRuntime = await this.resolveExactRuntime(runtime)
-    // A fuzzy use can trust a stale alias whose node target is missing. Activate
-    // an exact version, verify both launchers, then force-reinstall if needed.
-    await this.runMise(['use', '-g', '--pin', exactRuntime], { timeoutMs: MISE_INSTALL_TIMEOUT_MS })
-
-    let runtimeBin = await this.resolveHealthyNpmRuntimeBin(exactRuntime)
-    if (!runtimeBin) {
-      await this.runMise(['install', '--force', exactRuntime], { timeoutMs: MISE_INSTALL_TIMEOUT_MS })
-      await this.runMise(['use', '-g', '--pin', exactRuntime], { timeoutMs: MISE_INSTALL_TIMEOUT_MS })
-      runtimeBin = await this.resolveHealthyNpmRuntimeBin(exactRuntime)
-    }
-    if (!runtimeBin) throw new Error(`mise runtime is not runnable after reinstall: ${exactRuntime}`)
-    return runtimeBin
-  }
-
-  private async installPipxTool(args: string[], pythonPath: string, includePrerelease: boolean): Promise<void> {
+  private async installPipxTool(args: string[], pythonPath: string): Promise<void> {
     // mise's pipx backend shells out to uv, which honours UV_PYTHON — so mise
     // never needs a Python of its own, and none is passed to `mise use`.
     const pythonEnv = {
@@ -1256,7 +1131,7 @@ export class BinaryManager extends BaseService {
     // the user chose is used as-is, since retrying elsewhere would silently pull
     // packages from somewhere they did not ask for.
     const snapshot = await this.getIsolatedEnv()
-    const opts = { timeoutMs: MISE_INSTALL_TIMEOUT_MS, includePrerelease, snapshot }
+    const opts = { timeoutMs: MISE_INSTALL_TIMEOUT_MS, snapshot }
     if (!snapshot.usesDefaultChinaPipIndex) {
       await this.runMise(args, { ...opts, env: pythonEnv })
       return
@@ -1322,34 +1197,20 @@ export class BinaryManager extends BaseService {
       runtime = `${runtimeTool}@${runtimeVersion}`
     }
     const toolSpec = `${addNpmAllowBuildsOption(definition.tool, definition.npmAllowBuilds)}@${requested}`
-    const includePrerelease = MISE_PRERELEASE_TOOLS.has(definition.tool)
-    const shellOutNpm = MISE_NPM_SHELL_OUT_TOOLS.has(definition.tool)
-    const releaseAgeArgs = includePrerelease ? ['--minimum-release-age', '0s'] : []
-
-    const runtimeBin = shellOutNpm && runtime ? await this.prepareNpmRuntime(runtime) : undefined
     // Cherry provisions Python itself, so the pipx runtime stays out of `mise
     // use` — naming it there is what makes mise fetch its own Python.
     const pythonPath =
       backend === 'pipx' && runtime
         ? await provideManagedPython(runtime.slice(runtime.lastIndexOf('@') + 1), (await this.getIsolatedEnv()).env)
         : undefined
-    const useArgs = [
-      'use',
-      '-g',
-      ...releaseAgeArgs,
-      ...(!shellOutNpm && runtime && !pythonPath ? [runtime] : []),
-      toolSpec
-    ]
+    const useArgs = ['use', '-g', ...(runtime && !pythonPath ? [runtime] : []), toolSpec]
 
     if (pythonPath) {
-      await this.installPipxTool(useArgs, pythonPath, includePrerelease)
+      await this.installPipxTool(useArgs, pythonPath)
       await this.releaseMisePythonSelection()
     } else {
       await this.runMise(useArgs, {
-        timeoutMs: MISE_INSTALL_TIMEOUT_MS,
-        includePrerelease,
-        shellOutNpm,
-        prependPath: runtimeBin
+        timeoutMs: MISE_INSTALL_TIMEOUT_MS
       })
     }
     await this.runMise(['reshim'])
@@ -1925,9 +1786,7 @@ export class BinaryManager extends BaseService {
         const name = applied[cursor++]
         const { tool } = candidates.get(name)!
         try {
-          const includePrerelease = MISE_PRERELEASE_TOOLS.has(tool)
-          const releaseAgeArgs = includePrerelease ? ['--minimum-release-age', '0s'] : []
-          const { stdout } = await this.runMise(['latest', ...releaseAgeArgs, tool], { includePrerelease })
+          const { stdout } = await this.runMise(['latest', tool])
           const version = stdout.trim().split(/\r?\n/)[0]?.trim()
           if (version) result[name] = version
         } catch (err) {
@@ -2031,7 +1890,6 @@ export class BinaryManager extends BaseService {
       return (
         definitions.find((entry) => normalizeToolIdentity(entry.tool) === identity)?.name ??
         PRESETS_BINARY_TOOLS.find((preset) => normalizeToolIdentity(preset.tool) === identity)?.name ??
-        CODE_CLI_TOOL_PRESETS.find((preset) => normalizeToolIdentity(preset.miseTool) === identity)?.executable ??
         spec
       )
     }

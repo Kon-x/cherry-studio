@@ -46,7 +46,7 @@ function chatCandidate(
   latestAt: number,
   [messageRecord, contextRecord]: [ChatRecordReference, ChatRecordReference]
 ): ChatRecordCandidate {
-  const source = id.startsWith('agent-session-message:') ? 'agent-session' : 'normal-chat'
+  const source = 'normal-chat' as const
   return {
     contextId: contextRecord.key.slice(contextRecord.key.indexOf(':') + 1),
     contextRecord,
@@ -74,19 +74,7 @@ describe('DiagnosticBundleService inspection scheduling', () => {
     } as const
     const candidates = [
       chatCandidate('message:1', 2, [{ archiveName: 'chats/messages.jsonl', bytes: 5, key: 'message:1' }, topic]),
-      chatCandidate('message:2', 1, [{ archiveName: 'chats/messages.jsonl', bytes: 7, key: 'message:2' }, topic]),
-      chatCandidate('agent-session-message:1', 0, [
-        {
-          archiveName: 'chats/agent-session-messages.jsonl',
-          bytes: 11,
-          key: 'agent-session-message:1'
-        },
-        {
-          archiveName: 'chats/agent-sessions.jsonl',
-          bytes: 13,
-          key: 'agent-session:1'
-        }
-      ])
+      chatCandidate('message:2', 1, [{ archiveName: 'chats/messages.jsonl', bytes: 7, key: 'message:2' }, topic])
     ]
     sourceMocks.collectDiagnosticSources.mockResolvedValue(emptyCollection())
     chatMocks.collectChatRecords.mockReturnValue({
@@ -100,7 +88,7 @@ describe('DiagnosticBundleService inspection scheduling', () => {
     await expect(service.inspect('24h')).resolves.toMatchObject({
       hasWarnings: true,
       sources: {
-        chatRecords: { available: true, estimatedBytes: 46, messageCount: 3 }
+        chatRecords: { available: true, estimatedBytes: 22, messageCount: 2 }
       }
     })
   })

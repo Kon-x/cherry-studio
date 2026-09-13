@@ -1,4 +1,5 @@
 import type { FetchFunction } from '@ai-sdk/provider-utils'
+import type { OnBeforeSendHeadersListenerDetails } from 'electron'
 import { net, session } from 'electron'
 
 /**
@@ -181,20 +182,21 @@ export const customFetch: FetchFunction = (input: RequestInfo | URL, init?: Requ
  * provider `User-Agent` smuggled through {@link PROVIDER_USER_AGENT_HEADER}.
  *
  * `net.fetch` issues on `session.defaultSession`, so this is where its requests
- * pass through. The hook is a pass-through for every other request; it only
- * rewrites headers carrying the sentinel. Returns a disposer that removes the
- * interceptor.
+ * pass through. Browser popup headers share this hook so the two policies cannot
+ * replace each other's listener. Returns a disposer that removes the interceptor.
  *
  * Owns the default session's single `onBeforeSendHeaders` slot — nothing else may
  * register one on `defaultSession` (Electron keeps only the latest listener).
  */
-export function installProviderUserAgentInterceptor(): () => void {
+export function installProviderUserAgentInterceptor(
+  browserHeaders?: (details: OnBeforeSendHeadersListenerDetails) => Record<string, string> | undefined
+): () => void {
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     const sentinelKey = Object.keys(details.requestHeaders).find(
       (key) => key.toLowerCase() === PROVIDER_USER_AGENT_HEADER
     )
     if (!sentinelKey) {
-      callback({ requestHeaders: details.requestHeaders })
+      callback({ requestHeaders: { ...details.requestHeaders, ...browserHeaders?.(details) } })
       return
     }
 

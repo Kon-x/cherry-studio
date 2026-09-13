@@ -9,10 +9,6 @@ const composerToolConfigRegistry: Partial<Record<ComposerToolScope, ComposerTool
     enableQuickPanel: true,
     enableDragDrop: true
   },
-  [TopicType.Session]: {
-    enableQuickPanel: true,
-    enableDragDrop: true
-  },
   'quick-assistant': {
     enableQuickPanel: true,
     enableDragDrop: false

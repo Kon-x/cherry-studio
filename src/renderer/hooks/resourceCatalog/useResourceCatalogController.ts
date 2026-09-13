@@ -10,19 +10,17 @@ import type {
   ResourceType
 } from '@renderer/types/resourceCatalog'
 import { serializeAssistantForExport } from '@renderer/utils/assistantTransfer'
-import { buildCreateAgentCommand, buildCreateAssistantDto } from '@renderer/utils/resourceCatalog'
+import { buildCreateAssistantDto } from '@renderer/utils/resourceCatalog'
 import type { ConcreteApiPaths } from '@shared/data/api/paths'
-import type { InstalledSkill } from '@shared/data/types/agent'
 import type { Group } from '@shared/data/types/group'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useAgentMutations } from './agentAdapter'
 import { useAssistantMutations } from './assistantAdapter'
 import { useResourceLibrary } from './useResourceLibrary'
 
-type ResourceCreateWizardKind = 'assistant' | 'agent'
-type ResourceCatalogControllerType = Extract<ResourceType, 'assistant' | 'agent' | 'skill'>
+type ResourceCreateWizardKind = 'assistant'
+type ResourceCatalogControllerType = Extract<ResourceType, 'assistant'>
 
 const CREATE_DIALOG_EXIT_ANIMATION_MS = 200
 
@@ -56,13 +54,8 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogTarget, setEditDialogTarget] = useState<ResourceEditDialogTarget | null>(null)
   const [creatingResource, setCreatingResource] = useState(false)
-  const [selectedSkill, setSelectedSkill] = useState<InstalledSkill | null>(null)
   const [assistantImportOpen, setAssistantImportOpen] = useState(false)
   const [assistantLibraryOpen, setAssistantLibraryOpen] = useState(false)
-  const [skillImportOpen, setSkillImportOpen] = useState(false)
-  const [skillMarketplaceOpen, setSkillMarketplaceOpen] = useState(false)
-  const [systemSkillOpen, setSystemSkillOpen] = useState(false)
-
   const isAssistantLibrary = resourceType === 'assistant'
 
   const {
@@ -83,7 +76,6 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
   }, [resourceType])
 
   const { createAssistant, duplicateAssistant } = useAssistantMutations()
-  const { createAgent } = useAgentMutations()
   const { groups } = useGroups('assistant')
   const { createGroup } = useGroupMutations('assistant')
   const groupById = useMemo(() => new Map(groups.map((group) => [group.id, group] as const)), [groups])
@@ -103,10 +95,6 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
   const handleOpenResource = useCallback((resource: ResourceItem) => {
     if (resource.type === 'assistant') {
       setEditDialogTarget({ kind: 'assistant', id: resource.id })
-    } else if (resource.type === 'agent') {
-      setEditDialogTarget({ kind: 'agent', id: resource.id })
-    } else if (resource.type === 'skill') {
-      setSelectedSkill(resource.raw)
     }
   }, [])
 
@@ -152,11 +140,6 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
     if (type === 'assistant') {
       setCreateDialogKind('assistant')
       setCreateDialogOpen(true)
-    } else if (type === 'agent') {
-      setCreateDialogKind('agent')
-      setCreateDialogOpen(true)
-    } else if (type === 'skill') {
-      setSkillImportOpen(true)
     }
   }, [])
 
@@ -175,10 +158,8 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
 
       setCreatingResource(true)
       try {
-        if (kind === 'assistant') {
+        {
           await createAssistant(buildCreateAssistantDto(values))
-        } else {
-          await createAgent(buildCreateAgentCommand(values))
         }
 
         setCreateDialogOpen(false)
@@ -187,7 +168,7 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
         setCreatingResource(false)
       }
     },
-    [createAgent, createAssistant, createDialogKind, creatingResource, refetch]
+    [createAssistant, createDialogKind, creatingResource, refetch]
   )
 
   return {
@@ -208,8 +189,6 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
       onCreate: handleCreate,
       onImportAssistant: () => setAssistantImportOpen(true),
       onOpenAssistantLibrary: isAssistantLibrary ? () => setAssistantLibraryOpen(true) : undefined,
-      onOpenSkillMarketplace: () => setSkillMarketplaceOpen(true),
-      onOpenSystemSkills: () => setSystemSkillOpen(true),
       groups: scopedGroups,
       activeGroupId,
       onGroupFilter: setActiveGroupId,
@@ -226,18 +205,10 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
       creatingResource,
       deleteConfirm,
       editDialogTarget,
-      selectedSkill,
-      skillImportOpen,
-      skillMarketplaceOpen,
-      systemSkillOpen,
       setAssistantImportOpen,
       setAssistantLibraryOpen,
       setDeleteConfirm,
       setEditDialogTarget,
-      setSelectedSkill,
-      setSkillImportOpen,
-      setSkillMarketplaceOpen,
-      setSystemSkillOpen,
       handleCreateDialogOpenChange,
       handleSubmitCreateResource
     }

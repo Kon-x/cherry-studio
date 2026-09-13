@@ -175,8 +175,7 @@ const titleKeyMap = {
   notes: 'title.notes',
   paintings: 'title.paintings',
   settings: 'title.settings',
-  translate: 'title.translate',
-  agents: 'agent.sidebar_title'
+  translate: 'title.translate'
 } as const
 
 export const getTitleLabelKey = (key: string): string => {
@@ -195,13 +194,10 @@ export const getThemeModeLabelKey = (key: string): string => {
 
 const sidebarIconKeyMap = {
   assistants: 'title.chat',
-  agents: 'title.work',
   paintings: 'title.paintings',
   translate: 'translate.title',
-  mini_app: 'miniApp.title',
   knowledge: 'knowledge.title',
   files: 'files.title',
-  code_tools: 'code.title',
   notes: 'notes.title'
 } as const
 
@@ -214,14 +210,11 @@ export const getSidebarIconLabelKey = (key: string): string => {
 // chat carve brings feat's Sidebar; remove together with that.
 const sidebarFavoriteKeyMap = {
   assistants: 'assistants.title',
-  agents: 'title.work',
   store: 'assistants.presets.title',
   paintings: 'title.paintings',
   translate: 'translate.title',
-  mini_app: 'miniApp.title',
   knowledge: 'knowledge.title',
   files: 'files.title',
-  code_tools: 'code.title',
   notes: 'notes.title'
 } as const
 export const getSidebarFavoriteLabelKey = (key: string): string => {
@@ -285,15 +278,6 @@ const mcpTypeKeyMap = {
 
 export const getMcpTypeLabelKey = (key: string): string => {
   return getLabelKey(mcpTypeKeyMap, key)
-}
-
-const miniAppsStatusKeyMap = {
-  visible: 'settings.miniApps.visible',
-  disabled: 'settings.miniApps.disabled'
-} as const
-
-export const getMiniAppsStatusLabelKey = (key: string): string => {
-  return getLabelKey(miniAppsStatusKeyMap, key)
 }
 
 const httpMessageKeyMap = {

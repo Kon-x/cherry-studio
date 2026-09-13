@@ -14,18 +14,18 @@ import { OpenTargetIcon } from './OpenTargetIcon'
 
 export function getOpenTargetLabel(target: ExternalOpenTarget, t: TFunction): string {
   if (target.kind === 'file_manager') {
-    if (isMac) return t('agent.session.file_manager.finder')
-    if (isWin) return t('agent.session.file_manager.file_explorer')
-    return t('agent.session.file_manager.files')
+    if (isMac) return t('files.file_manager.finder')
+    if (isWin) return t('files.file_manager.file_explorer')
+    return t('files.file_manager.files')
   }
-  return target.name ?? t('agent.preview_pane.default_app')
+  return target.name ?? t('chat.preview_pane.default_app')
 }
 
 export function getOpenTargetBadge(target: ExternalOpenTarget, t: TFunction) {
   if (target.kind !== 'system_default' || !target.name) return undefined
   return (
     <Badge variant="secondary" className="px-1.5 py-0 font-normal text-[10px]">
-      {t('agent.preview_pane.default_app')}
+      {t('chat.preview_pane.default_app')}
     </Badge>
   )
 }

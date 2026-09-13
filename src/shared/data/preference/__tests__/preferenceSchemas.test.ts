@@ -32,36 +32,6 @@ describe('DefaultPreferences', () => {
     expect(DefaultPreferences.default['chat.web_search.default_search_keywords_provider']).toBe(searchKeywordsDefault)
   })
 
-  it('groups conversations and agent sessions by the assistant and agent defaults for new users', () => {
-    const topicDisplayDefault: PreferenceSchemas['default']['topic.tab.display_mode'] = 'assistant'
-    const agentSessionDisplayDefault: PreferenceSchemas['default']['agent.session.display_mode'] = 'agent'
-
-    expect(DefaultPreferences.default['topic.tab.display_mode']).toBe(topicDisplayDefault)
-    expect(DefaultPreferences.default['agent.session.display_mode']).toBe(agentSessionDisplayDefault)
-  })
-
-  it('defaults sidebar favorites to Agent before Chat for new users', () => {
-    const sidebarFavoritesDefault: PreferenceSchemas['default']['ui.sidebar.favorites'] = [
-      { id: 'agents', type: 'app' },
-      { id: 'assistants', type: 'app' },
-      { id: 'translate', type: 'app' },
-      { id: 'paintings', type: 'app' },
-      { id: 'knowledge', type: 'app' }
-    ]
-
-    expect(DefaultPreferences.default['ui.sidebar.favorites']).toEqual(sidebarFavoritesDefault)
-  })
-
-  it('pins permission mode on the agent composer toolbar for new users', () => {
-    const agentPinnedToolsDefault: PreferenceSchemas['default']['agent.input.toolbar.pinned_tools'] = [
-      'composer:new-session',
-      'skills',
-      'permission-mode'
-    ]
-
-    expect(DefaultPreferences.default['agent.input.toolbar.pinned_tools']).toEqual(agentPinnedToolsDefault)
-  })
-
   it('defaults transparent windows on for new users', () => {
     const windowStyleDefault: PreferenceSchemas['default']['ui.window_style'] = 'transparent'
 

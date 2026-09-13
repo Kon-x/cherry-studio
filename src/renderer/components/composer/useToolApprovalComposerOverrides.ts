@@ -3,8 +3,6 @@ import type { CherryMessagePart } from '@shared/data/types/message'
 import { useMemo } from 'react'
 
 import type { ComposerOverride } from './ComposerContext'
-import { createAskUserQuestionComposerOverride } from './variants/AskUserQuestionComposer'
-import { findLatestPendingAskUserQuestionRequest } from './variants/askUserQuestionComposerRequest'
 import { createPermissionRequestComposerOverride } from './variants/PermissionRequestComposer'
 import { findNextPendingPermissionRequest } from './variants/permissionRequestComposerRequest'
 
@@ -39,15 +37,6 @@ export function useToolApprovalComposerOverrides({
     }
     return liveParts
   }, [streamingLayers, partsByMessageId])
-  const historyAskUserQuestionRequest = useMemo(
-    () => (settledHistoryParts ? findLatestPendingAskUserQuestionRequest(settledHistoryParts) : null),
-    [settledHistoryParts]
-  )
-  const currentAskUserQuestionRequest = useMemo(
-    () => findLatestPendingAskUserQuestionRequest(currentParts),
-    [currentParts]
-  )
-  const askUserQuestionRequest = currentAskUserQuestionRequest ?? historyAskUserQuestionRequest
   const historyPermissionRequest = useMemo(
     () => (settledHistoryParts ? findNextPendingPermissionRequest(settledHistoryParts) : null),
     [settledHistoryParts]
@@ -57,16 +46,6 @@ export function useToolApprovalComposerOverrides({
 
   return useMemo(() => {
     const overrides: ComposerOverride[] = []
-
-    if (askUserQuestionRequest) {
-      overrides.push(
-        createAskUserQuestionComposerOverride({
-          request: askUserQuestionRequest,
-          onRespond
-        })
-      )
-    }
-
     if (permissionRequest) {
       overrides.push(
         createPermissionRequestComposerOverride({
@@ -77,5 +56,5 @@ export function useToolApprovalComposerOverrides({
     }
 
     return overrides
-  }, [askUserQuestionRequest, onRespond, permissionRequest])
+  }, [onRespond, permissionRequest])
 }

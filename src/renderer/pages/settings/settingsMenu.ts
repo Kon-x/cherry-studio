@@ -2,7 +2,6 @@ import { McpLogo } from '@renderer/components/icons/SvgIcon'
 import {
   Activity,
   Bell,
-  CalendarClock,
   Cloud,
   Command,
   Crop,
@@ -18,7 +17,6 @@ import {
   Settings2,
   Terminal,
   TextCursorInput,
-  ToolCase,
   Zap
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -50,14 +48,8 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
   },
   {
     route: '/settings/mcp',
-    titleKey: 'agent.settings.toolsMcp.mcp.tab',
+    titleKey: 'settings.mcp.tab',
     icon: createElement(McpLogo, { width: 16, height: 16, className: 'text-foreground' }),
-    groupKey: 'settings.menuGroups.capabilities'
-  },
-  {
-    route: '/settings/skills',
-    titleKey: 'settings.skills.title',
-    icon: createElement(ToolCase),
     groupKey: 'settings.menuGroups.capabilities'
   },
   {
@@ -113,12 +105,6 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     titleKey: 'settings.usage.title',
     icon: createElement(Activity),
     groupKey: 'settings.menuGroups.personal'
-  },
-  {
-    route: '/settings/scheduled-tasks',
-    titleKey: 'settings.scheduledTasks.title',
-    icon: createElement(CalendarClock),
-    groupKey: 'settings.menuGroups.automation'
   },
   {
     route: '/settings/shortcut',

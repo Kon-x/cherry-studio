@@ -1,13 +1,9 @@
 import { getDisplayComposerTokens } from '@renderer/utils/message/composerTokens'
-import { REPORT_ARTIFACTS_TOOL_NAME } from '@shared/ai/builtinTools'
 import type { CherryMessagePart } from '@shared/data/types/message'
 import { readCherryMeta } from '@shared/data/types/uiParts'
-import { getToolName, isToolUIPart } from 'ai'
+import { isToolUIPart } from 'ai'
 
-import { agentInlineResultPresentationRegistry } from '../tools/agent'
-import { isChannelAuthQrPart } from '../tools/channelConfigTool'
 import { isGeneratedImageResultPart } from '../tools/painting/generateImageTool'
-import { isAskUserQuestionToolName } from '../tools/shared/agentToolTypes'
 
 export interface PartEntry {
   part: CherryMessagePart
@@ -32,7 +28,6 @@ export type LiveMessagePartLayoutItem = LiveProcessLayoutItem | LivePartLayoutIt
 export interface CompletedMessagePartLayout {
   historyEntries: readonly PartEntry[]
   resultEntries: readonly PartEntry[]
-  reportEntries: readonly PartEntry[]
 }
 
 const HIDDEN_PART_TYPES = new Set([
@@ -119,26 +114,8 @@ function isProcessFillerText(
   return isProcessContentPart(findAdjacentMeaningfulPart(entries, position, -1))
 }
 
-function getPartToolName(part: CherryMessagePart): string {
-  return isToolUIPart(part) ? getToolName(part).trim() : ''
-}
-
-function isReportToolPart(part: CherryMessagePart): boolean {
-  if (!isToolUIPart(part)) return false
-  const toolName = getPartToolName(part)
-  return toolName === REPORT_ARTIFACTS_TOOL_NAME || toolName.endsWith(`__${REPORT_ARTIFACTS_TOOL_NAME}`)
-}
-
-function isAskUserQuestionPart(part: CherryMessagePart): boolean {
-  return isToolUIPart(part) && isAskUserQuestionToolName(getPartToolName(part))
-}
-
 function isInlineResultToolPart(part: CherryMessagePart): boolean {
-  return (
-    isChannelAuthQrPart(part) ||
-    agentInlineResultPresentationRegistry.isResultPart(part) ||
-    isGeneratedImageResultPart(part)
-  )
+  return isGeneratedImageResultPart(part)
 }
 
 function isVisibleReasoningPart(part: CherryMessagePart): boolean {
@@ -147,8 +124,8 @@ function isVisibleReasoningPart(part: CherryMessagePart): boolean {
 }
 
 export function isProcessToolPart(part: CherryMessagePart): boolean {
-  if (!isToolUIPart(part) || isReportToolPart(part)) return false
-  return !isAskUserQuestionPart(part) && !isInlineResultToolPart(part)
+  if (!isToolUIPart(part)) return false
+  return !isInlineResultToolPart(part)
 }
 
 function isVisibleProcessPart(part: CherryMessagePart): boolean {
@@ -274,21 +251,13 @@ export function isResultPart(part: CherryMessagePart): boolean {
   return isSubstantiveAnswerPart(part) || isAssociatedResultPart(part)
 }
 
-/**
- * Projects a terminal message into completed history, final result, and report
- * artifact side-channel entries. Active messages must use
- * {@link projectLiveMessageParts}; this function intentionally performs no
- * streaming-state inference.
- */
+/** Projects a terminal message into completed history and its final result. */
 export function projectCompletedMessageParts(entries: readonly PartEntry[]): CompletedMessagePartLayout {
-  const reportEntries: PartEntry[] = []
   const contentEntries: PartEntry[] = []
 
   for (let position = 0; position < entries.length; position++) {
     const entry = entries[position]
-    if (isReportToolPart(entry.part)) {
-      reportEntries.push(entry)
-    } else if (!isEmptyContentPart(entry.part) && !isProcessFillerText(entries, position, false)) {
+    if (!isEmptyContentPart(entry.part) && !isProcessFillerText(entries, position, false)) {
       contentEntries.push(entry)
     }
   }
@@ -304,30 +273,14 @@ export function projectCompletedMessageParts(entries: readonly PartEntry[]): Com
   let resultStart = -1
   let resultEnd = -1
   if (lastAnswerPosition >= 0) {
-    let lastRegularToolPosition = -1
-    for (let position = lastAnswerPosition - 1; position >= 0; position--) {
-      if (isProcessToolPart(contentEntries[position].part)) {
-        lastRegularToolPosition = position
-        break
-      }
-    }
-
-    const hasAskUserQuestionAfterLastRegularTool = contentEntries
-      .slice(lastRegularToolPosition + 1, lastAnswerPosition)
-      .some((entry) => isAskUserQuestionPart(entry.part))
-
-    if (hasAskUserQuestionAfterLastRegularTool) {
-      resultStart = lastRegularToolPosition + 1
-    } else {
-      resultStart = lastAnswerPosition
-      while (
-        resultStart > 0 &&
-        (isSubstantiveAnswerPart(contentEntries[resultStart - 1].part) ||
-          isAssociatedResultPart(contentEntries[resultStart - 1].part) ||
-          isHiddenPart(contentEntries[resultStart - 1].part))
-      ) {
-        resultStart--
-      }
+    resultStart = lastAnswerPosition
+    while (
+      resultStart > 0 &&
+      (isSubstantiveAnswerPart(contentEntries[resultStart - 1].part) ||
+        isAssociatedResultPart(contentEntries[resultStart - 1].part) ||
+        isHiddenPart(contentEntries[resultStart - 1].part))
+    ) {
+      resultStart--
     }
 
     resultEnd = lastAnswerPosition + 1
@@ -364,7 +317,6 @@ export function projectCompletedMessageParts(entries: readonly PartEntry[]): Com
 
   return {
     historyEntries: contentEntries.filter((entry, position) => !isDirectResult(entry, position)),
-    resultEntries: contentEntries.filter(isDirectResult),
-    reportEntries
+    resultEntries: contentEntries.filter(isDirectResult)
   }
 }

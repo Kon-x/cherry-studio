@@ -115,8 +115,6 @@ describe('ResourceDeleteConfirmDialog', () => {
 
   it.each([
     ['assistant', 'Delete assistant', 'Delete', mocks.deleteAssistant],
-    ['agent', 'Delete agent', 'Delete', mocks.deleteAgent],
-    ['skill', 'Uninstall skill', 'Uninstall', mocks.uninstallSkill],
     ['prompt', 'Delete prompt', 'Delete', mocks.deletePrompt]
   ] as const)('dispatches %s deletion through the matching mutation', async (type, title, confirmText, mutation) => {
     const user = userEvent.setup()

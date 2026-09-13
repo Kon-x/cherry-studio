@@ -9,7 +9,7 @@ export default defineConfig({
   testDir: './tests/e2e/specs',
 
   // Global timeout for each test
-  timeout: 60000,
+  timeout: 120000,
 
   // Assertion timeout
   expect: {

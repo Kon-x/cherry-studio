@@ -362,7 +362,6 @@ describe('AppearanceSettings selectors', () => {
 
   it('routes each list position row to its own module preference', async () => {
     MockUsePreferenceUtils.setPreferenceValue('topic.tab.position', 'left')
-    MockUsePreferenceUtils.setPreferenceValue('agent.session.position', 'left')
 
     render(<AppearanceSettings />)
 
@@ -371,14 +370,6 @@ describe('AppearanceSettings selectors', () => {
 
     await waitFor(() => {
       expect(MockUsePreferenceUtils.getPreferenceValue('topic.tab.position')).toBe('right')
-    })
-    expect(MockUsePreferenceUtils.getPreferenceValue('agent.session.position')).toBe('left')
-
-    const workGroup = screen.getByRole('radiogroup', { name: 'settings.display.list_position.work' })
-    fireEvent.click(within(workGroup).getByRole('radio', { name: 'settings.topic.position.right' }))
-
-    await waitFor(() => {
-      expect(MockUsePreferenceUtils.getPreferenceValue('agent.session.position')).toBe('right')
     })
   })
 

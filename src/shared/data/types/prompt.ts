@@ -21,32 +21,17 @@ export const PromptTitleSchema = z.string().trim().min(1).max(PROMPT_TITLE_MAX)
 export const PromptContentSchema = z.string().min(1).max(PROMPT_CONTENT_MAX)
 export const PromptVisibilitySchema = z.enum(['global', 'restricted'])
 
-export const PromptBindingTargetTypeSchema = z.enum(['assistant', 'agent'])
+export const PromptBindingTargetTypeSchema = z.enum(['assistant'])
 export const PromptAssistantBindingTargetSchema = z.strictObject({
   type: z.literal('assistant'),
   id: AssistantIdSchema
 })
-export const PromptAgentBindingTargetSchema = z.strictObject({
-  type: z.literal('agent'),
-  id: z.string().min(1)
+export const PromptBindingTargetSchema = PromptAssistantBindingTargetSchema
+export const PromptBindingRelationSchema = z.strictObject({
+  promptId: PromptIdSchema,
+  targetType: z.literal('assistant'),
+  targetId: AssistantIdSchema
 })
-export const PromptBindingTargetSchema = z.discriminatedUnion('type', [
-  PromptAssistantBindingTargetSchema,
-  PromptAgentBindingTargetSchema
-])
-
-export const PromptBindingRelationSchema = z.discriminatedUnion('targetType', [
-  z.strictObject({
-    promptId: PromptIdSchema,
-    targetType: z.literal('assistant'),
-    targetId: AssistantIdSchema
-  }),
-  z.strictObject({
-    promptId: PromptIdSchema,
-    targetType: z.literal('agent'),
-    targetId: z.string().min(1)
-  })
-])
 
 /** Complete Prompt entity as returned by the API. */
 export const PromptSchema = z.strictObject({

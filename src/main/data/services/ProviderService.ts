@@ -654,7 +654,10 @@ class ProviderService {
     const existingIds = new Set(existing.map((row) => row.providerId))
     const tombstones = readDeletedPresetProviderIds(tx)
     const newProviders = providers.filter(
-      (provider) => !existingIds.has(provider.providerId) && !tombstones.has(provider.providerId)
+      (provider) =>
+        !isRetiredProvider(provider.providerId, provider.presetProviderId) &&
+        !existingIds.has(provider.providerId) &&
+        !tombstones.has(provider.providerId)
     )
 
     if (newProviders.length === 0) return 0

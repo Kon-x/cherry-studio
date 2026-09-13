@@ -592,13 +592,7 @@ describe('useDeleteKnowledgeBase', () => {
 
     expect(mockUseMutation).not.toHaveBeenCalled()
     expect(mockIpcRequest).toHaveBeenCalledWith('knowledge.delete_base', { baseId: 'base-1' })
-    expect(mockInvalidateCache).toHaveBeenCalledWith([
-      '/knowledge-bases',
-      '/agents',
-      '/agents/*',
-      '/assistants',
-      '/assistants/*'
-    ])
+    expect(mockInvalidateCache).toHaveBeenCalledWith(['/knowledge-bases', '/assistants', '/assistants/*'])
     expect(result.current.isDeleting).toBe(false)
     expect(result.current.deleteError).toBeUndefined()
   })
@@ -612,13 +606,7 @@ describe('useDeleteKnowledgeBase', () => {
       await expect(result.current.deleteBase('base-1')).rejects.toBe(deleteError)
     })
 
-    expect(mockInvalidateCache).toHaveBeenCalledWith([
-      '/knowledge-bases',
-      '/agents',
-      '/agents/*',
-      '/assistants',
-      '/assistants/*'
-    ])
+    expect(mockInvalidateCache).toHaveBeenCalledWith(['/knowledge-bases', '/assistants', '/assistants/*'])
     expect(result.current.isDeleting).toBe(false)
     expect(result.current.deleteError).toBe(deleteError)
     expect(loggerErrorSpy).toHaveBeenCalledWith('Failed to delete knowledge base', deleteError, {

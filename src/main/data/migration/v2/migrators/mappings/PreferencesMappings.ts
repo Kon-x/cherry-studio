@@ -1,6 +1,6 @@
 /**
  * Auto-generated preference mappings from classification.json
- * Generated at: 2026-09-02T07:04:52.519Z
+ * Generated at: 2026-09-12T21:52:45.929Z
  *
  * This file contains pure mapping relationships without default values.
  * Default values are managed in src/shared/data/preferences.ts
@@ -439,18 +439,6 @@ export const REDUX_STORE_MAPPINGS = {
       targetKey: 'data.integration.siyuan.root_path'
     },
     {
-      originalKey: 'maxKeepAliveMinapps',
-      targetKey: 'feature.mini_app.max_keep_alive'
-    },
-    {
-      originalKey: 'minappsOpenLinkExternal',
-      targetKey: 'feature.mini_app.open_link_external'
-    },
-    {
-      originalKey: 'minAppRegion',
-      targetKey: 'feature.mini_app.region'
-    },
-    {
       originalKey: 'privacyPolicyVersion',
       targetKey: 'app.privacy.policy_version'
     },
@@ -807,11 +795,11 @@ export const LOCALSTORAGE_MAPPINGS: ReadonlyArray<{ originalKey: string; targetK
 /**
  * 映射统计:
  * - ElectronStore项: 2
- * - Redux Store项: 176
+ * - Redux Store项: 173
  * - Redux分类: settings, selectionStore, llm, nutstore, preprocess, translate, websearch, ocr, note
  * - DexieSettings项: 5
  * - localStorage项: 0
- * - 总配置项: 183
+ * - 总配置项: 180
  *
  * 使用说明:
  * 1. ElectronStore读取: configManager.get(mapping.originalKey)

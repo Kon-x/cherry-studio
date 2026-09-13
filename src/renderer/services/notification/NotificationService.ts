@@ -12,8 +12,7 @@ export class NotificationService {
       assistant: 'app.notification.assistant.enabled',
       backup: 'app.notification.backup.enabled',
       knowledge: 'app.notification.knowledge.enabled',
-      update: 'app.notification.update.enabled',
-      'mini-app': 'app.notification.mini_app.enabled'
+      update: 'app.notification.update.enabled'
     })
 
     if (notificationSettings[notification.source]) {

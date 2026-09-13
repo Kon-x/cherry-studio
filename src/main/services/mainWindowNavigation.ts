@@ -4,34 +4,23 @@ import type { Tab } from '@shared/data/cache/cacheValueTypes'
 import type { SettingsPath } from '@shared/data/types/settingsPath'
 import { normalizeSettingsPath } from '@shared/data/types/settingsPath'
 import type { MainWindowInitData } from '@shared/types/mainWindow'
+import { isRetiredNavigationUrl } from '@shared/utils/navigationPath'
 
-/**
- * Route allowlist for externally-triggered main-window navigation (protocol
- * deep links and the `navigation.open_route_in_main` IPC). Single source of
- * truth — do not fork a second list at a call site.
- *
- * `/app` is the app's real route namespace — agents/chat/knowledge/… all live
- * under it (e.g. `/app/agents`). The bare `/agents`-style entries are the
- * legacy prefixes produced by the protocol deep-link handler and are kept so
- * those links still pass the allowlist.
- */
+/** Shared allowlist for protocol deep links and the navigation.open_route_in_main IPC. */
 export const ALLOWED_ROUTE_PREFIXES = [
   '/settings',
   '/app',
-  '/agents',
   '/knowledge',
   '/paintings',
   '/translate',
   '/files',
   '/notes',
-  '/apps',
-  '/code',
   '/launchpad'
 ]
 
 export const isAllowedRoute = (path: string): boolean => {
-  // Match on the pathname only: routes may carry search params (e.g. the
-  // feedback agent route `/app/agents?intent=feedback&sessionId=…`).
+  if (isRetiredNavigationUrl(path)) return false
+  // Queries and hashes do not change the route's navigation permissions.
   const pathname = path.split('?')[0].split('#')[0]
   return ALLOWED_ROUTE_PREFIXES.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 }

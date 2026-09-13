@@ -23,7 +23,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
     t: (key: string, values?: Record<string, unknown>) => {
       if (key === 'common.open_in') return `Open in ${values?.name}`
       if (key === 'files.error.open_path') return `Failed to open ${values?.path}`
-      if (key === 'agent.preview_pane.default_app') return 'Default app'
+      if (key === 'chat.preview_pane.default_app') return 'Default app'
       return key
     }
   })

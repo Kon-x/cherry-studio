@@ -54,7 +54,7 @@ export function useConversationNavigationOwner({ tabs, openTab, setActiveTab }: 
       return
     }
 
-    const app = getConversationSidebarApp(target)
+    const app = getConversationSidebarApp()
     if (!app?.conversationRoute) {
       reportOwnership(requestId, false)
       return

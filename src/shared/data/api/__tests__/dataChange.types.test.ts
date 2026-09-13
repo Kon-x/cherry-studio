@@ -14,64 +14,9 @@
  */
 import { describe, expectTypeOf, it } from 'vitest'
 
-import type { CollectionGetPaths, DataApiDataChangeEffect, GetMethodApiPaths, ScalarGetPaths } from '../types'
+import type { DataApiDataChangeEffect, GetMethodApiPaths } from '../types'
 
 describe('endpoint classification', () => {
-  it('pins the collection classification snapshot (update deliberately on schema changes)', () => {
-    expectTypeOf<CollectionGetPaths>().toEqualTypeOf<
-      | '/agent-channels'
-      | '/agent-sessions'
-      | '/agent-sessions/:sessionId/messages'
-      | '/agent-tasks'
-      | '/agent-workspaces'
-      | '/agents'
-      | '/agents/:agentId/tasks'
-      | '/agents/:agentId/tasks/:taskId/logs'
-      | '/assistants'
-      | '/files/entries'
-      | '/files/entries/by-content-hash'
-      | '/files/entries/:id/refs'
-      | '/files/entries/ref-counts'
-      | '/files/refs'
-      | '/groups'
-      | '/jobs'
-      | '/knowledge-bases'
-      | '/knowledge-bases/:id/items'
-      | '/mcp-servers'
-      | '/mini-apps'
-      | '/models'
-      | '/notes'
-      | '/paintings'
-      | '/pins'
-      | '/prompt-bindings'
-      | '/prompt-bindings/:targetType/:targetId'
-      | '/prompts'
-      | '/prompts/:id/bindings'
-      | '/providers'
-      | '/providers/:providerId/models:resolve'
-      | '/skills'
-      | '/tags'
-      | '/tags/entities/:entityType/:entityId'
-      | '/temporary/topics/:topicId/messages'
-      | '/topics'
-      | '/topics/:topicId/messages'
-      | '/topics/:topicId/path'
-      | '/translate/histories'
-      | '/translate/languages'
-      | '/ai-usage-records'
-    >()
-  })
-
-  it('classifies wrapper-object and single-entity responses as scalar', () => {
-    // Wrapper objects not extending a pagination type degrade to scalar —
-    // coarser but correct (no kind = whole-value refetch).
-    expectTypeOf<'/topics/latest'>().toExtend<ScalarGetPaths>()
-    expectTypeOf<'/topics/:id'>().toExtend<ScalarGetPaths>()
-    expectTypeOf<'/search/entities'>().toExtend<ScalarGetPaths>()
-    expectTypeOf<'/topics/:topicId/tree'>().toExtend<ScalarGetPaths>()
-    expectTypeOf<'/agent-tasks/:taskId'>().toExtend<ScalarGetPaths>()
-  })
-
   it('rejects paths without a GET read model as notification targets', () => {
     // POST-only — nothing readable to converge on.
     // @ts-expect-error '/messages/:id/siblings' declares no GET method

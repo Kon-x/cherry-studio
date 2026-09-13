@@ -1,15 +1,12 @@
 import '@testing-library/jest-dom/vitest'
 
 import type * as CherryStudioUi from '@cherrystudio/ui'
-import { toAgentSessionUIMessage } from '@renderer/hooks/useAgentSessionParts'
 import type { Topic } from '@renderer/types/topic'
-import type { AgentSessionMessageEntity } from '@shared/data/types/agent'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MessageListProvider } from '../../MessageListProvider'
 import { defaultMessageRenderConfig, type MessageListItem, type MessageListProviderValue } from '../../types'
-import { toMessageListItem } from '../../utils/messageListItem'
 import MessageTokens from '../MessageTokens'
 
 const dataApiMocks = vi.hoisted(() => ({
@@ -208,45 +205,6 @@ describe('MessageTokens', () => {
     expect(getDetailsCard()).not.toHaveTextContent('0 Tokens/s')
     expect(screen.getByTestId('message-metric-speed')).toHaveTextContent('Model generation TPSNot available')
     expect(getDetailsCard()).not.toHaveTextContent('End-to-end throughput')
-  })
-
-  it('shows unavailable after reloading an Agent message with cost but no token counts', () => {
-    const row = {
-      id: 'agent-message-1',
-      sessionId: 'agent-session-1',
-      role: 'assistant',
-      data: { parts: [{ type: 'text', text: 'Completed' }] },
-      searchableText: 'Completed',
-      status: 'success',
-      modelId: 'claude-code::claude-sonnet-4-5',
-      messageSnapshot: null,
-      stats: {
-        requestCount: 1,
-        costs: [
-          {
-            currency: 'USD',
-            amount: 0.0123,
-            providerReportedRequestCount: 1,
-            computedRequestCount: 0
-          }
-        ],
-        runtimeTiming: { startedAt: 1_000, completedAt: 2_000, spans: [] }
-      },
-      runtimeResumeToken: 'claude-session-1',
-      delivery: null,
-      createdAt: '2026-09-04T00:00:00.000Z',
-      updatedAt: '2026-09-04T00:00:01.000Z'
-    } as AgentSessionMessageEntity
-    const reloadedMessage = toMessageListItem(toAgentSessionUIMessage(row), { topicId: row.sessionId })
-
-    renderWithProvider(reloadedMessage, 'agent-session')
-
-    openDetails()
-
-    expect(screen.getByRole('button', { name: 'Not available Tokens' })).toHaveClass('message-tokens')
-    expect(screen.getByTestId('message-metric-input')).toHaveTextContent('InputNot available')
-    expect(screen.getByTestId('message-metric-output')).toHaveTextContent('OutputNot available')
-    expect(screen.getByTestId('message-cost')).toHaveTextContent('$0.0123')
   })
 
   it('loads the first invocation page when the card opens and defers full pagination until expansion', () => {

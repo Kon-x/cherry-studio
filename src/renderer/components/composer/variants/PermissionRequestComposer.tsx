@@ -1,15 +1,11 @@
 import { Button, Kbd, Textarea } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
 import { getToolGroupIcon, getToolGroupSemanticTitle } from '@renderer/components/chat/messages/blocks/ToolBlockGroup'
-import { isValidAgentToolsType, renderTool, UnknownToolRenderer } from '@renderer/components/chat/messages/tools/agent'
-import { AgentToolsType } from '@renderer/components/chat/messages/tools/shared/agentToolTypes'
 import { ToolArgsTable } from '@renderer/components/chat/messages/tools/shared/ArgsTable'
-import { ToolDisclosure, type ToolDisclosureItem } from '@renderer/components/chat/messages/tools/shared/ToolDisclosure'
 import type { ToolResponseLike } from '@renderer/components/chat/messages/tools/toolResponse'
 import type { MessageToolApprovalInput } from '@renderer/components/chat/messages/types'
 import Scrollbar from '@renderer/components/Scrollbar'
 import { toast } from '@renderer/services/toast'
-import type { McpToolResponse, NormalToolResponse } from '@renderer/types/mcpTool'
 import { cn } from '@renderer/utils/style'
 import { Loader2 } from 'lucide-react'
 import { useCallback, useState } from 'react'
@@ -39,36 +35,10 @@ type PermissionRequestComposerOverrideOptions = {
   onRespond: (input: MessageToolApprovalInput) => void | Promise<void>
 }
 
-function isMcpToolResponse(toolResponse: ToolResponseLike): toolResponse is McpToolResponse {
-  return toolResponse.tool.type === 'mcp'
-}
-
 function normalizeArgs(args: ToolResponseLike['arguments']): Record<string, unknown> | unknown[] | null {
   if (args === undefined || args === null) return null
   if (typeof args === 'object') return args as Record<string, unknown> | unknown[]
   return { value: args }
-}
-
-const BUILTIN_TOOLS_WITH_OWN_PREVIEW_SCROLL = new Set<string>([
-  AgentToolsType.Bash,
-  AgentToolsType.BashOutput,
-  AgentToolsType.Glob,
-  AgentToolsType.Grep,
-  AgentToolsType.Read,
-  AgentToolsType.Skill,
-  AgentToolsType.Write
-])
-
-function renderBuiltinPreviewChildren(toolName: string, children: ToolDisclosureItem['children']) {
-  if (children === undefined || children === null || BUILTIN_TOOLS_WITH_OWN_PREVIEW_SCROLL.has(toolName)) {
-    return children
-  }
-
-  return (
-    <Scrollbar className="max-h-60 overflow-x-hidden" data-testid="permission-builtin-body-scroll">
-      {children}
-    </Scrollbar>
-  )
 }
 
 export function createPermissionRequestComposerOverride({
@@ -84,35 +54,7 @@ export function createPermissionRequestComposerOverride({
   }
 }
 
-function BuiltinPermissionPreview({ toolResponse }: { toolResponse: NormalToolResponse }) {
-  const toolName = toolResponse.tool.name
-  const input = toolResponse.arguments as Record<string, unknown> | string | undefined
-  const renderedItem = isValidAgentToolsType(toolName)
-    ? renderTool(toolName, input)
-    : UnknownToolRenderer({ toolName, input })
-
-  const item: ToolDisclosureItem = {
-    ...renderedItem,
-    label: <PermissionPreviewHeader toolName={toolName} />,
-    children: renderBuiltinPreviewChildren(toolName, renderedItem.children),
-    classNames: {
-      ...renderedItem.classNames,
-      header: cn('px-3 py-2', renderedItem.classNames?.header),
-      body: cn('max-h-none overflow-visible bg-transparent p-2 text-foreground', renderedItem.classNames?.body)
-    }
-  }
-
-  return (
-    <ToolDisclosure
-      className="w-full"
-      variant="light"
-      defaultActiveKey={[String(renderedItem.key ?? toolName)]}
-      items={[item]}
-    />
-  )
-}
-
-function McpPermissionPreview({ toolResponse }: { toolResponse: McpToolResponse }) {
+function PermissionPreview({ toolResponse }: { toolResponse: ToolResponseLike }) {
   const { t } = useTranslation()
   const args = normalizeArgs(toolResponse.arguments)
 
@@ -128,14 +70,6 @@ function McpPermissionPreview({ toolResponse }: { toolResponse: McpToolResponse 
       )}
     </div>
   )
-}
-
-function PermissionPreview({ toolResponse }: { toolResponse: ToolResponseLike }) {
-  if (isMcpToolResponse(toolResponse)) {
-    return <McpPermissionPreview toolResponse={toolResponse} />
-  }
-
-  return <BuiltinPermissionPreview toolResponse={toolResponse} />
 }
 
 function getPermissionRequestSubtitle(request: PermissionRequestComposerRequest): string | null {
@@ -180,7 +114,7 @@ export default function PermissionRequestComposer({ request, onRespond, classNam
           action,
           approvalId
         })
-        toast.error(t('agent.toolPermission.error.sendFailed'))
+        toast.error(t('message.toolPermission.error.sendFailed'))
         setSubmittingApprovalId((current) => (current === approvalId ? null : current))
       }
     },
@@ -200,7 +134,7 @@ export default function PermissionRequestComposer({ request, onRespond, classNam
 
   const deny = useCallback(async () => {
     if (isSubmitting) return
-    const reason = rejectionReason.trim() || t('agent.toolPermission.defaultDenyMessage')
+    const reason = rejectionReason.trim() || t('message.toolPermission.defaultDenyMessage')
     await respond(
       {
         match: request.match,
@@ -252,14 +186,14 @@ export default function PermissionRequestComposer({ request, onRespond, classNam
         </div>
 
         <label className="mt-2.5 block px-1 text-muted-foreground text-xs">
-          <span>{t('agent.toolPermission.reasonLabel')}</span>
+          <span>{t('message.toolPermission.reasonLabel')}</span>
           <Textarea.Input
             value={rejectionReason}
             disabled={isSubmitting}
             maxLength={500}
             rows={2}
-            aria-label={t('agent.toolPermission.reasonLabel')}
-            placeholder={t('agent.toolPermission.reasonPlaceholder')}
+            aria-label={t('message.toolPermission.reasonLabel')}
+            placeholder={t('message.toolPermission.reasonPlaceholder')}
             className="mt-1 min-h-14 resize-none px-3 py-2 text-sm"
             onValueChange={(value) => setRejectionDraft({ approvalId: request.approvalId, value })}
             onKeyDown={(event) => {
@@ -272,13 +206,13 @@ export default function PermissionRequestComposer({ request, onRespond, classNam
 
         <div className="mt-2.5 flex justify-end gap-2 px-1 pb-0.5">
           <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => void deny()}>
-            {t('agent.toolPermission.button.deny')}
+            {t('message.toolPermission.button.deny')}
             <Kbd aria-hidden="true" className="bg-muted text-muted-foreground">
               {hasRejectionReason ? 'Enter' : 'Esc'}
             </Kbd>
           </Button>
           <Button type="button" variant="emphasis" disabled={isSubmitting} onClick={() => void approve()}>
-            {t('agent.toolPermission.button.allow')}
+            {t('message.toolPermission.button.allow')}
             {!hasRejectionReason && (
               <Kbd aria-hidden="true" className="bg-current/10 text-current">
                 Enter

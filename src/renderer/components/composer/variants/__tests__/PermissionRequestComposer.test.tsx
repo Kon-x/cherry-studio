@@ -13,16 +13,16 @@ vi.mock('react-i18next', async (importOriginal) => ({
   useTranslation: () => ({
     t: (key: string) =>
       ({
-        'agent.toolPermission.defaultDenyMessage': 'User denied permission for this tool.',
-        'agent.toolPermission.error.sendFailed': 'Failed to send your decision. Please try again.',
-        'agent.toolPermission.reasonLabel': 'Reason for rejection (optional)',
-        'agent.toolPermission.reasonPlaceholder': 'Tell the Agent what to do instead',
-        'agent.toolPermission.confirmation': 'Allow tool call?',
-        'agent.toolPermission.inputPreview': 'Tool input preview',
-        'agent.toolPermission.button.allow': 'Allow',
-        'agent.toolPermission.button.deny': 'Deny',
-        'agent.toolPermission.button.run': 'Run',
-        'agent.toolPermission.waiting': 'Waiting for tool permission decision...',
+        'message.toolPermission.defaultDenyMessage': 'User denied permission for this tool.',
+        'message.toolPermission.error.sendFailed': 'Failed to send your decision. Please try again.',
+        'message.toolPermission.reasonLabel': 'Reason for rejection (optional)',
+        'message.toolPermission.reasonPlaceholder': 'Tell the Agent what to do instead',
+        'message.toolPermission.confirmation': 'Allow tool call?',
+        'message.toolPermission.inputPreview': 'Tool input preview',
+        'message.toolPermission.button.allow': 'Allow',
+        'message.toolPermission.button.deny': 'Deny',
+        'message.toolPermission.button.run': 'Run',
+        'message.toolPermission.waiting': 'Waiting for tool permission decision...',
         'message.processing': 'Processing',
         'message.tools.activity.checking': 'Checking',
         'message.tools.activity.projectChecks': 'project checks',
@@ -177,13 +177,6 @@ describe('PermissionRequestComposer', () => {
     expect(screen.getByText('composer')).toBeInTheDocument()
   })
 
-  it('bounds builtin previews that do not own their own scroll region', () => {
-    render(<PermissionRequestComposer request={makeRequest()} onRespond={vi.fn()} />)
-
-    expect(screen.getByTestId('permission-preview')).not.toHaveClass('overflow-y-auto')
-    expect(screen.getByTestId('permission-builtin-body-scroll')).toHaveClass('max-h-60', 'overflow-y-auto')
-  })
-
   it('renders the ExitPlanMode plan in the approval preview', () => {
     render(
       <PermissionRequestComposer
@@ -204,60 +197,6 @@ describe('PermissionRequestComposer', () => {
     const preview = screen.getByTestId('permission-preview')
     expect(preview).toHaveTextContent('Release plan')
     expect(preview).toHaveTextContent('Run the focused tests')
-  })
-
-  it('does not add a fallback body scroller when the tool content owns scrolling', () => {
-    render(
-      <PermissionRequestComposer
-        request={makeRequest({
-          title: 'Write',
-          toolResponse: {
-            id: 'write-call-1',
-            toolCallId: 'write-call-1',
-            status: 'pending',
-            arguments: {
-              file_path: '/tmp/cherry-approval-long-preview-note.md',
-              content: '# Long approval preview\n\nA long document body.'
-            },
-            tool: {
-              id: 'Write',
-              name: 'Write',
-              type: 'builtin'
-            }
-          }
-        })}
-        onRespond={vi.fn()}
-      />
-    )
-
-    expect(screen.getByTestId('code-viewer')).toHaveAttribute('data-max-height', '240')
-    expect(screen.queryByTestId('permission-builtin-body-scroll')).not.toBeInTheDocument()
-  })
-
-  it('uses the streaming tool icon and semantic title for the approval header', () => {
-    render(
-      <PermissionRequestComposer
-        request={makeRequest({
-          title: 'Bash',
-          toolResponse: {
-            id: 'bash-call-1',
-            toolCallId: 'bash-call-1',
-            status: 'pending',
-            arguments: { command: 'pnpm test' },
-            tool: {
-              id: 'Bash',
-              name: 'Bash',
-              type: 'builtin'
-            }
-          }
-        })}
-        onRespond={vi.fn()}
-      />
-    )
-
-    const heading = screen.getByRole('heading', { name: 'Checking project checks' })
-    expect(heading.querySelector('.lucide-square-terminal')).toBeInTheDocument()
-    expect(screen.queryByText('Allow tool call?')).not.toBeInTheDocument()
   })
 
   it('hides the request subtitle when it only repeats the tool name', () => {

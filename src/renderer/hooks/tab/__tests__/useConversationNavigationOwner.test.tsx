@@ -17,7 +17,7 @@ vi.mock('@renderer/ipc', () => ({
   useIpcOn: (event: string, handler: (payload: any) => void) => mocks.handlers.set(event, handler)
 }))
 
-const target = { conversationType: 'agent' as const, conversationId: 'session-1' }
+const target = { conversationType: 'assistant' as const, conversationId: 'session-1' }
 
 function emit(event: string, payload: unknown): void {
   const handler = mocks.handlers.get(event)
@@ -48,7 +48,7 @@ describe('useConversationNavigationOwner', () => {
         {
           id: 'agent-tab',
           type: 'route' as const,
-          url: '/app/agents?sessionId=session-1',
+          url: '/app/chat?topicId=session-1',
           title: 'Refactor project'
         }
       ]
@@ -69,7 +69,7 @@ describe('useConversationNavigationOwner', () => {
         {
           id: 'agent-tab',
           type: 'route' as const,
-          url: '/app/agents?sessionId=session-1',
+          url: '/app/chat?topicId=session-1',
           title: 'Refactor project'
         }
       ],
@@ -108,7 +108,7 @@ describe('useConversationNavigationOwner', () => {
       target,
       title: 'Refactor project'
     })
-    expect(owner.openTab).toHaveBeenCalledWith('/app/agents?sessionId=session-1', {
+    expect(owner.openTab).toHaveBeenCalledWith('/app/chat?topicId=session-1', {
       forceNew: true,
       title: 'Refactor project'
     })
@@ -124,7 +124,7 @@ describe('useConversationNavigationOwner', () => {
           {
             id: 'new-agent-tab',
             type: 'route',
-            url: '/app/agents?sessionId=session-1',
+            url: '/app/chat?topicId=session-1',
             title: 'Refactor project'
           }
         ]
@@ -169,7 +169,7 @@ describe('useConversationNavigationOwner', () => {
           {
             id: 'new-agent-tab',
             type: 'route',
-            url: '/app/agents?sessionId=session-1',
+            url: '/app/chat?topicId=session-1',
             title: 'Refactor project'
           }
         ]

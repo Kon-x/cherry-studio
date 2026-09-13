@@ -16,10 +16,10 @@ export function ToolApprovalOutcome({ approval }: Props) {
     <div className="mt-1.5 flex items-start gap-2 rounded-md bg-muted px-2.5 py-1.5 text-xs">
       <CircleX aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground" size={13} strokeWidth={1.8} />
       <div className="min-w-0">
-        <div className="font-medium text-foreground">{t('agent.toolPermission.decisionDenied')}</div>
+        <div className="font-medium text-foreground">{t('message.toolPermission.decisionDenied')}</div>
         {reason && (
           <div className="whitespace-pre-wrap break-words text-muted-foreground">
-            <span className="sr-only">{t('agent.toolPermission.reasonLabel')}: </span>
+            <span className="sr-only">{t('message.toolPermission.reasonLabel')}: </span>
             {reason}
           </div>
         )}

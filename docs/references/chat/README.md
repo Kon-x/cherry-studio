@@ -4,7 +4,6 @@ sources:
   - src/renderer/components/chat
   - src/renderer/components/composer
   - src/renderer/pages/home/messages
-  - src/renderer/pages/agents/messages
   - src/main/data/services/MessageService.ts
 ---
 

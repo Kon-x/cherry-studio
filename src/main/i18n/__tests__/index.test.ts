@@ -41,23 +41,17 @@ describe('main i18n', () => {
       expect(t('dialog.save_file')).toBe('Save File')
     })
 
-    it('localizes Agent Session admission errors', () => {
-      MockMainPreferenceServiceUtils.setPreferenceValue('app.language', 'zh-CN')
-      expect(t('agent.session.run_status.busy')).toBe('Agent 会话正忙，请稍后重试。')
-      expect(t('agent.session.run_status.unavailable')).toBe('Agent 会话已不可用。')
-    })
-
     it('interpolates {{var}} placeholders', () => {
       MockMainPreferenceServiceUtils.setPreferenceValue('app.language', 'en-US')
-      expect(t('agent.session.workspace_status.inaccessible', { path: '/tmp/x' })).toBe(
-        'Workspace path is not accessible: /tmp/x'
+      expect(t('file_processing.errors.pdf_page_limit_exceeded', { maxPages: 10 })).toBe(
+        'This PDF exceeds the 10-page limit for the current document parsing service. Split the PDF manually, then add it again.'
       )
     })
 
     it('leaves placeholders without a matching param intact', () => {
       MockMainPreferenceServiceUtils.setPreferenceValue('app.language', 'en-US')
-      expect(t('agent.session.workspace_status.inaccessible', { other: 'x' })).toBe(
-        'Workspace path is not accessible: {{path}}'
+      expect(t('file_processing.errors.pdf_page_limit_exceeded', { other: 'x' })).toBe(
+        'This PDF exceeds the {{maxPages}}-page limit for the current document parsing service. Split the PDF manually, then add it again.'
       )
     })
 

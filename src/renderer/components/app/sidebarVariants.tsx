@@ -1,13 +1,11 @@
-import { renderAgentEntityIcon, renderAssistantEntityIcon } from '@renderer/components/chat/resourceList/base'
+import { renderAssistantEntityIcon } from '@renderer/components/chat/resourceList/base'
 import { getSidebarIconLabelKey } from '@renderer/i18n/label'
 import type { Assistant } from '@renderer/types/assistant'
 import type { SidebarAppId } from '@renderer/utils/sidebar'
 import { getSidebarFavoriteKey, getSidebarMenuPath, isSidebarAppId } from '@renderer/utils/sidebar'
-import type { AgentEntity } from '@shared/data/api/schemas/agents'
 import type { AssistantIconType, SidebarFavoriteItem } from '@shared/data/preference/preferenceTypes'
-import type { MiniApp } from '@shared/data/types/miniApp'
 
-import { MiniAppIcon, type ResolvedSidebarEntry } from '../Sidebar'
+import { type ResolvedSidebarEntry } from '../Sidebar'
 import { SIDEBAR_ICON_COMPONENTS } from './sidebarIcons'
 
 /** Exhaustiveness guard: a new `SidebarFavoriteItem` type must add a `case` below. */
@@ -32,21 +30,14 @@ const ENTITY_ICON_PIXEL_SIZE = { md: 18, lg: 24 } as const
 export interface SidebarVariantContext {
   t: (key: string) => string
   defaultPaintingProvider: string
-  installedMiniApps: Map<string, MiniApp>
-  installedAgents: Map<string, AgentEntity>
   installedAssistants: Map<string, Assistant>
   /** Icon-type preferences, so pinned rows match what the assistant / agent rails show. */
   assistantIconType: AssistantIconType
-  agentIconType: AssistantIconType
   defaultModelId: string | null
   visibleAppCount: number
   openApp: (id: SidebarAppId, options?: { inNewTab?: boolean }) => void
-  openMiniApp: (id: string, options?: { inNewTab?: boolean }) => void
-  openAgent: (id: string, options?: { inNewTab?: boolean }) => void
   openAssistant: (id: string, options?: { inNewTab?: boolean }) => void
   removeApp: (id: SidebarAppId) => void
-  removeMiniApp: (id: string) => void
-  removeAgent: (id: string) => void
   removeAssistant: (id: string) => void
 }
 
@@ -92,75 +83,6 @@ const appVariant: SidebarVariantDescriptor<Extract<SidebarFavoriteItem, { type: 
     }
   }
 }
-
-const miniAppVariant: SidebarVariantDescriptor<Extract<SidebarFavoriteItem, { type: 'mini_app' }>> = {
-  resolve: (item, ctx) => {
-    const app = ctx.installedMiniApps.get(item.id)
-    // Stale mini app (no matching installed app) is dropped from the list but stays
-    // in the preference.
-    if (!app) return null
-
-    const title = app.nameKey ? ctx.t(app.nameKey) : app.name
-    const tab = {
-      title,
-      // Uploaded logo → main-resolved `logoSrc`; preset key → `logo`.
-      miniApp: { id: app.appId, logo: app.logoSrc ?? app.logo, url: app.url }
-    }
-
-    return {
-      key: getSidebarFavoriteKey(item),
-      label: title,
-      renderIcon: (_size, miniAppSize) => <MiniAppIcon tab={tab} size={miniAppSize} />,
-      isActive: (active) => active.activeTabId === app.appId,
-      onOpen: () => ctx.openMiniApp(app.appId),
-      onOpenNewTab: () => ctx.openMiniApp(app.appId, { inNewTab: true }),
-      contextMenuItems: [
-        {
-          type: 'item',
-          id: `sidebar.remove-mini-app.${app.appId}`,
-          label: ctx.t('launchpad.unpin_from_sidebar'),
-          onSelect: () => ctx.removeMiniApp(app.appId)
-        }
-      ]
-    }
-  }
-}
-
-const agentVariant: SidebarVariantDescriptor<Extract<SidebarFavoriteItem, { type: 'agent' }>> = {
-  resolve: (item, ctx) => {
-    const agent = ctx.installedAgents.get(item.id)
-    // Stale agent (deleted) is dropped from the list but stays in the preference.
-    if (!agent) return null
-
-    return {
-      key: getSidebarFavoriteKey(item),
-      label: agent.name,
-      // Same renderer the agent rail uses, so a pinned row matches the list it came from.
-      // 'none' would leave the row with no glyph at all, so the sidebar keeps the emoji there.
-      renderIcon: (_size, iconSize) =>
-        renderAgentEntityIcon(
-          sidebarIconType(ctx.agentIconType),
-          agent,
-          ctx.defaultModelId,
-          ENTITY_ICON_PIXEL_SIZE[iconSize]
-        ),
-      // Active-state highlight stays on the built-in agents app entry; this row
-      // only navigates the conversation the interceptor resolves.
-      isActive: () => false,
-      onOpen: () => ctx.openAgent(agent.id),
-      onOpenNewTab: () => ctx.openAgent(agent.id, { inNewTab: true }),
-      contextMenuItems: [
-        {
-          type: 'item',
-          id: `sidebar.remove-agent.${agent.id}`,
-          label: ctx.t('launchpad.unpin_from_sidebar'),
-          onSelect: () => ctx.removeAgent(agent.id)
-        }
-      ]
-    }
-  }
-}
-
 const assistantVariant: SidebarVariantDescriptor<Extract<SidebarFavoriteItem, { type: 'assistant' }>> = {
   resolve: (item, ctx) => {
     const assistant = ctx.installedAssistants.get(item.id)
@@ -209,10 +131,6 @@ export function resolveSidebarEntry(
   switch (favorite.type) {
     case 'app':
       return appVariant.resolve(favorite, ctx)
-    case 'mini_app':
-      return miniAppVariant.resolve(favorite, ctx)
-    case 'agent':
-      return agentVariant.resolve(favorite, ctx)
     case 'assistant':
       return assistantVariant.resolve(favorite, ctx)
     default:

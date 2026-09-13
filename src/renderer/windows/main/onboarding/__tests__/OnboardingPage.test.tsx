@@ -241,22 +241,16 @@ describe('OnboardingPage', () => {
     expect(MockUsePreferenceUtils.getPreferenceValue('app.privacy.data_collection.enabled')).toBe(true)
   })
 
-  it('waits for official resources to use the selected model before completing', async () => {
-    let resolveAgentUpdate: (() => void) | undefined
-    dataApiMocks.get.mockImplementation(async (path: string) => {
-      if (path === '/assistants') return { items: [], total: 0 }
-      if (path === '/agents') {
-        return {
-          items: [{ id: 'support-agent', model: null, configuration: { builtin_role: 'support' } }],
-          total: 1
-        }
-      }
-      throw new Error(`Unexpected path: ${path}`)
+  it('waits for the default chat assistant to use the selected model before completing', async () => {
+    let resolveAssistantUpdate: (() => void) | undefined
+    dataApiMocks.get.mockResolvedValue({
+      items: [{ id: 'default-assistant', modelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID }],
+      total: 1
     })
     dataApiMocks.patch.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
-          resolveAgentUpdate = resolve
+          resolveAssistantUpdate = resolve
         })
     )
     render(<OnboardingPage />)
@@ -267,70 +261,17 @@ describe('OnboardingPage', () => {
     await waitFor(() => expect(dataApiMocks.patch).toHaveBeenCalledTimes(1))
     expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('pending')
 
-    resolveAgentUpdate?.()
+    resolveAssistantUpdate?.()
 
     await waitFor(() =>
       expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('completed')
     )
   })
 
-  it('configures official resources beyond the first page before completing', async () => {
-    let resolveSupportUpdate: (() => void) | undefined
-    dataApiMocks.get.mockImplementation(async (path: string, options?: { query?: { page?: number } }) => {
-      if (path === '/assistants') return { items: [], total: 0 }
-      if (path === '/agents' && options?.query?.page === 1) {
-        return {
-          items: Array.from({ length: 500 }, (_, index) => ({
-            id: `ordinary-agent-${index}`,
-            model: null,
-            configuration: {}
-          })),
-          total: 501
-        }
-      }
-      if (path === '/agents' && options?.query?.page === 2) {
-        return {
-          items: [{ id: 'support-agent', model: null, configuration: { builtin_role: 'support' } }],
-          total: 501
-        }
-      }
-      throw new Error(`Unexpected path: ${path}`)
-    })
-    dataApiMocks.patch.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveSupportUpdate = resolve
-        })
-    )
-    render(<OnboardingPage />)
-
-    await openModelSelection()
-    fireEvent.click(screen.getByRole('button', { name: /onboarding\.select_model\.start/ }))
-
-    await waitFor(() =>
-      expect(dataApiMocks.patch).toHaveBeenCalledWith('/agents/support-agent', {
-        body: { model: 'default-model' }
-      })
-    )
-    expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('pending')
-
-    resolveSupportUpdate?.()
-
-    await waitFor(() =>
-      expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('completed')
-    )
-  })
-
-  it('keeps onboarding pending when an official resource update fails and retries it', async () => {
-    dataApiMocks.get.mockImplementation(async (path: string) => {
-      if (path === '/assistants') return { items: [], total: 0 }
-      if (path === '/agents') {
-        return {
-          items: [{ id: 'assistant-agent', model: null, configuration: { builtin_role: 'assistant' } }],
-          total: 1
-        }
-      }
-      throw new Error(`Unexpected path: ${path}`)
+  it('keeps onboarding pending when the default assistant update fails and retries it', async () => {
+    dataApiMocks.get.mockResolvedValue({
+      items: [{ id: 'default-assistant', modelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID }],
+      total: 1
     })
     dataApiMocks.patch.mockRejectedValueOnce(new Error('write failed')).mockResolvedValueOnce(undefined)
     render(<OnboardingPage />)
@@ -436,51 +377,6 @@ describe('OnboardingPage', () => {
     expect(modelSettingsProps?.modelFilter?.({ providerId: CHERRY_CLOUD_PROVIDER_ID, capabilities: [] })).toBe(false)
     expect(modelSettingsProps?.modelFilter?.({ providerId: 'openai', capabilities: [] })).toBe(true)
     expect(screen.getByRole('button', { name: /onboarding\.select_model\.start/ })).toBeDisabled()
-  })
-
-  it.each([
-    ['an unconfigured seeded agent', null],
-    ['a legacy CherryAI-seeded agent', CHERRYAI_DEFAULT_UNIQUE_MODEL_ID]
-  ])('configures %s after the user selects a default model', async (_description, seededAgentModel) => {
-    dataApiMocks.get.mockImplementation(async (path: string) => {
-      if (path === '/assistants') {
-        return {
-          items: [{ id: 'assistant-1', modelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID }],
-          total: 1
-        }
-      }
-      if (path === '/agents') {
-        return {
-          items: [
-            { id: 'assistant-agent', model: seededAgentModel, configuration: { builtin_role: 'assistant' } },
-            { id: 'support-agent', model: seededAgentModel, configuration: { builtin_role: 'support' } }
-          ],
-          total: 2
-        }
-      }
-      throw new Error(`Unexpected path: ${path}`)
-    })
-    dataApiMocks.patch.mockResolvedValue(undefined)
-    render(<OnboardingPage />)
-
-    await openModelSelection()
-
-    const onDefaultModelSelected = modelSettingsPropsMock.mock.lastCall?.[0]?.onDefaultModelSelected
-    await act(async () => {
-      await onDefaultModelSelected?.({ id: 'openai::gpt-4o', providerId: 'openai' })
-    })
-
-    expect(dataApiMocks.get).toHaveBeenCalledWith('/assistants', { query: { limit: 2 } })
-    expect(dataApiMocks.get).toHaveBeenCalledWith('/agents', { query: { limit: 500, page: 1 } })
-    expect(dataApiMocks.patch).toHaveBeenCalledWith('/assistants/assistant-1', {
-      body: { modelId: 'openai::gpt-4o' }
-    })
-    expect(dataApiMocks.patch).toHaveBeenCalledWith('/agents/assistant-agent', {
-      body: { model: 'openai::gpt-4o' }
-    })
-    expect(dataApiMocks.patch).toHaveBeenCalledWith('/agents/support-agent', {
-      body: { model: 'openai::gpt-4o' }
-    })
   })
 
   it('preserves assistant and agent models unless both replacement conditions match', async () => {
@@ -686,67 +582,6 @@ describe('OnboardingPage', () => {
 
     expect(cloudMocks.ipcRequest).toHaveBeenCalledWith('cherry_cloud.login.cancel')
     expect(await screen.findByRole('button', { name: 'onboarding.welcome.login_cherry_cloud' })).toBeEnabled()
-  })
-
-  it('selects the first available Cherry Cloud Agent model and completes onboarding', async () => {
-    const firstCloudAgentModelId = `${CHERRY_CLOUD_PROVIDER_ID}::first-agent-model`
-    const secondCloudAgentModelId = `${CHERRY_CLOUD_PROVIDER_ID}::second-agent-model`
-    cloudMocks.appEdition = 'cn'
-    cloudMocks.ipcRequest.mockImplementation(async (route: string) => {
-      if (route === 'cherry_cloud.status.get') return { phase: 'signed-out', displayName: null }
-      if (route === 'cherry_cloud.models.sync') {
-        return {
-          entitledModelIds: [firstCloudAgentModelId, secondCloudAgentModelId],
-          quotaExhaustedModelIds: []
-        }
-      }
-      throw new Error(`Unexpected IPC route: ${route}`)
-    })
-    dataApiMocks.get.mockImplementation(async (path: string) => {
-      if (path === '/agents') {
-        return {
-          items: [
-            { id: 'assistant-agent', model: null, configuration: { builtin_role: 'assistant' } },
-            { id: 'support-agent', model: null, configuration: { builtin_role: 'support' } }
-          ],
-          total: 2
-        }
-      }
-      throw new Error(`Unexpected path: ${path}`)
-    })
-    render(<OnboardingPage enableCherryAccountLogin />)
-
-    await waitFor(() => expect(cloudMocks.statusListener).toBeDefined())
-    act(() => cloudMocks.statusListener?.({ phase: 'signed-in', displayName: 'Alice' }))
-
-    await waitFor(() => {
-      expect(dataApiMocks.patch).toHaveBeenCalledWith('/agents/assistant-agent', {
-        body: { model: firstCloudAgentModelId }
-      })
-      expect(dataApiMocks.patch).toHaveBeenCalledWith('/agents/support-agent', {
-        body: { model: firstCloudAgentModelId }
-      })
-      expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('skipped')
-    })
-    expect(dataApiMocks.patch).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ body: { model: secondCloudAgentModelId } })
-    )
-  })
-
-  it('opens provider setup after the warning even when an ordinary chat model is available', async () => {
-    const user = userEvent.setup()
-    cloudMocks.appEdition = 'cn'
-    render(<OnboardingPage enableCherryAccountLogin />)
-
-    await waitFor(() => expect(cloudMocks.statusListener).toBeDefined())
-    act(() => cloudMocks.statusListener?.({ phase: 'signed-in', displayName: 'Alice' }))
-
-    expect(await screen.findByText('onboarding.cloud.no_available_models')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'common.confirm' }))
-
-    expect(await screen.findByTestId('provider-settings')).toBeInTheDocument()
-    expect(MockUsePreferenceUtils.getPreferenceValue('app.onboarding.provider_setup.status')).toBe('pending')
   })
 
   it('skips onboarding without privacy acceptance and disables data collection', async () => {

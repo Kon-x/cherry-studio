@@ -10,15 +10,7 @@ describe('getIconDisplayConfig', () => {
     }
   )
 
-  it('enlarges mini-app icons outside the contained-icon list', () => {
-    expect(getIconDisplayConfig('mini-app', 'lmstudio')).toEqual({ scale: 1.2 })
-  })
-
   it('enlarges provider logos outside the contained-icon list', () => {
     expect(getIconDisplayConfig('provider-list', 'openai')).toEqual({ scale: 1.2 })
-  })
-
-  it('preserves the existing mini-app configuration', () => {
-    expect(getIconDisplayConfig('mini-app', 'abacus')).toEqual({ scale: 5 / 7, borderRadius: 10 })
   })
 })

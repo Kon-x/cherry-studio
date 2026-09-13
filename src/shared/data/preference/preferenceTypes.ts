@@ -1,5 +1,4 @@
 import type { BootConfigPreferenceKeys } from '@shared/data/bootConfig/bootConfigTypes'
-import type { AgentLanguage } from '@shared/data/types/agentLanguage'
 import type { UniqueModelId } from '@shared/data/types/model'
 import type { ShortcutBinding } from '@shared/utils/shortcut'
 import * as z from 'zod'
@@ -36,12 +35,6 @@ export type MenuPresentationMode = 'native' | 'cherry'
 export type OnboardingProviderSetupStatus = 'pending' | 'completed' | 'skipped'
 
 export type RetryFallbackModelId = UniqueModelId
-
-/**
- * Global default Agent reply language (`agent.language`). Human-readable label
- * ("English", "ไทย"), not an app locale code; null = no constraint injected.
- */
-export type AgentLanguagePreference = AgentLanguage
 
 export enum SelectionTriggerMode {
   Selected = 'selected',
@@ -103,21 +96,7 @@ export type AssistantTabSortType = 'tags' | 'list'
 export type TopicDisplayMode = 'time' | 'assistant'
 
 export type TopicTabPosition = 'left' | 'right'
-
-export type AgentSessionDisplayMode = 'time' | 'agent' | 'workdir'
-
-export const SIDEBAR_FAVORITES = [
-  'assistants',
-  'agents',
-  'paintings',
-  'translate',
-  'mini_app',
-  'knowledge',
-  'files',
-  'code_tools',
-  'notes',
-  'openclaw'
-] as const
+export const SIDEBAR_FAVORITES = ['assistants', 'paintings', 'translate', 'knowledge', 'files', 'notes'] as const
 
 export type SidebarFavorite = (typeof SIDEBAR_FAVORITES)[number]
 
@@ -129,23 +108,7 @@ export type SidebarFavorite = (typeof SIDEBAR_FAVORITES)[number]
  * `group` variant can then be added as another top-level item without migrating
  * existing flat `SidebarFavoriteItem[]` values.
  */
-export type SidebarFavoriteItem =
-  | {
-      type: 'app'
-      id: SidebarFavorite
-    }
-  | {
-      type: 'mini_app'
-      id: string
-    }
-  | {
-      type: 'agent'
-      id: string
-    }
-  | {
-      type: 'assistant'
-      id: string
-    }
+export type SidebarFavoriteItem = { type: 'app'; id: SidebarFavorite } | { type: 'assistant'; id: string }
 
 export type AssistantIconType = 'model' | 'emoji' | 'none'
 
@@ -307,55 +270,6 @@ export interface WebSearchProvider {
 // ============================================================================
 // CodeCLI Types
 // ============================================================================
-
-import { CodeCli } from '@shared/types/codeCli'
-
-export const CODE_CLI_IDS = Object.values(CodeCli) as unknown as readonly [
-  'claude-code',
-  'openai-codex',
-  'opencode',
-  'openclaw',
-  'deepseek-harness',
-  'gemini-cli',
-  'antigravity-cli',
-  'qwen-code',
-  'kimi-code',
-  'qoder-cli',
-  'github-copilot-cli',
-  'pi',
-  'hermes'
-]
-
-export type CodeCliId = (typeof CODE_CLI_IDS)[number]
-
-/** A per-tool provider entry, keyed by providerId in `CodeCliToolState.providers`. */
-export interface CliProviderConfig {
-  /**
-   * Unique model id ("providerId::modelId"), or null for the two legal
-   * model-less states: the own-login placeholder and a Claude detailed-models
-   * config with no common model.
-   */
-  modelId: UniqueModelId | null
-  /** User-edited tool-specific config blob. */
-  config?: Record<string, unknown>
-  /** Sort order in the provider list (lower = first). */
-  sortIndex?: number
-}
-
-/** Per-CLI-tool state: per-provider configs (keyed by providerId) + the active one. */
-export interface CodeCliToolState {
-  providers: Record<string, CliProviderConfig>
-  /** Currently enabled providerId (single-select). */
-  current: string | null
-  /** Terminal app — an id from `code_cli.get_available_terminals`. */
-  terminal?: string
-  /** Working directory for this CLI tool (shared across all its providers). */
-  directory?: string
-}
-
-/** Preference value for `feature.code_cli.configs`. */
-export type CodeCliConfigs = Partial<Record<CodeCliId, CodeCliToolState>>
-
 // ============================================================================
 // WebSearch Compression Types (v2 - Flattened)
 // ============================================================================
@@ -411,12 +325,6 @@ export type FileProcessorOverride = {
 }
 
 export type FileProcessorOverrides = Partial<Record<FileProcessorId, FileProcessorOverride>>
-
-/** Region types for miniApps visibility */
-export type MiniAppRegion = 'CN' | 'Global'
-
-export type MiniAppRegionFilter = 'auto' | MiniAppRegion
-
 /** User-configurable settings for BinaryManager's isolated mise install environment. */
 export type BinaryInstallSettings = {
   githubMirror: string

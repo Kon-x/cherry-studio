@@ -51,7 +51,7 @@ export function OpenTargetButton({ targetPath, pathKind, menuTrigger, tooltip, c
 
   const primaryLabel = selectedTarget
     ? t('common.open_in', { name: selectedTarget.name ?? getOpenTargetLabel(selectedTarget, t) })
-    : t('agent.preview_pane.default_app')
+    : t('chat.preview_pane.default_app')
   const primaryIcon = selectedTarget ? <OpenTargetIcon target={selectedTarget} /> : <FolderOpen size={16} />
   const menu = (
     <PopoverContent className="w-56 p-1" align={menuTrigger ? 'start' : 'end'}>

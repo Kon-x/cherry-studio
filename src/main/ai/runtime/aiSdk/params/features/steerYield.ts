@@ -1,7 +1,6 @@
 import { application } from '@application'
 import type { StopCondition, ToolSet } from 'ai'
 
-import { isAgentSessionTopic } from '../../../../agentSession/topic'
 import { trackSteerYieldStopCondition } from '../../loop/toolLoopTermination'
 import type { RequestFeature } from '../feature'
 
@@ -17,7 +16,7 @@ export const steerYieldFeature: RequestFeature = {
   name: 'steer-yield',
   applies: (scope) => {
     const topicId = scope.request.conversation.topicId
-    return Boolean(topicId) && !isAgentSessionTopic(topicId as string)
+    return Boolean(topicId)
   },
   contributeStopConditions: (scope): StopCondition<ToolSet>[] => {
     const topicId = scope.request.conversation.topicId

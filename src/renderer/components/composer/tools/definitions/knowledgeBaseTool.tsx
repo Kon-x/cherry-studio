@@ -26,15 +26,12 @@ const useKnowledgeBaseSelect = (context: KnowledgeBaseToolContext) => {
 const KnowledgeBaseComposerRuntime = ({ context }: { context: KnowledgeBaseToolContext }) => {
   const { state, launcher } = context
   const handleSelect = useKnowledgeBaseSelect(context)
-  // Sessions skip the model tool-use probe: an Agent session reaches its knowledge bases through the
-  // runtime's own kb_* MCP tools, not through the model's function-calling support, so the composer
-  // model here (which may be a sub-model) says nothing about whether the picker is usable.
-  const isToolUseAvailable = context.session ? true : !!context.assistant && isSupportedToolUse(context.model)
+  const isToolUseAvailable = !!context.assistant && isSupportedToolUse(context.model)
 
   return (
     <KnowledgeBaseToolRuntime
       launcher={launcher}
-      configuredKnowledgeBaseIds={context.assistant?.knowledgeBaseIds ?? context.session?.knowledgeBaseIds ?? []}
+      configuredKnowledgeBaseIds={context.assistant?.knowledgeBaseIds ?? []}
       selectedBases={state.selectedKnowledgeBases}
       onSelect={handleSelect}
       disabled={!isToolUseAvailable || (Array.isArray(state.files) && state.files.length > 0)}
@@ -47,7 +44,7 @@ const KnowledgeBaseComposerRuntime = ({ context }: { context: KnowledgeBaseToolC
  * Knowledge Base Tool
  *
  * Allows users to select knowledge bases to provide context for their messages.
- * Visible in the Chat and Session scopes (see `KNOWLEDGE_BASE_TOOLBAR_MANIFEST`).
+ * Visible in the Chat scope (see `KNOWLEDGE_BASE_TOOLBAR_MANIFEST`).
  */
 const knowledgeBaseTool = defineTool({
   key: 'knowledge_base',

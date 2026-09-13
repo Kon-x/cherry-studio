@@ -1,15 +1,11 @@
-import {
-  type PromptBindingTargetType,
-  PromptBindingTargetTypeSchema,
-  type PromptVisibility,
-  PromptVisibilitySchema
-} from '@shared/data/types/prompt'
+import { type PromptVisibility, PromptVisibilitySchema } from '@shared/data/types/prompt'
 import { sql } from 'drizzle-orm'
 import { check, index, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 import { createUpdateTimestamps, orderKeyColumns, orderKeyIndex, uuidPrimaryKey } from './_columnHelpers'
 
-const promptBindingTargetTypeCheckValues = PromptBindingTargetTypeSchema.options.map((type) => `'${type}'`).join(', ')
+type PromptBindingTargetType = 'assistant' | 'agent'
+const promptBindingTargetTypeCheckValues = ['assistant', 'agent'].map((type) => `'${type}'`).join(', ')
 const promptVisibilityCheckValues = PromptVisibilitySchema.options.map((visibility) => `'${visibility}'`).join(', ')
 
 /**

@@ -1,33 +1,18 @@
-// @vitest-environment jsdom
+import { ipcApi } from '@renderer/ipc'
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const mocks = vi.hoisted(() => ({
-  openTab: vi.fn()
-}))
-
-vi.mock('@renderer/hooks/tab', () => ({
-  useTabs: () => ({ openTab: mocks.openTab })
-}))
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key })
-}))
+import { expect, it, vi } from 'vitest'
 
 import { useOpenReleaseNotes } from '../useOpenReleaseNotes'
 
-describe('useOpenReleaseNotes', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+vi.mock('@renderer/ipc', () => ({ ipcApi: { request: vi.fn().mockResolvedValue(undefined) } }))
+
+it('opens fork release notes in the system browser', async () => {
+  const { result } = renderHook(useOpenReleaseNotes)
+  await act(async () => {
+    await result.current()
   })
-
-  it('opens the bundled release notes in an app tab', () => {
-    const { result } = renderHook(() => useOpenReleaseNotes())
-
-    act(() => result.current())
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/release-notes', {
-      title: 'settings.about.releases.title'
-    })
-  })
+  expect(ipcApi.request).toHaveBeenCalledWith(
+    'system.shell.open_website',
+    'https://github.com/Kon-x/cherry-studio/releases'
+  )
 })

@@ -132,7 +132,6 @@ const AppearanceSettings: FC = () => {
   const [fontSize] = usePreference('chat.message.font_size')
   const [useSystemTitleBar, setUseSystemTitleBar] = usePreference('app.use_system_title_bar')
   const [topicListPosition, setTopicListPosition] = usePreference('topic.tab.position')
-  const [sessionListPosition, setSessionListPosition] = usePreference('agent.session.position')
   const [codeExecution, setCodeExecution] = useMultiplePreferences({
     enabled: 'chat.code.execution.enabled',
     timeoutMinutes: 'chat.code.execution.timeout_minutes'
@@ -457,17 +456,6 @@ const AppearanceSettings: FC = () => {
             onValueChange={setTopicListPosition}
             options={listPositionOptions}
             aria-label={t('settings.display.list_position.chat')}
-            size="sm"
-          />
-        </SettingRow>
-        <SettingDivider />
-        <SettingRow id="setting-appearance-work-list-position" className="scroll-mt-6">
-          <SettingRowTitle>{t('settings.display.list_position.work')}</SettingRowTitle>
-          <SegmentedControl<TopicTabPosition>
-            value={sessionListPosition}
-            onValueChange={setSessionListPosition}
-            options={listPositionOptions}
-            aria-label={t('settings.display.list_position.work')}
             size="sm"
           />
         </SettingRow>

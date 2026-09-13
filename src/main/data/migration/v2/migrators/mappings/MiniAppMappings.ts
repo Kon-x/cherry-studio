@@ -7,9 +7,10 @@
  */
 
 import type { InsertMiniAppRow, MiniAppRegion, MiniAppStatus } from '@data/db/schemas/miniApp'
-import { PRESETS_MINI_APPS } from '@shared/data/presets/miniApps'
 
-const presetMap = new Map(PRESETS_MINI_APPS.map((p) => [p.id, p]))
+import { LEGACY_MINI_APPS } from './legacyMiniApps'
+
+const presetMap = new Map(LEGACY_MINI_APPS.map((p) => [p.id, p]))
 
 function toNullable<T>(value: unknown): T | null {
   return (value ?? null) as T | null
@@ -33,8 +34,8 @@ function toRequired<T>(value: unknown, fallback: T): T {
  * are partitioned into status buckets — see data-ordering-guide.md §5.
  *
  * Row shape depends on preset membership:
- *   - appId ∈ PRESETS_MINI_APPS  →  delta-only override row (NULL for preset fields)
- *   - appId ∉ PRESETS_MINI_APPS  →  full custom row
+ *   - appId ∈ LEGACY_MINI_APPS  →  delta-only override row (NULL for preset fields)
+ *   - appId ∉ LEGACY_MINI_APPS  →  full custom row
  *
  * Preset fields are intentionally dropped for default apps so future preset
  * updates (name, url, logo, ...) propagate to existing installs (per spec

@@ -210,40 +210,10 @@ describe('CodeBlock', () => {
       expect(screen.getByText('/Users/foo/bar.tsx')).toBeInTheDocument()
     })
 
-    it('should render known app routes as navigation entries instead of file paths', () => {
-      render(<CodeBlock {...defaultProps} className={undefined} children="/app/chat" />)
-
-      expect(screen.queryByTestId('clickable-file-path')).not.toBeInTheDocument()
-      fireEvent.click(screen.getByRole('button'))
-      expect(mocks.navigateToRoute).toHaveBeenCalledWith({ path: '/app/chat', query: undefined })
-    })
-
     it('should keep unknown app-like paths as file paths', () => {
       render(<CodeBlock {...defaultProps} className={undefined} children="/app/not-a-route" />)
 
       expect(screen.getByTestId('clickable-file-path')).toBeInTheDocument()
-    })
-
-    it.each(['/settings/skills', '/settings/data'])(
-      'should render known settings route %s as a navigation entry',
-      (path) => {
-        render(<CodeBlock {...defaultProps} className={undefined} children={path} />)
-
-        expect(screen.queryByTestId('clickable-file-path')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByRole('button'))
-        expect(mocks.navigateToRoute).toHaveBeenCalledWith({ path, query: undefined })
-      }
-    )
-
-    it.each([
-      '/app/mini-app/example',
-      '/app/paintings/example',
-      '/settings/mcp/example/details',
-      '/settings/scheduled-tasks/task-1'
-    ])('should render declared dynamic route %s as a navigation entry', (path) => {
-      render(<CodeBlock {...defaultProps} className={undefined} children={path} />)
-
-      expect(screen.queryByTestId('clickable-file-path')).not.toBeInTheDocument()
     })
 
     it.each(['/app/chat/not-a-route', '/app/mini-app/example/details', '/settings/provider/not-a-route'])(

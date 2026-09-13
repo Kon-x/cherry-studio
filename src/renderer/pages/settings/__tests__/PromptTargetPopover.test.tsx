@@ -27,7 +27,7 @@ const agent: PromptTargetOption = {
   value: `agent:${agentId}`,
   label: 'Agent B',
   group: 'Agents',
-  target: { type: 'agent', id: agentId }
+  target: { type: 'assistant', id: agentId }
 }
 const binding: PromptBindingRelation = {
   promptId: prompt.id,

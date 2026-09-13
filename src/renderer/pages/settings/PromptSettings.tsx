@@ -20,14 +20,8 @@ import { useReorder } from '@data/hooks/useReorder'
 import CollapsibleSearchBar from '@renderer/components/CollapsibleSearchBar'
 import { PromptEditDialog } from '@renderer/components/resourceCatalog/dialogs/edit'
 import { SettingsContentBody, SettingTitle } from '@renderer/components/SettingsPrimitives'
-import {
-  agentAdapter,
-  assistantAdapter,
-  usePromptMutations,
-  usePromptMutationsById
-} from '@renderer/hooks/resourceCatalog'
+import { assistantAdapter, usePromptMutations, usePromptMutationsById } from '@renderer/hooks/resourceCatalog'
 import { toast } from '@renderer/services/toast'
-import { getAgentAvatarFromConfiguration } from '@renderer/utils/agent'
 import { formatErrorMessageWithPrefix } from '@renderer/utils/error'
 import { DataApiError, ErrorCode } from '@shared/data/api/errors'
 import type { Prompt, PromptBindingRelation, PromptBindingTarget, PromptVisibility } from '@shared/data/types/prompt'
@@ -80,12 +74,6 @@ export function PromptSettings() {
     isLoading: isLoadingAssistants,
     refetch: refetchAssistants
   } = assistantAdapter.useList({ enabled: hasRestrictedPrompts })
-  const {
-    data: agentData,
-    error: agentsError,
-    isLoading: isLoadingAgents,
-    refetch: refetchAgents
-  } = agentAdapter.useList({ enabled: hasRestrictedPrompts })
   const targetOptions = useMemo<PromptTargetOption[]>(
     () => [
       ...assistantData.map((assistant) => ({
@@ -94,23 +82,9 @@ export function PromptSettings() {
         group: t('common.assistant_other'),
         target: { type: 'assistant' as const, id: assistant.id },
         icon: <EmojiIcon emoji={assistant.emoji || '💬'} size={24} fontSize={14} className="mr-0" />
-      })),
-      ...agentData.map((agent) => ({
-        value: `agent:${agent.id}`,
-        label: agent.name,
-        group: t('common.agent_other'),
-        target: { type: 'agent' as const, id: agent.id },
-        icon: (
-          <EmojiIcon
-            emoji={getAgentAvatarFromConfiguration(agent.configuration)}
-            size={24}
-            fontSize={14}
-            className="mr-0"
-          />
-        )
       }))
     ],
-    [agentData, assistantData, t]
+    [assistantData, t]
   )
   const normalizedSearch = search.trim().toLowerCase()
   const visiblePrompts = useMemo(() => {
@@ -140,9 +114,8 @@ export function PromptSettings() {
   const { applyReorderedList, isPending: isReordering } = useReorder('/prompts')
   useDataChange('/prompts', () => void refetch())
   useDataChange('/prompt-bindings', () => void refetchAllBindings())
-  useDataChange(['/assistants', '/agents'], () => {
+  useDataChange(['/assistants'], () => {
     refetchAssistants()
-    refetchAgents()
   })
   useDataChange('/prompts/:id/bindings', () => {
     if (deleteTarget) void refetchActiveBindings()
@@ -244,8 +217,7 @@ export function PromptSettings() {
   const handleRetryBindingData = useCallback(() => {
     void refetchAllBindings()
     refetchAssistants()
-    refetchAgents()
-  }, [refetchAgents, refetchAllBindings, refetchAssistants])
+  }, [refetchAllBindings, refetchAssistants])
 
   return (
     <SettingsContentBody className="min-h-0 flex-1 overflow-hidden pt-4" innerClassName="flex min-h-0 flex-1 flex-col">
@@ -313,12 +285,12 @@ export function PromptSettings() {
                   bindingsError={bindingsError}
                   dragHandleProps={state.dragHandleProps}
                   isLoadingBindings={isLoadingAllBindings}
-                  isLoadingTargets={isLoadingAssistants || isLoadingAgents}
+                  isLoadingTargets={isLoadingAssistants}
                   onEdit={() => setPromptDialog({ prompt })}
                   onDelete={() => setDeleteTarget(prompt)}
                   onRetry={handleRetryBindingData}
                   targets={targetOptions}
-                  targetsError={assistantsError ?? agentsError}
+                  targetsError={assistantsError}
                 />
               )}
             />

@@ -200,7 +200,7 @@ Triggering a job is owned by the relevant business module in main:
 2. It calls `application.get('JobManager').enqueue(...)` directly.
 3. If the renderer needs to initiate the work, the business module exposes a dedicated IPC route (e.g. the `knowledge.add_items` IpcApi route); the route handler internally calls `JobManager.enqueue(...)`.
 
-Schedule mutations (CRUD / pause / resume / run-now) follow the same pattern: renderer → dedicated IpcApi route (e.g. `ai.agent.task.*` → `AgentJobsService`) → JobManager schedule APIs; schedule reads stay on the GET-only DataApi.
+Schedule mutations belong to the owning main-process service; schedule reads stay on the GET-only DataApi. Agent schedule commands and their handler are removed in this fork. JobManager retains their historical rows but does not arm schedules or delayed jobs without a registered handler.
 
 This keeps `JobRegistry`'s compile-time `JobPayloadOf<K>` type safety intact and prevents the renderer from depending on JobManager infrastructure details (queue names, retry policies, idempotency keys).
 

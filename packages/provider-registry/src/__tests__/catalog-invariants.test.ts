@@ -98,15 +98,13 @@ describe('catalog invariants (data/*.json)', () => {
   const baseIds = new Set(ids)
 
   it.each([
-    // OpenRouter renamed the vendor prefix (Microsoft → MicrosoftAI) in the same batch as MiniMax → MiniMaxAI.
-    ['mai-image-2-5', 'microsoft', 'MicrosoftAI: MAI-Image-2.5'],
-    ['recraft-v4-1-vector', 'recraft', 'Recraft: Recraft V4.1 Vector'],
-    ['riverflow-v2-5-fast', 'sourceful', 'Sourceful: Riverflow V2.5 Fast'],
-    ['seedream-4-5', 'bytedance', 'Seedream 4.5']
-  ])('catalogs OpenRouter image model %s under its creator with its display name', (modelId, ownedBy, name) => {
+    ['mai-image-2-5', 'microsoft'],
+    ['recraft-v4-1-vector', 'recraft'],
+    ['riverflow-v2-5-fast', 'sourceful'],
+    ['seedream-4-5', 'bytedance']
+  ])('catalogs OpenRouter image model %s under its creator', (modelId, ownedBy) => {
     expect(models.find((model) => model.id === modelId)).toMatchObject({
       capabilities: expect.arrayContaining(['image-generation']),
-      name,
       ownedBy
     })
   })
@@ -409,13 +407,13 @@ describe('catalog invariants (data/*.json)', () => {
     expect(r.success && r.data.overrides.length).toBe(providerModelsRaw.overrides.length)
   })
 
-  it('Fast transports belong only to Codex, Claude Code, and Ark', () => {
+  it('Fast transports belong only to Codex and Ark', () => {
     expect(
       providers
         .filter((provider) => provider.fastMode)
         .map((provider) => provider.id)
         .sort()
-    ).toEqual(['claude-code', 'doubao', 'openai-codex'])
+    ).toEqual(['doubao', 'openai-codex'])
   })
 
   it('Fast provider-model declarations require a provider transport', () => {

@@ -1,24 +1,9 @@
 import { dataApiService } from '@data/DataApiService'
-import { ipcApi } from '@renderer/ipc'
 import type { Topic as RendererTopic } from '@renderer/types/topic'
-import type { AgentSessionWorkspaceSource } from '@shared/data/api/schemas/agentWorkspaces'
 import type { Topic as ApiTopic } from '@shared/data/types/topic'
 import { createContext, use, useCallback } from 'react'
 
-import { useSessions } from './agent/useSession'
 import { mapApiTopicToRendererTopic, useTopics } from './useTopic'
-
-/**
- * Window-level data sources shared by every kept-alive chat / agent route.
- *
- * The raw hooks are mounted once by ResourceViewSourceProvider. Route pages read
- * the provider's progressive cold-start data, then its last complete snapshot
- * during background refreshes. This keeps first-page content responsive without
- * letting multiple kept-alive tabs start competing load-all chains.
- */
-
-/** Full agent-session page size — kept in one place so the rail and right panel never drift. */
-const AGENT_SESSIONS_LOAD_ALL_PAGE_SIZE = 200
 
 export function useRawAssistantTopicsSource({ enabled }: { enabled?: boolean } = {}) {
   const listSource = useTopics({ loadAll: true, enabled })
@@ -38,36 +23,7 @@ export function useRawAssistantTopicsSource({ enabled }: { enabled?: boolean } =
   return { ...listSource, loadLatestTopic, reuseOrCreateTopic }
 }
 
-export function useRawAgentSessionsSource({ enabled }: { enabled?: boolean } = {}) {
-  const listSource = useSessions(undefined, {
-    loadAll: true,
-    pageSize: AGENT_SESSIONS_LOAD_ALL_PAGE_SIZE,
-    enabled
-  })
-  const loadLatestSession = useCallback(async (agentId?: string | null) => {
-    const result =
-      agentId === undefined
-        ? await dataApiService.get('/agent-sessions/latest')
-        : await dataApiService.get('/agent-sessions/latest', { query: { agentId: agentId ?? 'unlinked' } })
-    return result.session
-  }, [])
-  const reuseOrCreateSession = useCallback(
-    async (agentId: string, workspace: AgentSessionWorkspaceSource, excludeSessionId?: string) => {
-      return ipcApi.request('ai.agent.session.reuse_or_create', {
-        agentId,
-        workspace,
-        ...(excludeSessionId ? { excludeSessionId } : {})
-      })
-    },
-    []
-  )
-
-  return { ...listSource, loadLatestSession, reuseOrCreateSession }
-}
-
 type RawAssistantTopicsSource = ReturnType<typeof useRawAssistantTopicsSource>
-type RawAgentSessionsSource = ReturnType<typeof useRawAgentSessionsSource>
-
 /**
  * A background refresh that failed while a committed snapshot is still on
  * screen. It is deliberately separate from `error`: the snapshot stays served
@@ -110,44 +66,12 @@ export type AssistantTopicsSource = Pick<
 > &
   RefreshError &
   AssistantTopicsView
-
-export type AgentSessionsSource = Pick<
-  RawAgentSessionsSource,
-  | 'sessions'
-  | 'pinIdBySessionId'
-  | 'hasMore'
-  | 'error'
-  | 'isLoading'
-  | 'isLoadingMore'
-  | 'isValidating'
-  | 'reload'
-  | 'deleteSession'
-  | 'deleteSessions'
-  | 'reorderSession'
-  | 'togglePin'
-  | 'isFullyLoaded'
-  | 'isLoadingAll'
-  | 'isPinsLoading'
-  | 'loadLatestSession'
-  | 'reuseOrCreateSession'
-> &
-  RefreshError
-
 export const AssistantTopicsSourceContext = createContext<AssistantTopicsSource | null>(null)
-export const AgentSessionsSourceContext = createContext<AgentSessionsSource | null>(null)
 
 export function useAssistantTopicsSource(): AssistantTopicsSource {
   const source = use(AssistantTopicsSourceContext)
   if (!source) {
     throw new Error('useAssistantTopicsSource must be used within ResourceViewSourceProvider')
-  }
-  return source
-}
-
-export function useAgentSessionsSource(): AgentSessionsSource {
-  const source = use(AgentSessionsSourceContext)
-  if (!source) {
-    throw new Error('useAgentSessionsSource must be used within ResourceViewSourceProvider')
   }
   return source
 }

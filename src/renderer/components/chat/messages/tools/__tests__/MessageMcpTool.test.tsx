@@ -35,7 +35,7 @@ vi.mock('@renderer/components/icons/CopyIcon', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => {
-      if (key === 'agent.toolPermission.decisionDenied') return 'Denied'
+      if (key === 'message.toolPermission.decisionDenied') return 'Denied'
       return typeof fallback === 'string' ? fallback : key
     }
   }),

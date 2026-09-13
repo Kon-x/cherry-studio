@@ -839,7 +839,7 @@ describe('ChatComposer', () => {
     const sendAccessory = screen.getByTestId('composer-send-accessory')
     const speedControl = within(sendAccessory).getByTestId('chat-speed-control')
     const indicator = within(sendAccessory).getByRole('meter', {
-      name: 'agent.right_pane.info.context_usage 42%'
+      name: 'chat.input.context_usage 42%'
     })
     expect(speedControl.compareDocumentPosition(indicator)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(indicator).toHaveAttribute('tabindex', '0')
@@ -1207,7 +1207,7 @@ describe('ChatComposer', () => {
     )
 
     await waitFor(() => expect(startNewContext).toHaveBeenCalledOnce())
-    expect(toast.error).not.toHaveBeenCalledWith('code.model_required')
+    expect(toast.error).not.toHaveBeenCalledWith('chat.model_required')
   })
 
   it.each([
@@ -1597,7 +1597,7 @@ describe('ChatComposer', () => {
     expect(screen.getByTestId('model-selector')).toHaveAttribute('data-value-count', '0')
     expect(screen.getByTestId('model-selector')).toHaveAttribute('data-multi-select-mode', 'true')
     expect(mocks.surfaceProps?.sendDisabled).toBe(true)
-    expect(mocks.surfaceProps?.sendBlockedReason).toBe('code.model_required')
+    expect(mocks.surfaceProps?.sendBlockedReason).toBe('chat.model_required')
     expect(mocks.setModel).not.toHaveBeenCalled()
   })
 
@@ -1639,7 +1639,7 @@ describe('ChatComposer', () => {
 
     expect(screen.getByText('button.select_model')).toBeInTheDocument()
     expect(mocks.surfaceProps?.sendDisabled).toBe(true)
-    expect(mocks.surfaceProps?.sendBlockedReason).toBe('code.model_required')
+    expect(mocks.surfaceProps?.sendBlockedReason).toBe('chat.model_required')
   })
 
   it('shows assistant selection with the default model for unlinked home topics', () => {
@@ -1880,7 +1880,7 @@ describe('ChatComposer', () => {
         mentionedModels: [modelB.id]
       })
     )
-    expect(toast.error).not.toHaveBeenCalledWith('code.model_required')
+    expect(toast.error).not.toHaveBeenCalledWith('chat.model_required')
   })
 
   it('keeps an explicit unlinked-home selection when the runtime default rolls back', async () => {
@@ -1976,7 +1976,7 @@ describe('ChatComposer', () => {
     await mocks.surfaceProps?.onSendDraft({ text: 'hello', tokens: [] })
 
     expect(onSend).not.toHaveBeenCalled()
-    expect(toast.error).toHaveBeenCalledWith('code.model_required')
+    expect(toast.error).toHaveBeenCalledWith('chat.model_required')
   })
 
   it('queues a follow-up while the topic is streaming (does not send directly)', async () => {
@@ -4998,7 +4998,7 @@ describe('ChatComposer', () => {
     expect(screen.getByTestId('model-selector')).toHaveAttribute('data-value-count', '0')
     expect(screen.getByTestId('composer-below-controls')).toHaveTextContent('button.select_model')
     expect(mocks.surfaceProps?.sendDisabled).toBe(true)
-    expect(mocks.surfaceProps?.sendBlockedReason).toBe('code.model_required')
+    expect(mocks.surfaceProps?.sendBlockedReason).toBe('chat.model_required')
   })
 
   it('reinitializes the draft home selector when a new topic is created', async () => {

@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest'
 
 import type { SidebarAppId } from '@renderer/utils/sidebar'
 import type { SidebarFavoriteItem } from '@shared/data/preference/preferenceTypes'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -97,12 +97,6 @@ vi.mock('@data/hooks/usePreference', () => ({
   }
 }))
 
-vi.mock('@renderer/hooks/agent/useAgent', () => ({
-  useAgents: () => ({
-    agents: mocks.agents
-  })
-}))
-
 vi.mock('@renderer/hooks/useAssistant', () => ({
   useAssistantsApi: () => ({
     assistants: mocks.assistants
@@ -111,18 +105,6 @@ vi.mock('@renderer/hooks/useAssistant', () => ({
 
 vi.mock('@renderer/hooks/useAvatar', () => ({
   default: () => undefined
-}))
-
-vi.mock('@renderer/hooks/useMiniApps', () => ({
-  useMiniApps: (options?: { enabled?: boolean }) => {
-    mocks.useMiniApps(options)
-    return {
-      allApps: mocks.allApps,
-      miniApps: mocks.visibleMiniApps ?? mocks.allApps,
-      pinned: mocks.pinnedMiniApps,
-      reorderMiniAppsByStatus: mocks.reorderMiniAppsByStatus
-    }
-  }
 }))
 vi.mock('@renderer/i18n/label', () => ({
   getSidebarIconLabelKey: (icon: string) =>
@@ -136,7 +118,6 @@ vi.mock('@renderer/i18n/label', () => ({
 vi.mock('@renderer/utils/routeTitle', () => ({
   getDefaultRouteTitle: (url: string) =>
     ({
-      '/app/agents': 'Work',
       '/app/chat': 'Chat',
       '/app/files': 'Files',
       '/app/launchpad': 'Launchpad',
@@ -235,7 +216,6 @@ vi.mock('../../Sidebar', async () => {
       onDismiss,
       onHoverChange,
       onEntriesReorder,
-      active,
       entries,
       title,
       logo,
@@ -263,10 +243,7 @@ vi.mock('../../Sidebar', async () => {
       mocks.onEntriesReorder = onEntriesReorder
       // Entries are type-agnostic resolved rows; the tests still assert per-type
       // testids, so recover the type/id from the stable `entry.key` (`${type}:${id}`).
-      const activeState = active ?? { activeItem: '' }
       const items = entries?.filter((entry) => parseEntryKey(entry.key).type === 'app')
-      const dockedTabs = entries?.filter((entry) => parseEntryKey(entry.key).type === 'mini_app')
-      const agentItems = entries?.filter((entry) => parseEntryKey(entry.key).type === 'agent')
       const assistantItems = entries?.filter((entry) => parseEntryKey(entry.key).type === 'assistant')
       return isFloating ? (
         <div
@@ -304,57 +281,6 @@ vi.mock('../../Sidebar', async () => {
                   <span>{item.label}</span>
                 </button>
                 {item.contextMenuItems?.map((menuItem) => (
-                  <button
-                    key={menuItem.id}
-                    type="button"
-                    data-testid={`sidebar-menu-${menuItem.id}`}
-                    disabled={menuItem.enabled === false}
-                    onClick={menuItem.onSelect}>
-                    {menuItem.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div data-testid="sidebar-mini-app-section">
-            {dockedTabs?.map((miniTab) => (
-              <div key={miniTab.key} role="group" aria-label={miniTab.label}>
-                <button
-                  type="button"
-                  data-active={miniTab.isActive(activeState) ? 'true' : 'false'}
-                  data-testid={`sidebar-mini-app-${parseEntryKey(miniTab.key).id}`}
-                  onClick={() => miniTab.onOpen()}
-                  onAuxClick={(e) => {
-                    if (e.button === 1) miniTab.onOpenNewTab?.()
-                  }}>
-                  {miniTab.label}
-                </button>
-                {miniTab.contextMenuItems?.map((menuItem) => (
-                  <button
-                    key={menuItem.id}
-                    type="button"
-                    data-testid={`sidebar-menu-${menuItem.id}`}
-                    disabled={menuItem.enabled === false}
-                    onClick={menuItem.onSelect}>
-                    {menuItem.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div data-testid="sidebar-agent-section">
-            {agentItems?.map((agentItem) => (
-              <div key={agentItem.key} role="group" aria-label={agentItem.label}>
-                <button
-                  type="button"
-                  data-testid={`sidebar-agent-${parseEntryKey(agentItem.key).id}`}
-                  onClick={() => agentItem.onOpen()}
-                  onAuxClick={(e) => {
-                    if (e.button === 1) agentItem.onOpenNewTab?.()
-                  }}>
-                  {agentItem.label}
-                </button>
-                {agentItem.contextMenuItems?.map((menuItem) => (
                   <button
                     key={menuItem.id}
                     type="button"
@@ -411,27 +337,7 @@ vi.mock('react-i18next', () => ({
 import Sidebar from '../Sidebar'
 
 const appFavorite = (id: SidebarAppId): SidebarFavoriteItem => ({ type: 'app', id })
-const miniAppFavorite = (id: string): SidebarFavoriteItem => ({ type: 'mini_app', id })
-const agentFavorite = (id: string): SidebarFavoriteItem => ({ type: 'agent', id })
 const assistantFavorite = (id: string): SidebarFavoriteItem => ({ type: 'assistant', id })
-const calculatorMiniApp: FakeMiniApp = {
-  appId: 'calculator',
-  name: 'Calculator',
-  logo: 'calculator-logo',
-  url: 'https://calc.example'
-}
-const weatherMiniApp: FakeMiniApp = {
-  appId: 'weather',
-  name: 'Weather',
-  logo: 'weather-logo',
-  url: 'https://weather.example'
-}
-
-function configureMiniApps(favoriteIds: string[], apps: FakeMiniApp[] = [calculatorMiniApp]) {
-  mocks.sidebarFavorites = [appFavorite('assistants'), appFavorite('mini_app')]
-  mocks.sidebarMiniAppFavorites = favoriteIds.map(miniAppFavorite)
-  mocks.allApps = apps
-}
 
 afterEach(() => {
   cleanup()
@@ -463,16 +369,6 @@ afterEach(() => {
 })
 
 describe('app Sidebar', () => {
-  it('loads mini apps only when the sidebar contains a custom mini-app favorite', () => {
-    const view = render(<Sidebar />)
-    expect(mocks.useMiniApps).toHaveBeenLastCalledWith({ enabled: false })
-
-    mocks.sidebarMiniAppFavorites = [miniAppFavorite('mini-1')]
-    view.rerender(<Sidebar />)
-
-    expect(mocks.useMiniApps).toHaveBeenLastCalledWith({ enabled: true })
-  })
-
   it('uses the avatar and name as one header action while keeping footer actions separate', async () => {
     const user = userEvent.setup()
     const { container } = render(<Sidebar />)
@@ -517,14 +413,14 @@ describe('app Sidebar', () => {
   })
 
   it('renders sidebar menu items in visible preference order', () => {
-    mocks.sidebarFavorites = [appFavorite('translate'), appFavorite('assistants'), appFavorite('agents')]
+    mocks.sidebarFavorites = [appFavorite('translate'), appFavorite('assistants'), appFavorite('assistants')]
 
     render(<Sidebar />)
 
     const labels = Array.from(screen.getByTestId('sidebar-items').querySelectorAll('span')).map(
       (element) => element.textContent
     )
-    expect(labels).toEqual(['Translate', 'Chat', 'Work'])
+    expect(labels).toEqual(['Translate', 'Chat'])
   })
 
   it('removes a sidebar app favorite from the context menu', () => {
@@ -582,248 +478,17 @@ describe('app Sidebar', () => {
     })
   })
 
-  it('renders favorite mini apps directly in the sidebar mini app section', () => {
-    configureMiniApps(['calculator', 'weather'], [calculatorMiniApp, weatherMiniApp])
+  it('does nothing when the active tab is already on the target route', () => {
+    mocks.sidebarFavorites = [appFavorite('assistants')]
     mocks.activeTab = {
-      id: 'calculator-tab',
-      type: 'route',
-      url: '/app/mini-app/calculator',
-      title: 'Calculator'
-    }
-
-    render(<Sidebar />)
-
-    expect(screen.getByTestId('sidebar-mini-app-section')).toContainElement(
-      screen.getByTestId('sidebar-mini-app-calculator')
-    )
-    expect(screen.getByTestId('sidebar-mini-app-calculator')).toHaveTextContent('Calculator')
-    expect(screen.getByTestId('sidebar-mini-app-calculator')).toHaveAttribute('data-active', 'true')
-    expect(screen.getByTestId('sidebar-mini-app-weather')).toHaveTextContent('Weather')
-    expect(
-      within(screen.getByTestId('sidebar-mini-app-section'))
-        .getAllByRole('group')
-        .map((group) => group.getAttribute('aria-label'))
-    ).toEqual(['Calculator', 'Weather'])
-  })
-
-  it('removes a sidebar mini app favorite from the context menu', () => {
-    configureMiniApps(['calculator', 'weather'], [calculatorMiniApp, weatherMiniApp])
-
-    render(<Sidebar />)
-
-    fireEvent.click(screen.getByTestId('sidebar-menu-sidebar.remove-mini-app.calculator'))
-
-    expect(mocks.setSidebarFavorites).toHaveBeenCalledWith([
-      appFavorite('assistants'),
-      appFavorite('mini_app'),
-      miniAppFavorite('weather')
-    ])
-  })
-
-  it('offers the manage sidebar action for mini app favorites', () => {
-    mocks.sidebarFavorites = []
-    mocks.sidebarMiniAppFavorites = [miniAppFavorite('calculator')]
-    mocks.allApps = [calculatorMiniApp]
-
-    render(<Sidebar />)
-
-    const calculatorItem = screen.getByRole('group', { name: 'Calculator' })
-    expect(within(calculatorItem).getByRole('button', { name: 'Manage Sidebar' })).toBeInTheDocument()
-  })
-
-  it('reorders sidebar favorites through a single mixed drag', () => {
-    mocks.sidebarFavorites = [appFavorite('assistants'), appFavorite('knowledge'), appFavorite('files')]
-    mocks.sidebarMiniAppFavorites = [miniAppFavorite('calculator')]
-    mocks.allApps = [calculatorMiniApp]
-
-    render(<Sidebar />)
-    // Mixed list is [assistants, knowledge, files, calculator]; drag files to front.
-    act(() => mocks.onEntriesReorder?.({ oldIndex: 2, newIndex: 0 }))
-
-    expect(mocks.setSidebarFavorites).toHaveBeenCalledWith([
-      appFavorite('files'),
-      appFavorite('assistants'),
-      appFavorite('knowledge'),
-      miniAppFavorite('calculator')
-    ])
-  })
-
-  it('reorders sidebar mini apps through favorites without touching the mini app order key', () => {
-    configureMiniApps(['calculator', 'weather'], [calculatorMiniApp, weatherMiniApp])
-
-    render(<Sidebar />)
-    // Mixed list is [assistants, mini_app, calculator, weather]; drag weather above calculator.
-    act(() => mocks.onEntriesReorder?.({ oldIndex: 3, newIndex: 2 }))
-
-    expect(mocks.setSidebarFavorites).toHaveBeenCalledWith([
-      appFavorite('assistants'),
-      appFavorite('mini_app'),
-      miniAppFavorite('weather'),
-      miniAppFavorite('calculator')
-    ])
-    // The sidebar owns its order through favorites only — the mini app order key
-    // (shared with the mini apps grid) is left untouched.
-    expect(mocks.reorderMiniAppsByStatus).not.toHaveBeenCalled()
-  })
-
-  it('drag-reorders a mini app above a built-in app, interleaving the two types', () => {
-    configureMiniApps(['calculator'])
-
-    render(<Sidebar />)
-    // Mixed list is [assistants, mini_app, calculator]; drag calculator to the very top.
-    act(() => mocks.onEntriesReorder?.({ oldIndex: 2, newIndex: 0 }))
-
-    expect(mocks.setSidebarFavorites).toHaveBeenCalledWith([
-      miniAppFavorite('calculator'),
-      appFavorite('assistants'),
-      appFavorite('mini_app')
-    ])
-  })
-
-  it('does not render mini apps unless they are sidebar favorites', () => {
-    configureMiniApps([])
-
-    render(<Sidebar />)
-
-    expect(screen.queryByTestId('sidebar-mini-app-calculator')).not.toBeInTheDocument()
-  })
-
-  it('drops stale mini app ids from sidebar favorites', () => {
-    configureMiniApps(['calculator', 'stale'])
-
-    render(<Sidebar />)
-
-    expect(screen.getByTestId('sidebar-mini-app-calculator')).toHaveTextContent('Calculator')
-    expect(screen.queryByTestId('sidebar-mini-app-stale')).not.toBeInTheDocument()
-  })
-
-  it('does not render hidden mini apps left in sidebar favorites', () => {
-    configureMiniApps(['calculator'])
-    mocks.visibleMiniApps = []
-
-    render(<Sidebar />)
-
-    expect(screen.queryByTestId('sidebar-mini-app-calculator')).not.toBeInTheDocument()
-  })
-
-  it('reuses the active tab from the sidebar mini app section', () => {
-    configureMiniApps(['calculator'])
-    mocks.activeTab = {
-      id: 'chat',
-      type: 'route',
-      url: '/app/chat?topicId=t-1',
-      title: 'Topic',
-      icon: 'emoji:🍒',
-      metadata: { keep: true }
-    }
-
-    render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-mini-app-calculator'))
-
-    expect(mocks.updateTab).toHaveBeenCalledWith('chat', {
-      url: '/app/mini-app/calculator',
-      title: 'Calculator',
-      icon: 'calculator-logo',
-      metadata: undefined
-    })
-    expect(mocks.openTab).not.toHaveBeenCalled()
-  })
-
-  it('switches to an existing mini app tab without replacing the active tab', async () => {
-    const user = userEvent.setup()
-    configureMiniApps(['calculator'])
-    mocks.activeTab = {
-      id: 'chat',
-      type: 'route',
-      url: '/app/chat?topicId=t-1',
-      title: 'Topic'
-    }
-    mocks.tabs = [
-      mocks.activeTab,
-      {
-        id: 'calculator-tab',
-        type: 'route',
-        url: '/app/mini-app/calculator',
-        title: 'Calculator'
-      }
-    ]
-
-    render(<Sidebar />)
-    await user.click(screen.getByRole('button', { name: 'Calculator' }))
-
-    expect(mocks.setActiveTab).toHaveBeenCalledWith('calculator-tab')
-    expect(mocks.updateTab).not.toHaveBeenCalled()
-    expect(mocks.openTab).not.toHaveBeenCalled()
-  })
-
-  it('keeps the active mini app tab alive when opening another mini app', () => {
-    configureMiniApps(['calculator', 'weather'], [calculatorMiniApp, weatherMiniApp])
-    mocks.activeTab = {
-      id: 'calculator-tab',
-      type: 'route',
-      url: '/app/mini-app/calculator',
-      title: 'Calculator'
-    }
-    mocks.tabs = [mocks.activeTab]
-
-    render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-mini-app-weather'))
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/mini-app/weather', {
-      title: 'Weather',
-      icon: 'weather-logo'
-    })
-    expect(mocks.updateTab).not.toHaveBeenCalled()
-  })
-
-  it('does nothing when the active tab is already on the target mini app route', () => {
-    configureMiniApps(['calculator'])
-    mocks.activeTab = {
-      id: 'calculator-tab',
-      type: 'route',
-      url: '/app/mini-app/calculator',
-      title: 'Calculator'
-    }
-
-    render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-mini-app-calculator'))
-
-    expect(mocks.updateTab).not.toHaveBeenCalled()
-    expect(mocks.openTab).not.toHaveBeenCalled()
-  })
-
-  it('opens a forced mini app tab when the active tab is pinned', () => {
-    configureMiniApps(['calculator'])
-    mocks.activeTab = {
-      id: 'chat',
+      id: 'assistants',
       type: 'route',
       url: '/app/chat',
-      title: 'Chat',
-      isPinned: true
+      title: 'Chat'
     }
 
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-mini-app-calculator'))
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/mini-app/calculator', {
-      forceNew: true,
-      title: 'Calculator',
-      icon: 'calculator-logo'
-    })
-    expect(mocks.updateTab).not.toHaveBeenCalled()
-  })
-
-  it('does nothing when the active tab is already on the target route', () => {
-    mocks.sidebarFavorites = [appFavorite('agents')]
-    mocks.activeTab = {
-      id: 'agents',
-      type: 'route',
-      url: '/app/agents',
-      title: 'Work'
-    }
-
-    render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-item-agents'))
+    fireEvent.click(screen.getByTestId('sidebar-item-assistants'))
 
     expect(mocks.updateTab).not.toHaveBeenCalled()
     expect(mocks.openTab).not.toHaveBeenCalled()
@@ -831,21 +496,21 @@ describe('app Sidebar', () => {
   })
 
   it('reuses the active tab without revealing its resource list', () => {
-    mocks.sidebarFavorites = [appFavorite('agents')]
+    mocks.sidebarFavorites = [appFavorite('assistants')]
     mocks.activeTab = {
-      id: 'chat',
+      id: 'files',
       type: 'route',
-      url: '/app/chat',
-      title: 'Chat'
+      url: '/app/files',
+      title: 'Files'
     }
-    mocks.tabs = [{ id: 'agents-1', type: 'route', url: '/app/agents?sessionId=s-1', title: 'Session 1' }]
+    mocks.tabs = [{ id: 'agents-1', type: 'route', url: '/app/chat?topicId=s-1', title: 'Session 1' }]
 
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-item-agents'))
+    fireEvent.click(screen.getByTestId('sidebar-item-assistants'))
 
-    expect(mocks.updateTab).toHaveBeenCalledWith('chat', {
-      url: '/app/agents',
-      title: 'Work',
+    expect(mocks.updateTab).toHaveBeenCalledWith('files', {
+      url: '/app/chat',
+      title: 'Chat',
       icon: undefined,
       metadata: undefined
     })
@@ -855,23 +520,23 @@ describe('app Sidebar', () => {
   })
 
   it('replaces the active tab with the bare route', () => {
-    mocks.sidebarFavorites = [appFavorite('agents')]
+    mocks.sidebarFavorites = [appFavorite('assistants')]
     mocks.activeTab = {
-      id: 'chat',
+      id: 'files',
       type: 'route',
-      url: '/app/chat?topicId=topic-1',
-      title: 'Chat',
+      url: '/app/files',
+      title: 'Files',
       metadata: { keep: true }
     }
 
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-item-agents'))
+    fireEvent.click(screen.getByTestId('sidebar-item-assistants'))
 
     // Which session the tab lands on is the route interceptor's decision — the
     // sidebar only replaces the tab with the app's bare entry route.
-    expect(mocks.updateTab).toHaveBeenCalledWith('chat', {
-      url: '/app/agents',
-      title: 'Work',
+    expect(mocks.updateTab).toHaveBeenCalledWith('files', {
+      url: '/app/chat',
+      title: 'Chat',
       icon: undefined,
       metadata: undefined
     })
@@ -880,16 +545,16 @@ describe('app Sidebar', () => {
   })
 
   it('stays put when the active tab already holds a conversation of the target app', () => {
-    mocks.sidebarFavorites = [appFavorite('agents')]
+    mocks.sidebarFavorites = [appFavorite('assistants')]
     mocks.activeTab = {
       id: 'agents-1',
       type: 'route',
-      url: '/app/agents?sessionId=session-1',
+      url: '/app/chat?topicId=session-1',
       title: 'Session 1'
     }
 
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-item-agents'))
+    fireEvent.click(screen.getByTestId('sidebar-item-assistants'))
 
     // Re-entering through the interceptor would rebind the tab to the last-used
     // conversation — an owned tab is already "there", whatever session it shows.
@@ -943,22 +608,22 @@ describe('app Sidebar', () => {
   })
 
   it('opens a forced tab without revealing its resource list when the active tab is pinned', () => {
-    mocks.sidebarFavorites = [appFavorite('agents')]
+    mocks.sidebarFavorites = [appFavorite('assistants')]
     mocks.activeTab = {
-      id: 'chat',
+      id: 'files',
       type: 'route',
-      url: '/app/chat',
-      title: 'Chat',
+      url: '/app/files',
+      title: 'Files',
       isPinned: true
     }
-    mocks.openTab.mockReturnValue('agents-new')
+    mocks.openTab.mockReturnValue('chat-new')
 
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('sidebar-item-agents'))
+    fireEvent.click(screen.getByTestId('sidebar-item-assistants'))
 
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/agents', {
+    expect(mocks.openTab).toHaveBeenCalledWith('/app/chat', {
       forceNew: true,
-      title: 'Work'
+      title: 'Chat'
     })
     expect(mocks.emitResourceListReveal).not.toHaveBeenCalled()
     expect(mocks.updateTab).not.toHaveBeenCalled()
@@ -1033,79 +698,6 @@ describe('app Sidebar', () => {
 
     fireEvent.click(menuButton)
     expect(mocks.openTab).toHaveBeenCalledWith('/app/chat', { forceNew: true, title: 'Chat' })
-  })
-
-  it('opens a new tab on middle-click (auxclick with button 1) on a mini app item', () => {
-    mocks.sidebarFavorites = []
-    mocks.sidebarMiniAppFavorites = [miniAppFavorite('mini-1')]
-    mocks.allApps = [{ appId: 'mini-1', name: 'Mini One', logo: 'logo-1.png', url: 'https://example.com/1' }]
-    mocks.activeTab = { id: 'chat', type: 'route', url: '/app/chat', title: 'Chat' }
-
-    render(<Sidebar />)
-    const button = screen.getByTestId('sidebar-mini-app-mini-1')
-    fireEvent(button, new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }))
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/mini-app/mini-1', {
-      forceNew: true,
-      title: 'Mini One',
-      icon: 'logo-1.png'
-    })
-  })
-
-  it('creates a new mini app tab on middle-click even when a tab already exists', () => {
-    mocks.sidebarFavorites = []
-    mocks.sidebarMiniAppFavorites = [miniAppFavorite('mini-1')]
-    mocks.allApps = [{ appId: 'mini-1', name: 'Mini One', logo: 'logo-1.png', url: 'https://example.com/1' }]
-    mocks.activeTab = { id: 'chat', type: 'route', url: '/app/chat', title: 'Chat' }
-    mocks.tabs = [
-      mocks.activeTab,
-      { id: 'mini-existing', type: 'route', url: '/app/mini-app/mini-1', title: 'Mini One' }
-    ]
-
-    render(<Sidebar />)
-    const button = screen.getByTestId('sidebar-mini-app-mini-1')
-    fireEvent(button, new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }))
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/mini-app/mini-1', {
-      forceNew: true,
-      title: 'Mini One',
-      icon: 'logo-1.png'
-    })
-    expect(mocks.setActiveTab).not.toHaveBeenCalled()
-    expect(mocks.updateTab).not.toHaveBeenCalled()
-  })
-
-  it('opens a new tab on middle-click (auxclick with button 1) on an agent item', () => {
-    mocks.sidebarFavorites = []
-    mocks.sidebarAgentFavorites = [agentFavorite('agent-1')]
-    mocks.agents = [{ id: 'agent-1', name: 'Code Reviewer' }]
-    mocks.activeTab = { id: 'chat', type: 'route', url: '/app/chat', title: 'Chat' }
-
-    render(<Sidebar />)
-    const button = screen.getByTestId('sidebar-agent-agent-1')
-    fireEvent(button, new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }))
-
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/agents?agentId=agent-1', {
-      forceNew: true,
-      title: 'Code Reviewer'
-    })
-  })
-
-  it('opens a new tab via context menu "open in new tab" option on an agent item', () => {
-    mocks.sidebarFavorites = []
-    mocks.sidebarAgentFavorites = [agentFavorite('agent-1')]
-    mocks.agents = [{ id: 'agent-1', name: 'Code Reviewer' }]
-    mocks.activeTab = { id: 'chat', type: 'route', url: '/app/chat', title: 'Chat' }
-
-    render(<Sidebar />)
-    const menuButton = screen.getByTestId('sidebar-menu-sidebar.open-in-new-tab.agent:agent-1')
-    expect(menuButton).toHaveTextContent('common.open_in_new_tab')
-
-    fireEvent.click(menuButton)
-    expect(mocks.openTab).toHaveBeenCalledWith('/app/agents?agentId=agent-1', {
-      forceNew: true,
-      title: 'Code Reviewer'
-    })
   })
 
   it('opens a new tab on middle-click (auxclick with button 1) on an assistant item', () => {

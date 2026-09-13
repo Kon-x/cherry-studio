@@ -62,7 +62,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) =>
       ({
-        'agent.settings.toolsMcp.mcp.tab': 'MCP',
+        'settings.mcp.tab': 'MCP',
         'selection.name': '划词助手',
         'settings.appearance.title': '外观',
         'settings.dependencies.title': '环境依赖',
@@ -146,19 +146,15 @@ describe('SettingsPage', () => {
     expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/dependencies' })
   })
 
-  it('places Skills below MCP and prompt management directly below Skills', () => {
+  it('places prompt management directly below MCP', () => {
     render(<SettingsPage />)
 
     const mcpItem = screen.getByText('MCP').closest('button')
-    const skillsItem = screen.getByRole('button', { name: '技能' })
+    const promptsItem = screen.getByRole('button', { name: '提示词' })
 
     expect(mcpItem).not.toBeNull()
-    expect(mcpItem?.nextElementSibling).toBe(skillsItem)
-    fireEvent.click(skillsItem)
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/skills' })
-
-    const promptsItem = screen.getByRole('button', { name: '提示词' })
-    expect(skillsItem.nextElementSibling).toBe(promptsItem)
+    expect(mcpItem?.nextElementSibling).toBe(promptsItem)
+    expect(screen.queryByRole('button', { name: '技能' })).not.toBeInTheDocument()
     fireEvent.click(promptsItem)
     expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/prompts' })
   })
@@ -169,7 +165,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('效率')).toBeInTheDocument()
     expect(screen.queryByText('快捷入口')).not.toBeInTheDocument()
 
-    const efficiencyItems = ['定时任务', '快捷键', '快捷助手', '划词助手', '截图'].map((name) =>
+    const efficiencyItems = ['快捷键', '快捷助手', '划词助手', '截图'].map((name) =>
       screen.getByRole('button', { name })
     )
     const menuItems = screen.getAllByTestId('menu-item')

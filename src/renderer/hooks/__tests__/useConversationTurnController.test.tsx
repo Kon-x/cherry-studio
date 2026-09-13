@@ -1,3 +1,4 @@
+import i18n from '@renderer/i18n/resolver'
 import type { AiStreamOpenResponse } from '@shared/ai/transport'
 import type { CherryUIMessage } from '@shared/data/types/message'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -110,8 +111,8 @@ describe('useConversationTurnController', () => {
   it('returns to ready when stream open is blocked', async () => {
     mocks.streamOpen.mockResolvedValueOnce({
       mode: 'blocked',
-      reason: 'agent-session-workspace',
-      message: 'Workspace access is required'
+      reason: 'paused',
+      message: 'restore.messages_paused'
     })
     const { result, historyAdapter } = renderController()
 
@@ -122,7 +123,7 @@ describe('useConversationTurnController', () => {
 
     expect(sent).toBe(false)
     expect(result.current.phase).toBe('ready')
-    expect(mocks.toastError).toHaveBeenCalledWith('Workspace access is required')
+    expect(mocks.toastError).toHaveBeenCalledWith(i18n.t('restore.messages_paused'))
     expect(historyAdapter.seedReservedMessages).not.toHaveBeenCalled()
     expect(historyAdapter.rollback).not.toHaveBeenCalled()
   })

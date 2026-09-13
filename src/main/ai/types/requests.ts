@@ -19,15 +19,6 @@ export interface AiTransportOptions {
   maxRetries?: number
 }
 
-/** In-process-only usage correlation; never accepted on renderer IPC schemas. */
-export interface InProcessUsageContext {
-  agentSessionId: string
-  /** Assistant message that owns this request: a reserved steer continuation or the active turn. */
-  assistantMessageId: string
-  /** Immutable source captured by the owning Agent turn. `null` means intentionally unavailable. */
-  source: SourceSnapshot | null
-}
-
 /** Identifies which layer owns history shaping for an in-process AI request. */
 export type ContextOwner = 'cherry' | 'caller'
 
@@ -133,7 +124,6 @@ export interface AiStreamRequest extends AiChatRequest {
    * consumers fall back to scanning `messages`.
    */
   retainedContext?: RetainedContext
-  runtime?: { kind: 'agent-session'; sessionId: string; turnId: string }
   /**
    * Attribution for callers with no assistant to derive it from. Neutral on purpose:
    * `usageContext` identifies a trusted agent turn; reusing it for source

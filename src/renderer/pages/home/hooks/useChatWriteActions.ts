@@ -327,7 +327,7 @@ export function useChatWriteActions(params: Params): Result {
           mentionedModelIds: [retryModelId],
           ...turnOptionsRequestFields(turnOptions)
         })
-        if (ack.mode === 'blocked') throw new Error(getStreamBlockedMessage(ack))
+        if (ack.mode === 'blocked') throw new Error(getStreamBlockedMessage())
         await seedReservedMessages(ack.reservedMessages ?? [], {
           activeExecutions: ack.activeExecutions,
           preserveActiveNode: ack.preserveActiveNode
@@ -347,7 +347,7 @@ export function useChatWriteActions(params: Params): Result {
           mentionedModelIds: [options.modelId],
           ...turnOptionsRequestFields(turnOptions)
         })
-        if (ack.mode === 'blocked') throw new Error(getStreamBlockedMessage(ack))
+        if (ack.mode === 'blocked') throw new Error(getStreamBlockedMessage())
         await seedReservedMessages(ack.reservedMessages ?? [], {
           activeExecutions: ack.activeExecutions,
           preserveActiveNode: ack.preserveActiveNode
@@ -421,7 +421,7 @@ export function useChatWriteActions(params: Params): Result {
       })
 
       if (ack.mode === 'blocked') {
-        throw new Error(getStreamBlockedMessage(ack))
+        throw new Error(getStreamBlockedMessage())
       }
 
       await seedReservedMessages(ack.reservedMessages ?? [], {
@@ -457,7 +457,7 @@ export function useChatWriteActions(params: Params): Result {
       })
 
       if (ack.mode === 'blocked') {
-        throw new Error(getStreamBlockedMessage(ack))
+        throw new Error(getStreamBlockedMessage())
       }
 
       await seedReservedMessages(ack.reservedMessages ?? [], {

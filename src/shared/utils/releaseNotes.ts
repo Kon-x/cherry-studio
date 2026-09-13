@@ -6,7 +6,7 @@ const RELEASE_NOTE_MARKERS = {
   end: '<!--LANG:END-->'
 } as const
 
-const STABLE_RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+const STABLE_RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-kx\.[1-9]\d*)?$/
 
 export type ReleaseNotesEntry = {
   releaseNotes: string
@@ -71,9 +71,11 @@ export function mergeReleaseHistory(
   fallback: readonly ReleaseNotesEntry[]
 ): ReleaseNotesEntry[] {
   const preferredVersions = new Set(preferred.map(({ version }) => version))
-  return [...preferred, ...fallback.filter(({ version }) => !preferredVersions.has(version))].sort((left, right) =>
-    compareSemverDescending(left.version, right.version)
-  )
+  return [...preferred, ...fallback.filter(({ version }) => !preferredVersions.has(version))].sort((left, right) => {
+    const [leftBase, leftRevision = '0'] = left.version.split('-kx.')
+    const [rightBase, rightRevision = '0'] = right.version.split('-kx.')
+    return compareSemverDescending(leftBase, rightBase) || Number(rightRevision) - Number(leftRevision)
+  })
 }
 
 export function validateCurrentReleaseHistory(current: ReleaseNotesEntry, history: readonly ReleaseNotesEntry[]): void {

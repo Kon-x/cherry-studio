@@ -25,20 +25,14 @@ export function PromptBindingTab({ enabled, target, portalContainer }: PromptBin
   const [isBinding, setIsBinding] = useState(false)
   const isBindingRef = useRef(false)
   const bindingOperationGenerationRef = useRef(0)
-  const bindingTarget = useMemo<PromptBindingTarget>(
-    () => (target.type === 'assistant' ? { type: 'assistant', id: target.id } : { type: 'agent', id: target.id }),
-    [target.id, target.type]
-  )
+  const bindingTarget = useMemo<PromptBindingTarget>(() => ({ type: 'assistant', id: target.id }), [target.id])
   const {
     data: allPromptsData,
     error: allPromptsError,
     isLoading: isAllPromptsLoading,
     refetch: refetchAllPrompts
   } = useQuery('/prompts', { enabled, query: { visibility: 'restricted' } })
-  const bindingParams =
-    bindingTarget.type === 'assistant'
-      ? { targetType: 'assistant' as const, targetId: bindingTarget.id }
-      : { targetType: 'agent' as const, targetId: bindingTarget.id }
+  const bindingParams = { targetType: 'assistant' as const, targetId: bindingTarget.id }
   const {
     data: boundPromptsData,
     error: boundPromptsError,

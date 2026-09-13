@@ -96,19 +96,6 @@ describe('oauthHandlers', () => {
     expect(authorizeTokenDanceApiKeyMock).toHaveBeenCalledOnce()
   })
 
-  it('dispatches check_external_login to CodeCliService', async () => {
-    await expect(oauthHandlers['oauth.check_external_login']({ providerId: 'claude-code' }, ctx)).resolves.toBe(true)
-    expect(appGetMock).toHaveBeenCalledWith('CodeCliService')
-    expect(codeCliService.checkClaudeLogin).toHaveBeenCalledTimes(1)
-  })
-
-  it('rejects check_external_login for a non-external-cli provider', () => {
-    expect(() => oauthHandlers['oauth.check_external_login']({ providerId: 'codex' }, ctx)).toThrow(
-      /Unsupported external-cli/
-    )
-    expect(codeCliService.checkClaudeLogin).not.toHaveBeenCalled()
-  })
-
   it('forwards the initiator window id, provider, and hosts to startDeepLinkFlow', async () => {
     await expect(
       oauthHandlers['oauth.start_deep_link_flow'](

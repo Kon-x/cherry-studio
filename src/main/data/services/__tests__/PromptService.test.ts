@@ -179,12 +179,11 @@ describe('PromptService', () => {
         visibility: 'restricted',
         bindingTarget: { type: 'assistant', id: ASSISTANT_ID }
       })
-      const agentPrompt = promptService.create({
-        title: 'Agent',
-        content: 'agent only',
-        visibility: 'restricted',
-        bindingTarget: { type: 'agent', id: AGENT_ID }
-      })
+      const agentPrompt = await seedPrompt('Archived Agent', 'agent only', 'restricted')
+      dbh.db
+        .insert(promptBindingTable)
+        .values({ promptId: agentPrompt.id, targetType: 'agent', targetId: AGENT_ID, orderKey: 'a0' })
+        .run()
 
       expect(promptService.list({ targetType: 'assistant', targetId: ASSISTANT_ID, includeGlobal: true })).toEqual([
         assistantPrompt,
@@ -193,9 +192,7 @@ describe('PromptService', () => {
       expect(
         promptService.list({ targetType: 'assistant', targetId: OTHER_ASSISTANT_ID, includeGlobal: true })
       ).toEqual([globalPrompt])
-      expect(promptService.list({ targetType: 'agent', targetId: AGENT_ID, includeGlobal: false })).toEqual([
-        agentPrompt
-      ])
+      expect(promptService.listBindings(agentPrompt.id)).toEqual([])
       expect(promptService.list({ visibility: 'restricted' })).toEqual([assistantPrompt, agentPrompt])
       expect(promptService.list().map((prompt) => prompt.id)).toEqual([
         globalPrompt.id,
@@ -222,23 +219,21 @@ describe('PromptService', () => {
       expect(promptService.listBindings(prompt.id)).toEqual([])
     })
 
-    it('should list every context sharing a prompt', async () => {
+    it('hides historical Agent bindings while retaining their database rows', async () => {
       await seedAssistant(ASSISTANT_ID, 'a0')
       await seedAgent()
       const prompt = await seedPrompt('Shared', 'Prompt body', 'restricted')
 
       promptService.bindToTarget(prompt.id, { type: 'assistant', id: ASSISTANT_ID })
-      promptService.bindToTarget(prompt.id, { type: 'agent', id: AGENT_ID })
+      dbh.db
+        .insert(promptBindingTable)
+        .values({ promptId: prompt.id, targetType: 'agent', targetId: AGENT_ID, orderKey: 'a0' })
+        .run()
 
-      expect(promptService.listBindings(prompt.id)).toEqual(
-        expect.arrayContaining([
-          { type: 'assistant', id: ASSISTANT_ID },
-          { type: 'agent', id: AGENT_ID }
-        ])
-      )
+      expect(promptService.listBindings(prompt.id)).toEqual([{ type: 'assistant', id: ASSISTANT_ID }])
     })
 
-    it('should list every Assistant and Agent binding relation', async () => {
+    it('lists only active assistant binding relations', async () => {
       await seedAssistant(ASSISTANT_ID, 'a0')
       await seedAgent()
       const first = await seedPrompt('First', 'first', 'restricted')
@@ -247,13 +242,15 @@ describe('PromptService', () => {
 
       promptService.bindToTarget(first.id, assistantTarget)
       promptService.bindToTarget(second.id, assistantTarget)
-      promptService.bindToTarget(first.id, { type: 'agent', id: AGENT_ID })
+      dbh.db
+        .insert(promptBindingTable)
+        .values({ promptId: first.id, targetType: 'agent', targetId: AGENT_ID, orderKey: 'a0' })
+        .run()
 
       expect(promptService.listBindingRelations()).toEqual(
         expect.arrayContaining([
           { promptId: first.id, targetType: 'assistant', targetId: ASSISTANT_ID },
-          { promptId: second.id, targetType: 'assistant', targetId: ASSISTANT_ID },
-          { promptId: first.id, targetType: 'agent', targetId: AGENT_ID }
+          { promptId: second.id, targetType: 'assistant', targetId: ASSISTANT_ID }
         ])
       )
     })

@@ -6,7 +6,6 @@
 
 import { assistantDataService } from '@data/services/AssistantService'
 import { loggerService } from '@logger'
-import { isAgentSessionTopic } from '@main/ai/agentSession/topic'
 import { resolveContextSettings } from '@main/ai/contextBuild/resolveContextSettings'
 import { resolveGlobalContextSettings } from '@main/ai/contextBuild/resolveRequestContextSettings'
 import { applyMaxMessagesWindow } from '@main/ai/messages/maxMessagesWindow'
@@ -32,7 +31,6 @@ export class TemporaryChatContextProvider implements ChatContextProvider {
 
   canHandle(topicId: string): boolean {
     // Defensive — agent-session prefix is never temporary regardless of `hasTopic`.
-    if (isAgentSessionTopic(topicId)) return false
     return temporaryChatService.hasTopic(topicId)
   }
 

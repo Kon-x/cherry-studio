@@ -4,32 +4,16 @@ import * as z from 'zod'
 
 import {
   KB_LIST_TOOL_NAME,
-  KB_SEARCH_TOOL_NAME,
   kbListInputSchema,
   kbManageInputSchema,
   kbReadInputSchema,
   kbSearchInputSchema,
   readFileInputSchema,
-  REPORT_ARTIFACTS_DESCRIPTION,
-  REPORT_ARTIFACTS_TOOL_NAME,
-  reportArtifactsInputSchema,
-  TO_MARKDOWN_DESCRIPTION,
-  TO_MARKDOWN_SUPPORTED_EXTENSIONS,
-  toMarkdownInputSchema,
-  WEB_FETCH_TOOL_NAME,
   WEB_SEARCH_TOOL_NAME,
   webFetchInputSchema
 } from '../builtinTools'
 
 describe('builtin tool contracts', () => {
-  it('uses model-facing builtin tool names', () => {
-    expect(KB_LIST_TOOL_NAME).toBe('kb_list')
-    expect(KB_SEARCH_TOOL_NAME).toBe('kb_search')
-    expect(WEB_SEARCH_TOOL_NAME).toBe('web_search')
-    expect(WEB_FETCH_TOOL_NAME).toBe('web_fetch')
-    expect(REPORT_ARTIFACTS_TOOL_NAME).toBe('report_artifacts')
-  })
-
   it('references the public knowledge list tool name from search input metadata', () => {
     const description = kbSearchInputSchema.shape.baseIds.description
 
@@ -129,51 +113,5 @@ describe('builtin tool contracts', () => {
     expect(readFileInputSchema.safeParse({ filename: 'a.txt', offset: 0 }).success).toBe(true)
     expect(readFileInputSchema.safeParse({ filename: 'a.txt', limit: 0 }).success).toBe(false)
     expect(readFileInputSchema.safeParse({ filename: 'a.txt', limit: 1 }).success).toBe(true)
-  })
-
-  it('advertises the exact to_markdown input boundary and supported extensions', () => {
-    expect(Object.keys(toMarkdownInputSchema.shape)).toEqual(['path'])
-    expect(TO_MARKDOWN_SUPPORTED_EXTENSIONS.split(', ')).toEqual([
-      '.doc',
-      '.docx',
-      '.docm',
-      '.ppt',
-      '.pps',
-      '.pot',
-      '.pptx',
-      '.pptm',
-      '.ppsx',
-      '.ppsm',
-      '.xls',
-      '.xlsx',
-      '.xlsm',
-      '.xlsb',
-      '.odt',
-      '.ods',
-      '.odp',
-      '.rtf',
-      '.epub',
-      '.csv',
-      '.pdf'
-    ])
-    expect(toMarkdownInputSchema.shape.path.description).toContain(TO_MARKDOWN_SUPPORTED_EXTENSIONS)
-    // The model must be told the path boundary, not just the formats — it cannot see the guard.
-    expect(toMarkdownInputSchema.shape.path.description).toContain('attachment announced with this session')
-    expect(toMarkdownInputSchema.shape.path.description).toContain('agent data directory')
-    expect(TO_MARKDOWN_DESCRIPTION).toContain(TO_MARKDOWN_SUPPORTED_EXTENSIONS)
-    expect(TO_MARKDOWN_DESCRIPTION).toContain('local document')
-    expect(TO_MARKDOWN_DESCRIPTION).toContain('OCR')
-  })
-
-  it('validates final report artifacts', () => {
-    const result = reportArtifactsInputSchema.parse({
-      artifacts: [{ path: 'dist/report.pdf', description: 'Final report' }],
-      summary: 'Generated report'
-    })
-
-    expect(result.artifacts[0]).toEqual({ path: 'dist/report.pdf', description: 'Final report' })
-    expect(reportArtifactsInputSchema.safeParse({ artifacts: [] }).success).toBe(false)
-    expect(reportArtifactsInputSchema.safeParse({ artifacts: [{ path: '   ' }] }).success).toBe(false)
-    expect(REPORT_ARTIFACTS_DESCRIPTION).toContain('final deliverable')
   })
 })

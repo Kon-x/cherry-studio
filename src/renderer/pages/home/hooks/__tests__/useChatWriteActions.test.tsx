@@ -677,6 +677,8 @@ describe('useChatWriteActions — fork and resend', () => {
     streamOpen.mockResolvedValueOnce({ mode: 'blocked', message: 'blocked' })
     const { actions } = renderActions([uiMsg('u1', 'user', 'vroot')], cache)
 
-    await expect(actions.forkAndResend('u1', [{ type: 'text', text: 'edited' }] as any)).rejects.toThrow('blocked')
+    await expect(actions.forkAndResend('u1', [{ type: 'text', text: 'edited' }] as any)).rejects.toThrow(
+      '正在恢复备份；完成前已暂停发送新消息。'
+    )
   })
 })

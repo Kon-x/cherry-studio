@@ -1,10 +1,8 @@
 import { Button, Dialog, DialogContent, DialogTitle, Form, MenuItem, Scrollbar } from '@cherrystudio/ui'
 import { cn } from '@cherrystudio/ui/lib/utils'
 import type { ModelSelectorFilter } from '@renderer/components/ModelSelector'
-import { useAgentModelDisabled, useAgentModelFilter } from '@renderer/hooks/agent/useAgentModelFilter'
 import { useDefaultModel, useModels } from '@renderer/hooks/useModel'
 import { useProviderById } from '@renderer/hooks/useProvider'
-import { AGENT_RUNTIME_CAPABILITIES } from '@shared/ai/agentRuntimeCapabilities'
 import type { UniqueModelId } from '@shared/data/types/model'
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { useForm, type UseFormReturn, useFormState, useWatch } from 'react-hook-form'
@@ -17,7 +15,6 @@ import {
   resourceDialogTitleClassName
 } from '../components/EditDialogShared'
 import { BasicInfoStep } from './steps/BasicInfoStep'
-import { CapabilityStep } from './steps/CapabilityStep'
 import { KnowledgeStep } from './steps/KnowledgeStep'
 import { SystemPromptStep } from './steps/SystemPromptStep'
 import type { ResourceCreateWizardFormValues, ResourceCreateWizardKind, ResourceCreateWizardValues } from './types'
@@ -35,24 +32,21 @@ type ResourceCreateWizardProps = {
   initialName?: string
 }
 
-type StepId = 'basic' | 'system-prompt' | 'knowledge' | 'capability'
+type StepId = 'basic' | 'system-prompt' | 'knowledge'
 
 /** The avatar a brand-new resource starts with — exported so callers can preview what they'd create. */
-export function getResourceCreateDefaultAvatar(kind: ResourceCreateWizardKind) {
-  return kind === 'assistant' ? '💬' : '🤖'
+export function getResourceCreateDefaultAvatar() {
+  return '💬'
 }
 
-function getDefaultValues(kind: ResourceCreateWizardKind, initialName = ''): ResourceCreateWizardFormValues {
+function getDefaultValues(initialName = ''): ResourceCreateWizardFormValues {
   return {
-    avatar: getResourceCreateDefaultAvatar(kind),
+    avatar: getResourceCreateDefaultAvatar(),
     name: initialName,
     description: '',
-    agentType: 'claude-code',
-    permissionMode: AGENT_RUNTIME_CAPABILITIES['claude-code'].createDefaults.permissionMode,
     modelId: null,
     prompt: '',
-    knowledgeBaseIds: [],
-    skillIds: []
+    knowledgeBaseIds: []
   }
 }
 
@@ -133,11 +127,8 @@ export function ResourceCreateWizard({
   initialName
 }: ResourceCreateWizardProps) {
   const { t } = useTranslation()
-  const form = useForm<ResourceCreateWizardFormValues>({ defaultValues: getDefaultValues(kind, initialName) })
-  const agentType = form.watch('agentType')
-  const agentModelFilter = useAgentModelFilter(kind === 'agent' ? agentType : undefined)
-  const isModelDisabled = useAgentModelDisabled(open && kind === 'agent')
-  const activeModelFilter = kind === 'agent' ? agentModelFilter : modelFilter
+  const form = useForm<ResourceCreateWizardFormValues>({ defaultValues: getDefaultValues(initialName) })
+  const activeModelFilter = modelFilter
   const { models: availableModels } = useModels({ enabled: true }, { fetchEnabled: open })
   const { defaultModel } = useDefaultModel({ enabled: open })
   const { provider: defaultModelProvider } = useProviderById(open ? defaultModel?.providerId : undefined)
@@ -146,8 +137,7 @@ export function ResourceCreateWizard({
     defaultModel?.isEnabled &&
     availableModels.some((model) => model.id === defaultModel.id) &&
     defaultModelProvider?.isEnabled &&
-    (!activeModelFilter || activeModelFilter(defaultModel, defaultModelProvider)) &&
-    !isModelDisabled(defaultModel, defaultModelProvider)
+    (!activeModelFilter || activeModelFilter(defaultModel, defaultModelProvider))
       ? defaultModel.id
       : null
   const autoSelectedDefaultModelIdRef = useRef<UniqueModelId | null>(null)
@@ -164,16 +154,14 @@ export function ResourceCreateWizard({
   const { isSubmitting: isFormSubmitting } = useFormState({ control: form.control })
   const submitting = isSubmitting || isFormSubmitting
 
-  const steps = useMemo<{ id: StepId; label: string }[]>(() => {
-    const basic = { id: 'basic' as const, label: t('library.config.dialogs.create.step.basic') }
-    const systemPrompt = { id: 'system-prompt' as const, label: t('library.config.prompt.label') }
-    const knowledge = { id: 'knowledge' as const, label: t('library.config.dialogs.create.step.knowledge') }
-    if (kind === 'assistant') return [basic, systemPrompt, knowledge]
-
-    const capability = { id: 'capability' as const, label: t('library.config.dialogs.create.step.capability') }
-    const caps = AGENT_RUNTIME_CAPABILITIES[agentType]
-    return [basic, systemPrompt, ...(caps.skills ? [capability] : []), ...(caps.knowledgeBases ? [knowledge] : [])]
-  }, [agentType, kind, t])
+  const steps = useMemo<{ id: StepId; label: string }[]>(
+    () => [
+      { id: 'basic', label: t('library.config.dialogs.create.step.basic') },
+      { id: 'system-prompt', label: t('library.config.prompt.label') },
+      { id: 'knowledge', label: t('library.config.dialogs.create.step.knowledge') }
+    ],
+    [t]
+  )
 
   useEffect(() => {
     setStepIndex((index) => Math.min(index, steps.length - 1))
@@ -184,7 +172,7 @@ export function ResourceCreateWizard({
   // user is already filling in — the shared wizard has five callers and a comment would not hold them.
   const resetForOpen = useEffectEvent(() => {
     autoSelectedDefaultModelIdRef.current = null
-    form.reset(getDefaultValues(kind, initialName))
+    form.reset(getDefaultValues(initialName))
     form.clearErrors()
     setStepIndex(0)
   })
@@ -225,7 +213,7 @@ export function ResourceCreateWizard({
 
     autoSelectedDefaultModelIdRef.current = selectableDefaultModelId
     form.setValue('modelId', selectableDefaultModelId, { shouldDirty: false, shouldTouch: false })
-  }, [agentType, form, kind, open, selectableDefaultModelId])
+  }, [form, kind, open, selectableDefaultModelId])
 
   const isLast = stepIndex === steps.length - 1
 
@@ -275,14 +263,11 @@ export function ResourceCreateWizard({
     try {
       await onSubmit({
         avatar: values.avatar,
-        agentType: values.agentType,
-        permissionMode: values.permissionMode,
         name: values.name.trim(),
         modelId: values.modelId,
         description: values.description.trim(),
         prompt: values.prompt.trim(),
-        knowledgeBaseIds: values.knowledgeBaseIds,
-        skillIds: values.skillIds
+        knowledgeBaseIds: values.knowledgeBaseIds
       })
     } catch (error) {
       const message =
@@ -291,9 +276,7 @@ export function ResourceCreateWizard({
     }
   })
 
-  const title = t(
-    kind === 'assistant' ? 'library.config.dialogs.create.assistant_title' : 'library.config.dialogs.create.agent_title'
-  )
+  const title = t('library.config.dialogs.create.assistant_title')
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)]
 
   return (
@@ -353,10 +336,8 @@ export function ResourceCreateWizard({
                   <BasicInfoStep
                     form={form}
                     portalContainer={dialogContentElement}
-                    fallbackAvatar={getResourceCreateDefaultAvatar(kind)}
+                    fallbackAvatar={getResourceCreateDefaultAvatar()}
                     modelFilter={activeModelFilter}
-                    isModelDisabled={isModelDisabled}
-                    runtimeSelectable={kind === 'agent'}
                     onSettingsNavigate={closeBeforeAction}
                   />
                 ) : null}
@@ -365,9 +346,6 @@ export function ResourceCreateWizard({
                 ) : null}
                 {currentStep.id === 'knowledge' ? (
                   <KnowledgeStep form={form} isSubmitting={submitting} portalContainer={dialogContentElement} />
-                ) : null}
-                {currentStep.id === 'capability' ? (
-                  <CapabilityStep form={form} portalContainer={dialogContentElement} />
                 ) : null}
               </Scrollbar>
             </div>

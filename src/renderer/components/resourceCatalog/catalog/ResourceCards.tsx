@@ -1,8 +1,5 @@
-import { Badge, Button, Switch } from '@cherrystudio/ui'
-import { useSkillMutationsById } from '@renderer/hooks/resourceCatalog'
-import { toast } from '@renderer/services/toast'
+import { Badge, Button } from '@cherrystudio/ui'
 import type { ResourceItem } from '@renderer/types/resourceCatalog'
-import { RESOURCE_TYPE_META } from '@renderer/utils/resourceCatalog'
 import { cn } from '@renderer/utils/style'
 import type { Group } from '@shared/data/types/group'
 import { Trash2 } from 'lucide-react'
@@ -37,29 +34,6 @@ function hasOverflowActions(resource: ResourceItem) {
   return resource.type === 'assistant'
 }
 
-function SkillGlobalToggle({ resource }: { resource: Extract<ResourceItem, { type: 'skill' }> }) {
-  const { t } = useTranslation()
-  const { updateGlobalEnabled, isUpdating } = useSkillMutationsById(resource.id)
-
-  const handleCheckedChange = async (checked: boolean) => {
-    try {
-      await updateGlobalEnabled(checked)
-    } catch {
-      toast.error(t('settings.skills.toggleFailed', { name: resource.name }))
-    }
-  }
-
-  return (
-    <Switch
-      size="sm"
-      checked={resource.raw.isGlobalEnabled}
-      disabled={isUpdating}
-      aria-label={t('settings.skills.globalToggle', { name: resource.name })}
-      onCheckedChange={handleCheckedChange}
-    />
-  )
-}
-
 export function ResourceCard({
   resource: r,
   variant = 'library',
@@ -70,14 +44,9 @@ export function ResourceCard({
   onExport
 }: ResourceCardProps) {
   const { t } = useTranslation()
-  const cfg = RESOURCE_TYPE_META[r.type]
   const isSettings = variant === 'settings'
-  const showTypeIcon = r.type === 'skill'
-  const TypeIcon = cfg.icon
   const showOverflowMenu = hasOverflowActions(r)
   const visibleGroup = r.type === 'assistant' ? r.groupName : undefined
-  const skillVersion = r.type === 'skill' ? r.raw.version?.trim() : undefined
-
   return (
     <div
       className={cn(
@@ -86,7 +55,7 @@ export function ResourceCard({
           ? 'rounded-xl border-border hover:border-border-strong'
           : 'rounded-lg border-border-subtle hover:border-border-subtle'
       )}
-      style={r.type === 'skill' ? { backgroundColor: 'var(--settings-group-background, var(--card))' } : undefined}
+      style={undefined}
       role="button"
       tabIndex={0}
       aria-label={r.name}
@@ -97,20 +66,13 @@ export function ResourceCard({
           <div
             className={cn(
               'flex size-10 shrink-0 items-center justify-center rounded-lg text-base',
-              showTypeIcon ? cfg.color : 'bg-secondary text-secondary-foreground'
+              'bg-secondary text-secondary-foreground'
             )}>
-            {showTypeIcon ? <TypeIcon size={20} aria-hidden className="lucide-custom" /> : r.avatar}
+            {r.avatar}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <h4 className="min-w-0 truncate font-medium text-foreground text-sm leading-5">{r.name}</h4>
-              {skillVersion && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 border-0 bg-secondary px-1.5 py-px font-normal text-muted-foreground text-xs">
-                  {skillVersion}
-                </Badge>
-              )}
             </div>
             <p
               className={cn(
@@ -130,19 +92,7 @@ export function ResourceCard({
             )}
           </div>
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-            {r.type === 'skill' && isSettings ? (
-              <div className="flex items-center gap-1">
-                <SkillGlobalToggle resource={r} />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t('library.action.uninstall')}
-                  onClick={() => onDelete(r)}
-                  className="text-muted-foreground opacity-0 hover:bg-error-subtle hover:text-error-subtle-foreground focus-visible:opacity-100 group-hover:opacity-100">
-                  <Trash2 size={12} className="lucide-custom" />
-                </Button>
-              </div>
-            ) : showOverflowMenu ? (
+            {showOverflowMenu ? (
               <ResourceCardMenu
                 resource={r}
                 onDuplicate={onDuplicate}
@@ -155,7 +105,7 @@ export function ResourceCard({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={r.type === 'skill' ? t('library.action.uninstall') : t('common.delete')}
+                aria-label={t('common.delete')}
                 onClick={() => onDelete(r)}
                 className="text-muted-foreground opacity-0 hover:bg-error-subtle hover:text-error-subtle-foreground focus-visible:opacity-100 group-hover:opacity-100">
                 <Trash2 size={12} className="lucide-custom" />

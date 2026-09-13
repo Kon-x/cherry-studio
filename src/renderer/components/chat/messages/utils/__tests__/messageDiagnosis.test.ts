@@ -1,4 +1,4 @@
-import { UpdateAgentSessionMessageSchema } from '@shared/data/api/schemas/agentSessionMessages'
+import { UpdateMessageSchema } from '@shared/data/api/schemas/messages'
 import type { CherryMessagePart } from '@shared/data/types/message'
 import { type DiagnosisResult, readCherryMeta } from '@shared/data/types/uiParts'
 import { describe, expect, it } from 'vitest'
@@ -36,10 +36,10 @@ describe('withMessagePartDiagnosis', () => {
     const next = withMessagePartDiagnosis(errorParts(), 0, diagnosis)
     expect(next).not.toBeNull()
 
-    // The DataApi PATCH body is validated by UpdateAgentSessionMessageSchema →
+    // The DataApi PATCH body is validated by UpdateMessageSchema →
     // MessageDataSchema, a shallow z.custom that must not strip cherry meta.
-    const parsed = UpdateAgentSessionMessageSchema.parse({ data: { parts: next } })
-    const parsedPart = (parsed.data.parts as CherryMessagePart[])[0] as Extract<
+    const parsed = UpdateMessageSchema.parse({ data: { parts: next } })
+    const parsedPart = (parsed.data!.parts as CherryMessagePart[])[0] as Extract<
       CherryMessagePart,
       { type: 'data-error' }
     >

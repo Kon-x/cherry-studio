@@ -1869,9 +1869,9 @@
           "originalKey": "maxKeepAliveMinapps",
           "type": "number",
           "defaultValue": 3,
-          "status": "classified",
-          "category": "preferences",
-          "targetKey": "feature.mini_app.max_keep_alive"
+          "status": "deleted",
+          "category": null,
+          "targetKey": null
         },
         {
           "originalKey": "showOpenedMinappsInSidebar",
@@ -1885,17 +1885,17 @@
           "originalKey": "minappsOpenLinkExternal",
           "type": "boolean",
           "defaultValue": false,
-          "status": "classified",
-          "category": "preferences",
-          "targetKey": "feature.mini_app.open_link_external"
+          "status": "deleted",
+          "category": null,
+          "targetKey": null
         },
         {
           "originalKey": "minAppRegion",
           "type": "PreferenceTypes.MiniAppRegionFilter",
           "defaultValue": "auto",
-          "status": "classified",
-          "category": "preferences",
-          "targetKey": "feature.mini_app.region"
+          "status": "deleted",
+          "category": null,
+          "targetKey": null
         },
         {
           "originalKey": "enableDataCollection",

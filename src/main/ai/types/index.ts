@@ -10,7 +10,6 @@ export type {
   CallOverrides,
   ContextOwner,
   ConversationRef,
-  InProcessUsageContext,
   ListModelsRequest
 } from './requests'
 export type { SamplingSettings } from './sampling'

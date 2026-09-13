@@ -49,17 +49,9 @@ export const composerMcpResourceTokenId = (resource: Pick<McpResource, 'serverId
  * `(serverId, uri)` pair is load-bearing (it is exactly what `mcp_resource_read` takes), and the
  * sentence names the tool because nothing else tells the model the attachment exists.
  */
-export function mcpResourceToComposerToken(
-  resource: McpResource,
-  options: { reader: 'mcp_resource_read' | 'runtime' } = { reader: 'mcp_resource_read' }
-): ComposerDraftToken {
+export function mcpResourceToComposerToken(resource: McpResource): ComposerDraftToken {
   const name = resource.name || resource.uri
-  // Agent sessions reach resources through their own MCP bridge, so naming the chat builtin there
-  // would point the model at a tool its runtime does not have.
-  const instruction =
-    options.reader === 'mcp_resource_read'
-      ? `read it with mcp_resource_read using serverId "${resource.serverId}" and uri "${resource.uri}"`
-      : `read it from MCP server "${resource.serverName}" at uri "${resource.uri}"`
+  const instruction = `read it with mcp_resource_read using serverId "${resource.serverId}" and uri "${resource.uri}"`
   return {
     id: composerMcpResourceTokenId(resource),
     kind: 'reference',

@@ -14,14 +14,13 @@ const quickPhrasesTool = defineTool({
 
   composer: {
     runtime: ({ context }) => {
-      const { actions, assistant, launcher, scope, session } = context
+      const { actions, assistant, launcher, scope } = context
 
       return (
         <QuickPhrasesToolRuntime
           launcher={launcher}
           setInputValue={actions.onTextChange}
           assistantId={scope === TopicType.Chat || scope === 'quick-assistant' ? assistant?.id : undefined}
-          agentId={scope === TopicType.Session ? session?.agentId : undefined}
         />
       )
     }

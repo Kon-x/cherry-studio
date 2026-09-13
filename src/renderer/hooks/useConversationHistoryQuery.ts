@@ -10,7 +10,7 @@ const CONVERSATION_HISTORY_RETENTION = {
   releaseDelayMs: 1_000
 } as const
 
-type ConversationHistoryPath = '/topics/:topicId/messages' | '/agent-sessions/:sessionId/messages'
+type ConversationHistoryPath = '/topics/:topicId/messages'
 
 type ConversationHistoryQueryOptions<TPath extends ConversationHistoryPath> = ParamsOption<TPath, 'GET'> & {
   query?: Omit<QueryParamsForPath<TPath, 'GET'>, 'cursor' | 'limit'>

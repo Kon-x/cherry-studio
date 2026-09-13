@@ -47,9 +47,9 @@ describe('navigate protocol handler', () => {
   })
 
   it('opens non-settings routes with the query string preserved', () => {
-    handleNavigateProtocolUrl(new URL('cherrystudio://navigate/agents?x=1&y=2'))
+    handleNavigateProtocolUrl(new URL('cherrystudio://navigate/app/chat?x=1&y=2'))
 
-    expect(openRouteInMainWindowMock).toHaveBeenCalledWith('/agents?x=1&y=2')
+    expect(openRouteInMainWindowMock).toHaveBeenCalledWith('/app/chat?x=1&y=2')
     expect(openSettingsInMainWindowMock).not.toHaveBeenCalled()
   })
 

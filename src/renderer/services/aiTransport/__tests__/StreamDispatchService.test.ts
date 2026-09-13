@@ -56,19 +56,6 @@ describe('StreamDispatchService', () => {
     off()
   })
 
-  it('shows workspace dispatch failures as toast', async () => {
-    streamOpen.mockResolvedValue({
-      mode: 'blocked',
-      reason: 'agent-session-workspace',
-      message: 'Workspace path for session session-1 is not accessible: /missing'
-    } satisfies AiStreamOpenResponse)
-
-    streamDispatchService.dispatch(TOPIC, req)
-    await flush()
-
-    expect(toast.error).toHaveBeenCalledWith('Workspace path for session session-1 is not accessible: /missing')
-  })
-
   it('localizes paused dispatch failures from their reason', async () => {
     streamOpen.mockResolvedValue({
       mode: 'blocked',

@@ -102,11 +102,6 @@ live topic is handled one level up by the stream manager: it persists and
 queues the steer, the current step loop yields cleanly, and a continuation
 answers the queued row — see [Stream Manager → Steering](./stream-manager.md#steering).
 
-Agent-session runtimes are different: a driver with `redirect` can inject the
-follow-up at a runtime-native safe point; otherwise the host queues it on
-`pendingTurns` for the next turn —
-see [Agent Session Runtime](./agent-session-runtime.md#live-follow-up).
-
 ## Error and abort
 
 - `signal.aborted` is honoured throughout `stream()` and `generate()`. Aborted

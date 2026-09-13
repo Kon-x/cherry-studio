@@ -28,13 +28,12 @@ interface Props {
   launcher: ToolLauncherApi
   setInputValue: Dispatch<SetStateAction<string>>
   assistantId?: string
-  agentId?: string
 }
 
 const logger = loggerService.withContext('QuickPhrasesButton')
 const PROMPT_QUERY_SWR_OPTIONS = { keepPreviousData: false } as const
 
-const useQuickPhrasesToolController = ({ agentId, assistantId, launcher, setInputValue }: Props) => {
+const useQuickPhrasesToolController = ({ assistantId, launcher, setInputValue }: Props) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [promptsEnabled, setPromptsEnabled] = useState(false)
   const restoreInputFocusRef = useRef<(() => void) | null>(null)
@@ -46,15 +45,13 @@ const useQuickPhrasesToolController = ({ agentId, assistantId, launcher, setInpu
     updateList: updateQuickPanelList
   } = useQuickPanel()
   const { setTimeoutTimer } = useTimer()
-  const bindingTarget = useMemo<PromptBindingTarget | undefined>(
-    () => (agentId ? { type: 'agent', id: agentId } : assistantId ? { type: 'assistant', id: assistantId } : undefined),
-    [agentId, assistantId]
+  const bindingTarget = useMemo<Extract<PromptBindingTarget, { type: 'assistant' }> | undefined>(
+    () => (assistantId ? { type: 'assistant', id: assistantId } : undefined),
+    [assistantId]
   )
   const promptQuery = useMemo<ListPromptsQueryParams | undefined>(() => {
     if (!bindingTarget) return { visibility: 'global' }
-    return bindingTarget.type === 'assistant'
-      ? { targetType: 'assistant', targetId: bindingTarget.id, includeGlobal: true }
-      : { targetType: 'agent', targetId: bindingTarget.id, includeGlobal: true }
+    return { targetType: 'assistant', targetId: bindingTarget.id, includeGlobal: true }
   }, [bindingTarget])
 
   const {
@@ -198,18 +195,12 @@ const useQuickPhrasesToolController = ({ agentId, assistantId, launcher, setInpu
     ]
 
     if (bindingTarget) {
-      const ariaLabel =
-        bindingTarget.type === 'assistant'
-          ? t('settings.prompts.manageCurrentAssistant')
-          : t('settings.prompts.manageCurrentAgent')
+      const ariaLabel = t('settings.prompts.manageCurrentAssistant')
       actions.push({
         id: 'quick-phrases:manage-current',
         panelSymbol: ComposerPanelSymbol.QuickPhrases,
         order: 20,
-        label:
-          bindingTarget.type === 'assistant'
-            ? t('settings.quickPanel.scope.currentAssistant')
-            : t('settings.quickPanel.scope.currentAgent'),
+        label: t('settings.quickPanel.scope.currentAssistant'),
         ariaLabel,
         tooltip: ariaLabel,
         icon: <Settings2 />,

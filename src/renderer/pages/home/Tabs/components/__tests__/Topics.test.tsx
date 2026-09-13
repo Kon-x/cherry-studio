@@ -382,7 +382,7 @@ vi.mock('react-i18next', () => ({
         if (key === 'chat.add.assistant.title') return 'Add Assistant'
         if (key === 'assistants.groups.group_by') return 'Show in groups'
         if (key === 'assistants.groups.ungroup') return 'Stop grouping'
-        if (key === 'agent.toolPermission.pendingBadge') return 'Pending'
+        if (key === 'message.toolPermission.pendingBadge') return 'Pending'
         if (key === 'assistants.groups.ungrouped') return 'Ungrouped'
         if (key === 'settings.assistant.icon.type.emoji') return 'Emoji'
         if (key === 'settings.assistant.icon.type.model') return 'Model'

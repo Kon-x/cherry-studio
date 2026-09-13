@@ -46,16 +46,6 @@ describe('buildPathRegistry', () => {
     const claudeRoot = path.join('/mock/userData', 'Data', 'Agents', '.claude')
 
     expect(registry['feature.agents.claude.root']).toBe(claudeRoot)
-    expect(registry['feature.agents.claude.skills']).toBe(path.join(claudeRoot, 'skills'))
-  })
-
-  it('keeps conditional Code Mate skill templates in read-only app resources', () => {
-    const registry = buildPathRegistry()
-
-    expect(registry['feature.code_cli.skills.builtin']).toBe(
-      path.join(registry['app.root.resources'], 'code-cli-skills')
-    )
-    expect(shouldAutoEnsure('feature.code_cli.skills.builtin')).toBe(false)
   })
 
   it('keeps utility-process entry bundles read-only under the app root', () => {
@@ -63,14 +53,6 @@ describe('buildPathRegistry', () => {
 
     expect(registry['app.utility_process']).toBe(path.join('/mock/app', 'out', 'utility-process'))
     expect(shouldAutoEnsure('app.utility_process')).toBe(false)
-  })
-
-  it('keeps pi runtime state under the Agents data directory', () => {
-    const registry = buildPathRegistry()
-    const piRoot = path.join('/mock/userData', 'Data', 'Agents', '.pi')
-
-    expect(registry['feature.agents.pi.root']).toBe(piRoot)
-    expect(registry['feature.agents.pi.sessions']).toBe(path.join(piRoot, 'sessions'))
   })
 
   it('keeps the provider registry override under userData Runtime', () => {
@@ -138,77 +120,6 @@ describe('buildPathRegistry', () => {
     expect(registry['sys.downloads']).toBe('/mock/downloads')
     expect(registry['sys.desktop']).toBe('/mock/desktop')
   })
-
-  it('registers the Cherry Assistant product manifest inside bundled resources', () => {
-    const registry = buildPathRegistry()
-
-    expect(registry['feature.agents.assistant.manifest.file']).toBe(
-      path.join('/mock/app', 'resources', 'builtin-agents', 'cherry-assistant', 'product-manifest.json')
-    )
-  })
-
-  it('uses the shared user-owned DeepSeek Harness home', () => {
-    const registry = buildPathRegistry()
-    expect(registry['external.deepseek_harness.config']).toBe(path.join(os.homedir(), '.dsh'))
-  })
-
-  it('registers the platform-native default Hermes home as external data', () => {
-    const registry = buildPathRegistry()
-    const windowsBase = process.env.LOCALAPPDATA?.trim() || path.join(os.homedir(), 'AppData', 'Local')
-    const expected =
-      process.platform === 'win32' ? path.join(windowsBase, 'hermes') : path.join(os.homedir(), '.hermes')
-
-    expect(registry['external.hermes.default_home']).toBe(expected)
-    expect(shouldAutoEnsure('external.hermes.default_home')).toBe(false)
-  })
-
-  it('isolates the managed DeepSeek Harness workspace from the user home', () => {
-    const registry = buildPathRegistry()
-    expect(registry['feature.deepseek_harness.workspace']).toBe(
-      path.join('/mock/userData', 'Data', 'DeepSeekHarness', 'Workspace')
-    )
-    expect(shouldAutoEnsure('feature.deepseek_harness.workspace')).toBe(true)
-  })
-
-  it('exposes the mini app package root under userData/Data', () => {
-    expect(buildPathRegistry()['feature.mini_app.packages']).toBe(
-      path.join('/mock/userData', 'Data', 'MiniApps', 'packages')
-    )
-  })
-
-  it('keeps mini app data OUTSIDE the package tree', () => {
-    // `packages/<id>` is wholesale-renamed on update and hashed by `hashTree`; a save
-    // file inside it would die with the next update and churn `contentHash` per write.
-    expect(buildPathRegistry()['feature.mini_app.data']).toBe(path.join('/mock/userData', 'Data', 'MiniApps', 'data'))
-  })
-
-  it('exposes the publish journal directory as its own key', () => {
-    // Its own key, not a filename under `packages`: the journal is a DIRECTORY of per-app
-    // files, and `getPath`'s filename argument names a file, not a subtree.
-    expect(buildPathRegistry()['feature.mini_app.publish_journal']).toBe(
-      path.join('/mock/userData', 'Data', 'MiniApps', '.publish-journal')
-    )
-  })
-
-  it('ships builtin packages inside the bundle and never auto-creates them', () => {
-    expect(buildPathRegistry()['feature.mini_app.builtin']).toBe(path.join('/mock/app/resources', 'builtin-mini-apps'))
-    expect(buildPathRegistry()['feature.mini_app.logs']).toBe(path.join('/mock/logs', 'mini-apps'))
-    // Same reason `feature.agents.builtin` is in NO_ENSURE: a signed, read-only tree.
-    expect(shouldAutoEnsure('feature.mini_app.builtin')).toBe(false)
-  })
-
-  it('keeps Antigravity session data in a Cherry-owned isolated directory', () => {
-    const registry = buildPathRegistry()
-
-    expect(registry['feature.cli.antigravity.root']).toBe(path.join('/mock/userData', 'Data', 'CodeCli', 'Antigravity'))
-    expect(shouldAutoEnsure('feature.cli.antigravity.root')).toBe(true)
-    // The settings file must sit under the dir handed to the CLI as `--gemini_dir`,
-    // in the fixed `antigravity-cli/` subdir the binary itself resolves.
-    expect(registry['feature.cli.antigravity.settings.file']).toBe(
-      path.join(registry['feature.cli.antigravity.root'], 'antigravity-cli', 'settings.json')
-    )
-    expect(shouldAutoEnsure('feature.cli.antigravity.settings.file')).toBe(true)
-  })
 })
 
 describe('pathRegistry.shouldAutoEnsure', () => {
@@ -257,18 +168,6 @@ describe('pathRegistry.shouldAutoEnsure', () => {
 
     it('returns true for feature.file_processing.temp', () => {
       expect(shouldAutoEnsure('feature.file_processing.temp')).toBe(true)
-    })
-
-    it('returns true for the Agent data root', () => {
-      expect(shouldAutoEnsure('feature.agents.data')).toBe(true)
-    })
-
-    it('returns true for feature.agents.skills (now that its value is fixed)', () => {
-      // Value was corrected from CHERRY_HOME/skills (the old orphan value)
-      // to appUserDataData/Skills. The shouldAutoEnsure rule itself is
-      // unchanged — it's not in NO_ENSURE — but exercising it here makes
-      // the rename visible in the test suite.
-      expect(shouldAutoEnsure('feature.agents.skills')).toBe(true)
     })
   })
 
@@ -322,10 +221,6 @@ describe('pathRegistry.shouldAutoEnsure', () => {
   })
 
   describe('external.* prefix — never auto-ensure (third-party tool dirs)', () => {
-    it('returns false for external.openclaw.config', () => {
-      expect(shouldAutoEnsure('external.openclaw.config')).toBe(false)
-    })
-
     it('returns false for the new external.obsidian.config_file key', () => {
       // Obsidian's config file lives in a directory that Cherry must
       // never create — Obsidian itself owns it. This is the canonical
@@ -335,10 +230,6 @@ describe('pathRegistry.shouldAutoEnsure', () => {
   })
 
   describe('NO_ENSURE exact keys — read-only build artifacts', () => {
-    it('returns false for the system-workspace root so DataApi can store paths without creating directories', () => {
-      expect(shouldAutoEnsure('feature.agents.system_workspaces')).toBe(false)
-    })
-
     it('returns false for app.exe_file', () => {
       expect(shouldAutoEnsure('app.exe_file')).toBe(false)
     })
@@ -369,10 +260,6 @@ describe('pathRegistry.shouldAutoEnsure', () => {
 
     it('returns false for app.database.migrations (packaged read-only path)', () => {
       expect(shouldAutoEnsure('app.database.migrations')).toBe(false)
-    })
-
-    it('returns false for the bundled Cherry Assistant product manifest', () => {
-      expect(shouldAutoEnsure('feature.agents.assistant.manifest.file')).toBe(false)
     })
 
     it('does not auto-create the persist:webview session directory', () => {

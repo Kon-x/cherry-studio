@@ -357,7 +357,7 @@ function ChatComposerContextUsage({ usage }: { usage?: ChatContextUsageSource | 
   if (!usage || !model || typeof maxTokens !== 'number' || maxTokens <= 0) return null
 
   const percentage = (usage.contextTokens / maxTokens) * 100
-  const label = t('agent.right_pane.info.context_usage')
+  const label = t('chat.input.context_usage')
 
   return (
     <NormalTooltip
@@ -986,11 +986,11 @@ const ChatComposerInner = ({
   const missingAssistantMessage = hasMissingPersistedAssistant ? selectAssistantMessage : undefined
   const missingModelMessage =
     assistant && isModelMissing && !selectedModelForMissingAssistantDefault && !isMentionedModelSelectorLocked
-      ? t('code.model_required')
+      ? t('chat.model_required')
       : undefined
   const missingSelectedModelMessage =
     useMentionedModelSelector && !isMentionedModelSelectorLocked && mentionedModelSelectorValue.length === 0
-      ? t('code.model_required')
+      ? t('chat.model_required')
       : undefined
   const isModelUnavailable =
     !missingAssistantMessage &&
@@ -1717,7 +1717,7 @@ const ChatComposerInner = ({
       }
 
       if (!runtimeModel && !selectedModelForMissingAssistantDefault && !selectedModelForUnlinkedHome) {
-        toast.error(t('code.model_required'))
+        toast.error(t('chat.model_required'))
         return
       }
 

@@ -121,13 +121,6 @@ export const PRESETS_BINARY_TOOLS: BinaryToolPreset[] = [
     repoUrl: 'https://github.com/BurntSushi/ripgrep'
   },
   {
-    name: 'rtk',
-    displayName: 'RTK',
-    tool: 'rtk',
-    repoUrl: 'https://github.com/rtk-ai/rtk',
-    homepage: 'https://www.rtk-ai.app/'
-  },
-  {
     name: 'lark-cli',
     displayName: 'Lark CLI',
     tool: 'github:larksuite/cli',

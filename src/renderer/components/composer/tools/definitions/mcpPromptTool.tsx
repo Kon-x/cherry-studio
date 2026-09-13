@@ -4,7 +4,6 @@ import type { ComposerToolLauncher } from '@renderer/components/composer/toolLau
 import { defineTool, type ToolRenderContext, TopicType } from '@renderer/components/composer/tools/types'
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
 import { type QuickPanelCallBackOptions, type QuickPanelListItem, useQuickPanel } from '@renderer/components/QuickPanel'
-import { useAgent } from '@renderer/hooks/agent/useAgent'
 import { useScopedMcpServers } from '@renderer/hooks/useMcpServer'
 import { ipcApi } from '@renderer/ipc'
 import { toast } from '@renderer/services/toast'
@@ -44,7 +43,7 @@ export function flattenMcpPromptMessages(result: unknown): string {
 }
 
 const McpPromptComposerRuntime = ({ context }: { context: McpPromptToolContext }) => {
-  const { actions, assistant, launcher, scope, session, t } = context
+  const { actions, assistant, launcher, t } = context
   const { isVisible, symbol, updateList } = useQuickPanel()
   const [dataRequested, setDataRequested] = useState(false)
   const [prompts, setPrompts] = useState<McpPrompt[]>([])
@@ -66,14 +65,11 @@ const McpPromptComposerRuntime = ({ context }: { context: McpPromptToolContext }
       isMountedRef.current = false
     }
   }, [])
-
-  const { agent } = useAgent(dataRequested && scope === TopicType.Session ? (session?.agentId ?? null) : null)
   const boundServerIds = useMemo<readonly string[] | 'all' | null>(() => {
-    if (scope === TopicType.Session) return agent?.mcps ?? []
     const mode = assistant ? (assistant.settings?.mcpMode ?? DEFAULT_MCP_MODE) : 'disabled'
     if (mode === 'disabled') return null
     return mode === 'auto' ? 'all' : (assistant?.mcpServerIds ?? [])
-  }, [agent?.mcps, assistant, scope])
+  }, [assistant])
   const { servers } = useScopedMcpServers(boundServerIds, { enabled: dataRequested })
 
   useEffect(() => {
@@ -267,7 +263,7 @@ const McpPromptComposerRuntime = ({ context }: { context: McpPromptToolContext }
 const mcpPromptTool = defineTool({
   key: 'mcp_prompts',
   label: (t) => t('chat.input.mcp_prompts.title'),
-  visibleInScopes: [TopicType.Chat, TopicType.Session],
+  visibleInScopes: [TopicType.Chat],
 
   dependencies: {
     actions: ['onTextChange'] as const

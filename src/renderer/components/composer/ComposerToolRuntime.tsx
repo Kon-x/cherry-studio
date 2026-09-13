@@ -13,7 +13,6 @@ import type {
   ComposerToolScope,
   ToolActionKey,
   ToolActionMap,
-  ToolContext,
   ToolDefinition,
   ToolRenderContext,
   ToolStateKey
@@ -62,7 +61,6 @@ interface ComposerToolRuntimeBootstrapProps {
   scope: ComposerToolScope
   assistant?: Assistant
   model: Model
-  session?: ToolContext['session']
 }
 
 type AnyToolDefinition = ToolDefinition<readonly ToolStateKey[], readonly ToolActionKey[]>
@@ -86,7 +84,6 @@ const ComposerToolRuntimeEntry = ({
   scope,
   assistant,
   model,
-  session,
   t
 }: ComposerToolRuntimeEntryProps) => {
   const context = useMemo<AnyToolRenderContext>(() => {
@@ -103,13 +100,12 @@ const ComposerToolRuntimeEntry = ({
       scope,
       assistant,
       model,
-      session,
       state,
       actions,
       launcher,
       t
     } as AnyToolRenderContext
-  }, [assistant, launcher, model, scope, session, t, tool, toolActions, toolState])
+  }, [assistant, launcher, model, scope, t, tool, toolActions, toolState])
 
   useEffect(() => {
     if (!tool.composer?.menuItems) return
@@ -128,7 +124,6 @@ const MemoizedComposerToolRuntimeEntry = memo(ComposerToolRuntimeEntry, (previou
     previous.scope !== next.scope ||
     previous.assistant !== next.assistant ||
     previous.model !== next.model ||
-    previous.session !== next.session ||
     previous.t !== next.t
   ) {
     return false
@@ -144,7 +139,7 @@ const MemoizedComposerToolRuntimeEntry = memo(ComposerToolRuntimeEntry, (previou
   return true
 })
 
-export const ComposerToolRuntimeHost = ({ scope, assistant, model, session }: ComposerToolRuntimeBootstrapProps) => {
+export const ComposerToolRuntimeHost = ({ scope, assistant, model }: ComposerToolRuntimeBootstrapProps) => {
   const { t } = useTranslation()
   const toolState = useComposerToolProviderState()
   const { addNewTopic, onTextChange, setFiles, setMentionedModels, setSelectedKnowledgeBases, toolsRegistry } =
@@ -163,8 +158,8 @@ export const ComposerToolRuntimeHost = ({ scope, assistant, model, session }: Co
   )
 
   const availableTools = useMemo(() => {
-    return getToolsForScope(scope, { assistant, model, session })
-  }, [assistant, model, scope, session])
+    return getToolsForScope(scope, { assistant, model })
+  }, [assistant, model, scope])
 
   const getLauncherApiForTool = useCallback(
     (toolKey: string): ToolRenderContext<any, any>['launcher'] => {
@@ -195,7 +190,6 @@ export const ComposerToolRuntimeHost = ({ scope, assistant, model, session }: Co
           scope={scope}
           assistant={assistant}
           model={model}
-          session={session}
           t={t}
         />
       ))}
@@ -234,7 +228,6 @@ interface ReconcileContextInputs {
   scope: ComposerToolScope
   assistant?: Assistant
   model?: Model
-  session?: ToolContext['session']
   t: ReturnType<typeof useTranslation>['t']
 }
 
@@ -253,7 +246,6 @@ const buildReconcileContext = (tool: AnyToolDefinition, inputs: ReconcileContext
     scope: inputs.scope,
     assistant: inputs.assistant,
     model: inputs.model as Model,
-    session: inputs.session,
     state,
     actions,
     launcher: NOOP_LAUNCHER,
@@ -265,7 +257,6 @@ interface ComposerTokenReconcileInputs {
   scope: ComposerToolScope
   assistant?: Assistant
   model?: Model
-  session?: ToolContext['session']
 }
 
 /**

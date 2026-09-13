@@ -592,7 +592,7 @@ vi.mock('@renderer/components/OpenTarget', () => ({
             {
               type: 'item' as const,
               id: 'system-default',
-              label: 'agent.preview_pane.default_app',
+              label: 'chat.preview_pane.default_app',
               onSelect: () => mocks.openPath(targetPath)
             }
           ]
@@ -663,9 +663,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: 'en' },
     t: (key: string, options?: { count?: number; extension?: string; name?: string }) => {
-      if (key === 'agent.preview_pane.items') return `${options?.count ?? 0} localized items`
-      if (key === 'agent.preview_pane.office.title') return `unsupported ${options?.extension ?? ''}`
-      if (key === 'agent.session.file_manager.finder') return 'Finder'
+      if (key === 'chat.preview_pane.items') return `${options?.count ?? 0} localized items`
+      if (key === 'chat.preview_pane.office.title') return `unsupported ${options?.extension ?? ''}`
+      if (key === 'files.file_manager.finder') return 'Finder'
       if (key === 'common.open_in') return `Open in ${options?.name ?? ''}`
       return key
     }
@@ -797,8 +797,8 @@ describe('ArtifactPane', () => {
     render(<ArtifactPane />)
 
     expect(mocks.treeCreate).not.toHaveBeenCalled()
-    expect(screen.getByTestId('empty-state')).toHaveTextContent('agent.preview_pane.empty.title')
-    expect(screen.getByTestId('empty-state')).toHaveTextContent('agent.preview_pane.empty.description')
+    expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.empty.title')
+    expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.empty.description')
   })
 
   it('shows a localized invalid-path state without requesting the filesystem', async () => {
@@ -810,11 +810,9 @@ describe('ArtifactPane', () => {
     )
 
     await waitFor(() =>
-      expect(screen.getByTestId('empty-state')).toHaveTextContent('agent.preview_pane.tree_error.invalid_path.title')
+      expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.tree_error.invalid_path.title')
     )
-    expect(screen.getByTestId('empty-state')).toHaveTextContent(
-      'agent.preview_pane.tree_error.invalid_path.description'
-    )
+    expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.tree_error.invalid_path.description')
     expect(screen.queryByTestId('artifact-file-preview-overlay')).not.toBeInTheDocument()
     expect(screen.queryByTestId('file-preview')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open in Finder' })).not.toBeInTheDocument()
@@ -867,7 +865,7 @@ describe('ArtifactPane', () => {
     expect(screen.getAllByTestId('artifact-pane-header')).toHaveLength(1)
     expect(screen.getByTestId('artifact-pane-header')).toHaveClass('bg-card')
     expect(screen.getByTestId('artifact-pane-header-title')).toHaveTextContent('Files')
-    expect(screen.queryByRole('button', { name: 'agent.preview_pane.close' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'chat.preview_pane.close' })).toBeNull()
     expect(screen.queryByTestId('file-tree-search-toolbar')).toBeNull()
 
     fireEvent.click(screen.getByTestId('tree-node-README.md'))
@@ -993,7 +991,7 @@ describe('ArtifactPane', () => {
     fireEvent.click(screen.getByTestId('tree-node-src'))
     await waitFor(() => expect(screen.getByTestId('tree-node-src/old.md')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'agent.preview_pane.refresh' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.preview_pane.refresh' }))
 
     await waitFor(() => expect(screen.getByTestId('tree-node-src/new.md')).toBeInTheDocument())
     expect(screen.queryByTestId('tree-node-src/old.md')).not.toBeInTheDocument()
@@ -1017,8 +1015,8 @@ describe('ArtifactPane', () => {
     expect(screen.getByTestId('tree-node-README.md')).toHaveAttribute('data-selected', 'true')
 
     const openButton = within(overlay).getByRole('button', { name: 'Open in Finder' })
-    const refreshButton = within(overlay).getByRole('button', { name: 'agent.preview_pane.refresh' })
-    const closeButton = within(overlay).getByRole('button', { name: 'agent.preview_pane.close' })
+    const refreshButton = within(overlay).getByRole('button', { name: 'chat.preview_pane.refresh' })
+    const closeButton = within(overlay).getByRole('button', { name: 'chat.preview_pane.close' })
     expect(refreshButton).toBeInTheDocument()
     expect(closeButton).toBeInTheDocument()
     expect(openButton.compareDocumentPosition(refreshButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
@@ -1027,7 +1025,7 @@ describe('ArtifactPane', () => {
     fireEvent.click(openButton)
     await waitFor(() => expect(mocks.showInFolder).toHaveBeenCalledWith('/tmp/workspace/README.md'))
 
-    fireEvent.click(within(overlay).getByRole('button', { name: 'agent.preview_pane.close' }))
+    fireEvent.click(within(overlay).getByRole('button', { name: 'chat.preview_pane.close' }))
 
     expect(screen.queryByTestId('artifact-file-preview-overlay')).not.toBeInTheDocument()
     expect(screen.getByTestId('tree-node-README.md')).toHaveAttribute('data-selected', 'false')
@@ -1107,7 +1105,7 @@ describe('ArtifactPane', () => {
     await waitFor(() => expect(screen.getByTestId('file-tree-search-toolbar')).toBeInTheDocument())
 
     const toolbar = screen.getByTestId('file-tree-search-toolbar')
-    expect(within(toolbar).getByRole('button', { name: 'agent.preview_pane.refresh' })).toBeInTheDocument()
+    expect(within(toolbar).getByRole('button', { name: 'chat.preview_pane.refresh' })).toBeInTheDocument()
     expect(within(toolbar).getByRole('button', { name: 'Open in Finder' })).toBeInTheDocument()
   })
 
@@ -1131,7 +1129,7 @@ describe('ArtifactPane', () => {
 
     fireEvent.click(
       within(screen.getByTestId('artifact-file-preview-overlay')).getByRole('button', {
-        name: 'agent.preview_pane.refresh'
+        name: 'chat.preview_pane.refresh'
       })
     )
 
@@ -1165,7 +1163,7 @@ describe('ArtifactPane', () => {
     expect(mocks.windowOpen).toHaveBeenCalledWith('editor://vscode/tmp/workspace/src')
 
     fireEvent.contextMenu(screen.getByTestId('tree-node-src/index.ts'))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'agent.preview_pane.default_app' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'chat.preview_pane.default_app' }))
     await waitFor(() => expect(mocks.openPath).toHaveBeenCalledWith('/tmp/workspace/src/index.ts'))
 
     fireEvent.contextMenu(screen.getByTestId('tree-node-src/index.ts'))
@@ -1214,10 +1212,10 @@ describe('ArtifactPane', () => {
     )
     expect(headerMenuCall).toBeDefined()
     expect(
-      headerMenuCall?.pendingExtraItems?.some((i) => i.type === 'item' && i.label === 'agent.preview_pane.refresh')
+      headerMenuCall?.pendingExtraItems?.some((i) => i.type === 'item' && i.label === 'chat.preview_pane.refresh')
     ).toBe(true)
     expect(
-      headerMenuCall?.pendingExtraItems?.some((i) => i.type === 'item' && i.label === 'agent.preview_pane.close')
+      headerMenuCall?.pendingExtraItems?.some((i) => i.type === 'item' && i.label === 'chat.preview_pane.close')
     ).toBe(true)
 
     const extraItems = await headerMenuCall?.getExtraItems?.(null)
@@ -1333,7 +1331,7 @@ describe('ArtifactPane', () => {
 
     fireEvent.click(
       within(screen.getByTestId('artifact-file-preview-overlay')).getByRole('button', {
-        name: 'agent.preview_pane.refresh'
+        name: 'chat.preview_pane.refresh'
       })
     )
     await waitFor(() => expect(mocks.listDirectoryEntries).toHaveBeenCalledTimes(2))
@@ -1599,11 +1597,11 @@ describe('ArtifactPane', () => {
     render(<ArtifactPane workspacePath="/tmp/workspace" />)
 
     await waitFor(() =>
-      expect(screen.getByTestId('empty-state')).toHaveTextContent('agent.preview_pane.tree_error.load_error.title')
+      expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.tree_error.load_error.title')
     )
-    expect(screen.getByTestId('empty-state')).toHaveTextContent('agent.preview_pane.tree_error.load_error.description')
+    expect(screen.getByTestId('empty-state')).toHaveTextContent('chat.preview_pane.tree_error.load_error.description')
     expect(screen.queryByText('Permission denied')).not.toBeInTheDocument()
-    expect(screen.getByTestId('empty-state')).not.toHaveTextContent('agent.preview_pane.empty.title')
+    expect(screen.getByTestId('empty-state')).not.toHaveTextContent('chat.preview_pane.empty.title')
     expect(errorSpy).toHaveBeenCalledWith('Failed to create directory tree for /tmp/workspace', error)
   })
 
@@ -1754,7 +1752,7 @@ describe('ArtifactPane', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'common.retry' }))
 
     await waitFor(() =>
-      expect(within(alert).getByRole('button', { name: 'agent.preview_pane.edit.discard' })).toBeDisabled()
+      expect(within(alert).getByRole('button', { name: 'chat.preview_pane.edit.discard' })).toBeDisabled()
     )
     expect(editor).not.toHaveAttribute('readonly')
     fireEvent.change(editor, { target: { value: 'queued edit' } })
@@ -1849,10 +1847,10 @@ describe('ArtifactPane', () => {
     fireEvent.change(await screen.findByTestId('code-editor'), { target: { value: 'unsaved draft\n' } })
 
     const saveFailure = await screen.findByRole('alert', {}, { timeout: 3000 })
-    expect(saveFailure).toHaveTextContent('agent.preview_pane.edit.save_failed')
+    expect(saveFailure).toHaveTextContent('chat.preview_pane.edit.save_failed')
     expect(screen.getByTestId('code-editor')).toHaveValue('unsaved draft\n')
 
-    fireEvent.click(within(saveFailure).getByRole('button', { name: 'agent.preview_pane.edit.discard' }))
+    fireEvent.click(within(saveFailure).getByRole('button', { name: 'chat.preview_pane.edit.discard' }))
 
     await waitFor(() => expect(screen.getByTestId('code-editor')).toHaveValue('first\n'))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -1878,8 +1876,8 @@ describe('ArtifactPane', () => {
 
     // Autosave hits the stale-version guard and opens the reload dialog.
     const conflictDialog = await screen.findByRole('dialog', {}, { timeout: 3000 })
-    expect(conflictDialog).toHaveTextContent('agent.preview_pane.edit.conflict.title')
-    fireEvent.click(within(conflictDialog).getByRole('button', { name: 'agent.preview_pane.edit.conflict.reload' }))
+    expect(conflictDialog).toHaveTextContent('chat.preview_pane.edit.conflict.title')
+    fireEvent.click(within(conflictDialog).getByRole('button', { name: 'chat.preview_pane.edit.conflict.reload' }))
 
     await waitFor(() => expect(screen.getByTestId('code-editor')).toHaveValue('external\n'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -1925,7 +1923,7 @@ describe('ArtifactPane', () => {
 
     fireEvent.click(
       within(screen.getByTestId('artifact-file-preview-overlay')).getByRole('button', {
-        name: 'agent.preview_pane.refresh'
+        name: 'chat.preview_pane.refresh'
       })
     )
 

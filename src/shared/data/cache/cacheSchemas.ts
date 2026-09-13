@@ -1,8 +1,6 @@
 import type { AiUsageRecordListSortBy, AiUsageRecordSortOrder } from '@shared/data/api/schemas/aiUsageRecords'
 import type { JobProgress, JobSnapshot } from '@shared/data/api/schemas/jobs'
 import type { LocalModelStatusSnapshots } from '@shared/data/presets/localModel'
-import type { ChannelStatus } from '@shared/data/types/channel'
-import type { MiniAppRegion, TransientMiniApp } from '@shared/data/types/miniApp'
 import type { Currency } from '@shared/data/types/model'
 import type { AutoBackupEvent, AutoBackupType } from '@shared/types/backup'
 import type { AbsoluteFilePath } from '@shared/types/file'
@@ -131,7 +129,7 @@ export type UseCacheSchema = {
   'chat.web_search.searching': boolean
   // Per-topic composer draft. Renderer memory only; app restart discards it.
   'chat.composer_draft.${topicId}': CacheValueTypes.CacheChatComposerDraft
-  // Message-list scroll position memory, keyed per topic / agent session.
+  // Message-list scroll position memory, keyed per topic.
   // `null` = follow the latest message (at bottom or never scrolled).
   'chat.scroll_anchor.${topicId}': CacheValueTypes.ChatScrollAnchor | null
 
@@ -141,25 +139,9 @@ export type UseCacheSchema = {
   // Notes page state
   'notes.active_file_path': AbsoluteFilePath | undefined
 
-  // MiniApp management
-  'mini_app.opened_keep_alive': CacheValueTypes.CacheMiniAppType[]
-  'mini_app.current_id': string
-  /** Whether the mini app view is split into two panes. */
-  'mini_app.split_open': boolean
-  /** Mini app shown in the split pane. Empty while the pane awaits a pick. */
-  'mini_app.split_id': string
-  'mini_app.show': boolean
-  'mini_app.opened_oneoff': CacheValueTypes.CacheMiniAppType | null
-  'mini_app.detected_region': MiniAppRegion | null
-
   // Topic management
   'topic.renaming': string[]
   'topic.newly_renamed': string[]
-
-  // Agent management
-  'agent.session.waiting_id_map': Record<string, boolean>
-  // Per-session composer draft. Renderer memory only; app restart discards it.
-  'agent.composer_draft.${sessionId}': CacheValueTypes.CacheAgentComposerDraft
 
   // Translate page state management
   /** Input text */
@@ -231,29 +213,9 @@ export const DefaultUseCache: UseCacheSchema = {
   'knowledge.recall.search_queries': {},
   'notes.active_file_path': undefined,
 
-  // MiniApp management
-  'mini_app.opened_keep_alive': [],
-  'mini_app.current_id': '',
-  'mini_app.split_open': false,
-  'mini_app.split_id': '',
-  'mini_app.show': false,
-  'mini_app.opened_oneoff': null,
-  'mini_app.detected_region': null,
-
   // Topic management
   'topic.renaming': [],
   'topic.newly_renamed': [],
-
-  // Agent management
-  'agent.session.waiting_id_map': {},
-  'agent.composer_draft.${sessionId}': {
-    text: '',
-    tokens: [],
-    files: [],
-    knowledgeBaseIds: [],
-    workspaceKey: '',
-    agentId: ''
-  },
 
   // Translate page state management
   'translate.input': '',
@@ -288,19 +250,8 @@ export type SharedCacheSchema = {
   'mcp.tools.${serverId}': CacheValueTypes.CacheMcpTool[]
   'mcp.status.${serverId}': CacheValueTypes.McpRuntimeStatus
   // Runtime-only opt-out shared across windows; resets when the app exits.
-  'agent.model_switch_confirmation.skipped': boolean
-  'agent.session.compaction.${sessionId}': CacheValueTypes.CacheAgentSessionCompactionState
-  'agent.session.api_retry.${sessionId}': CacheValueTypes.CacheAgentSessionApiRetryState
-  'agent.session.context_usage.${sessionId}': CacheValueTypes.CacheAgentSessionContextUsage
-  'agent.session.slash_commands.${sessionId}': CacheValueTypes.CacheAgentSessionSlashCommands
-  'agent.session.background_tasks.${sessionId}': CacheValueTypes.CacheAgentSessionBackgroundTasks
-  'agent.session.task_events.${sessionId}': CacheValueTypes.CacheAgentSessionTaskEvents
-  'agent.session.flow_parts.${sessionId}.${messageId}': CacheValueTypes.CacheAgentSessionFlowParts
-  'agent.session.turn_origin.${sessionId}.${messageId}': CacheValueTypes.CacheAgentSessionTurnOrigin
   'topic.stream.statuses.${topicId}': TopicStatusSnapshotEntry | null
   'topic.stream.last_seen_completion.${topicId}': number | null
-  'feature.openclaw.gateway_status': CacheValueTypes.OpenClawGatewayStatus
-  'feature.deepseek_harness.status': ManagedToolStatusState
   'feature.hermes_dashboard.status': ManagedToolStatusState
   // API gateway  runtime running state.
   'feature.api_gateway.running': boolean
@@ -323,20 +274,6 @@ export type SharedCacheSchema = {
   // active, then left to linger under a short TTL after the job exits so the
   // polled item status can reach its terminal state before the value vanishes.
   'knowledge.item.embedding_progress.${itemId}': number | null
-  // A mini app opened via `openSmartMiniApp` (OpenClaw's dashboard, the S3 help page,
-  // the release notes) has no database row, so `/app/mini-app/<id>` is unresolvable
-  // through DataApi. Publishing the descriptor here — not into the keep-alive list,
-  // which doubles as the per-window WebView LRU — makes it readable by every window
-  // and outlives any single window's eviction, so detaching such a tab and attaching
-  // it back both keep resolving. Memory-only: the URL can hold a session secret (the
-  // OpenClaw dashboard embeds the gateway auth token) and must not reach disk.
-  // Nothing evicts an entry — that is the point, and it costs a handful of rows per
-  // session. Null is the cache miss (see the `jobs.state` precedent above).
-  'mini_app.transient_descriptor.${appId}': TransientMiniApp | null
-  // Apps that want the user's attention, and why (a host-added permission, or an update).
-  // Main-owned runtime state, shared with every renderer window.
-  'mini_app.attention': CacheValueTypes.CacheMiniAppAttention[]
-  'channel.status.${channelId}': ChannelStatus | null
   'storage.health': StorageHealth
   'backup.auto_sync.state.${type}': AutoBackupEvent | null
   // Directory copy progress for a knowledge item, main -> all windows. Like
@@ -348,19 +285,8 @@ export const DefaultSharedCache: SharedCacheSchema = {
   'chat.web_search.active_searches': {},
   'mcp.tools.${serverId}': [],
   'mcp.status.${serverId}': { state: 'disabled', lastCheckedAt: 0 },
-  'agent.model_switch_confirmation.skipped': false,
-  'agent.session.compaction.${sessionId}': null,
-  'agent.session.api_retry.${sessionId}': null,
-  'agent.session.context_usage.${sessionId}': null,
-  'agent.session.slash_commands.${sessionId}': null,
-  'agent.session.background_tasks.${sessionId}': [],
-  'agent.session.task_events.${sessionId}': {},
-  'agent.session.flow_parts.${sessionId}.${messageId}': [],
-  'agent.session.turn_origin.${sessionId}.${messageId}': null,
   'topic.stream.statuses.${topicId}': null,
   'topic.stream.last_seen_completion.${topicId}': null,
-  'feature.openclaw.gateway_status': 'stopped',
-  'feature.deepseek_harness.status': { status: 'stopped' },
   'feature.hermes_dashboard.status': { status: 'stopped' },
   'feature.api_gateway.running': false,
   'local_model.statuses': {},
@@ -372,9 +298,6 @@ export const DefaultSharedCache: SharedCacheSchema = {
   'jobs.state.${jobId}': null,
   'jobs.progress.${jobId}': { progress: 0 },
   'knowledge.item.embedding_progress.${itemId}': null,
-  'mini_app.transient_descriptor.${appId}': null,
-  'mini_app.attention': [],
-  'channel.status.${channelId}': null,
   'storage.health': { level: 'ok', freeBytes: 0, totalBytes: 0, checkedAt: 0 },
   'backup.auto_sync.state.${type}': null,
   'knowledge.item.directory_copy_progress.${itemId}': null
@@ -413,14 +336,7 @@ export type RendererPersistCacheSchema = {
   // Null means no user preference has been written yet, so the view may apply its default.
   'ui.topic.expansion.time': string[]
   'ui.topic.expansion.assistant': string[] | null
-  'ui.agent.last_used_session_id': string | null
-  'ui.agent.last_used_agent_id': string | null
-  'ui.agent.last_used_workspace_id': string | null
   // Kept separate so the assistant and agent surfaces don't bleed into each other.
-  'ui.agent.right_pane_open_override': boolean | null
-  'ui.agent.session.expansion.time': string[]
-  'ui.agent.session.expansion.agent': string[] | null
-  'ui.agent.session.expansion.workdir': string[] | null
   'settings.provider.last_selected_provider_id': string | null
   'settings.provider.filter_mode': 'all' | 'agent' | 'enabled' | 'disabled'
   // Usage statistics view selections, persisted so leaving and re-entering the page restores
@@ -468,13 +384,6 @@ export const DefaultRendererPersistCache: RendererPersistCacheSchema = {
   'ui.assistant.entity_rail.expansion': [],
   'ui.topic.expansion.time': [],
   'ui.topic.expansion.assistant': null,
-  'ui.agent.last_used_session_id': null,
-  'ui.agent.last_used_agent_id': null,
-  'ui.agent.last_used_workspace_id': null,
-  'ui.agent.right_pane_open_override': null,
-  'ui.agent.session.expansion.time': [],
-  'ui.agent.session.expansion.agent': null,
-  'ui.agent.session.expansion.workdir': null,
   'settings.provider.last_selected_provider_id': null,
   'settings.provider.filter_mode': 'all',
   'settings.usage.window': '30d',

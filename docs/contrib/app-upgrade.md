@@ -15,6 +15,11 @@ This fork checks for updates from the Latest Release at `Kon-x/cherry-studio`. I
 
 The in-app release history comes from the `release-history.json` asset on the fork's Latest Release. Each build also bundles the repository file as an offline fallback.
 
+History accepts official stable versions and normal fork releases named `x.y.z-kx.n`. Fork revisions appear before
+their upstream base and sort by numeric revision. Beta and RC entries remain excluded. Generate the current entry
+from `electron-builder.yml` with `node scripts/release/sync-release-history.js --target-version <version>` so the
+online history, offline fallback, and current release notes agree.
+
 ## Update Feed Configuration
 
 - Packaged builds use the generic GitHub Latest Release URL from `electron-builder.yml`. electron-builder writes this value to the packaged `app-update.yml`.

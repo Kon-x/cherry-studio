@@ -6,15 +6,11 @@ vi.mock('@renderer/i18n/resolver', () => ({
     t: vi.fn((key: string) => {
       const translations: Record<string, string> = {
         'common.chat': '聊天',
-        'agent.session.group.conversation': '对话',
-        'agent.sidebar_title': '任务',
-        'title.work': '工作',
+        'title.chat': '对话',
         'title.paintings': '绘画',
         'title.translate': '翻译',
-        'title.apps': '小程序',
         'title.knowledge': '知识库',
         'title.files': '文件',
-        'title.code': 'Code',
         'title.notes': '笔记',
         'settings.about.releases.title': '更新日志',
         'title.settings': '设置'
@@ -41,13 +37,10 @@ describe('routeTitle', () => {
     describe('exact route matches', () => {
       it.each([
         ['/app/chat', '对话'],
-        ['/app/agents', '工作'],
         ['/app/paintings', '绘画'],
         ['/app/translate', '翻译'],
-        ['/app/mini-app', '小程序'],
         ['/app/knowledge', '知识库'],
         ['/app/files', '文件'],
-        ['/app/code', 'Code'],
         ['/app/notes', '笔记'],
         ['/app/release-notes', '更新日志'],
         ['/settings', '设置']
@@ -59,7 +52,6 @@ describe('routeTitle', () => {
     describe('nested route matches', () => {
       it('should match base path for nested routes', () => {
         expect(getDefaultRouteTitle('/app/chat/topic-123')).toBe('对话')
-        expect(getDefaultRouteTitle('/app/agents/session-123')).toBe('工作')
         expect(getDefaultRouteTitle('/settings/provider')).toBe('设置')
         expect(getDefaultRouteTitle('/settings/mcp/servers')).toBe('设置')
         expect(getDefaultRouteTitle('/app/paintings/zhipu')).toBe('绘画')
@@ -116,8 +108,7 @@ describe('routeTitle', () => {
   describe('getRouteTitleKey', () => {
     describe('exact matches', () => {
       it.each([
-        ['/app/chat', 'agent.session.group.conversation'],
-        ['/app/agents', 'title.work'],
+        ['/app/chat', 'title.chat'],
         ['/app/release-notes', 'settings.about.releases.title'],
         ['/settings', 'title.settings']
       ])('should return i18n key for %s', (url, expectedKey) => {
@@ -127,8 +118,7 @@ describe('routeTitle', () => {
 
     describe('base path matches', () => {
       it('should return base path key for nested routes', () => {
-        expect(getRouteTitleKey('/app/chat/topic-123')).toBe('agent.session.group.conversation')
-        expect(getRouteTitleKey('/app/agents/session-123')).toBe('title.work')
+        expect(getRouteTitleKey('/app/chat/topic-123')).toBe('title.chat')
         expect(getRouteTitleKey('/settings/provider')).toBe('title.settings')
       })
     })
@@ -145,7 +135,7 @@ describe('routeTitle', () => {
   describe('isTopLevelRoute', () => {
     it('returns true only for bare top-level route tabs', () => {
       expect(isTopLevelRoute('/app/chat')).toBe(true)
-      expect(isTopLevelRoute('/app/agents')).toBe(true)
+      expect(isTopLevelRoute('/app/agents')).toBe(false)
       expect(isTopLevelRoute('/app/release-notes')).toBe(true)
       expect(isTopLevelRoute('/app/chat?topicId=123')).toBe(false)
       expect(isTopLevelRoute('/app/agents#session')).toBe(false)
@@ -154,11 +144,11 @@ describe('routeTitle', () => {
   })
 
   describe('isPageTitledRoute', () => {
-    it('treats chat/agent routes as page-titled regardless of query/sub-path', () => {
+    it('keeps topic titles on chat routes and excludes retired routes', () => {
       expect(isPageTitledRoute('/app/chat')).toBe(true)
       expect(isPageTitledRoute('/app/chat?topicId=123')).toBe(true)
-      expect(isPageTitledRoute('/app/agents')).toBe(true)
-      expect(isPageTitledRoute('/app/agents?sessionId=abc')).toBe(true)
+      expect(isPageTitledRoute('/app/agents')).toBe(false)
+      expect(isPageTitledRoute('/app/agents?sessionId=abc')).toBe(false)
     })
 
     it('treats route-titled apps as not page-titled', () => {
@@ -179,8 +169,7 @@ describe('routeTitle', () => {
       ['/app/paintings/zhipu', true],
       // Any /settings sub-route re-localizes.
       ['/settings/provider/openai', true],
-      // mini-app and chat sub-routes preserve caller-supplied per-entity titles.
-      ['/app/mini-app/weather', false],
+      // Chat sub-routes preserve caller-supplied topic titles.
       ['/app/chat/123', false],
       // Unknown routes are not auto-localized.
       ['/unknown', false]

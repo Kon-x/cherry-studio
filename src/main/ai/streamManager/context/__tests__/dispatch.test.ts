@@ -24,15 +24,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@main/data/services/TopicService', () => ({
   topicService: { setActiveNode: mocks.setActiveNode }
 }))
-
-vi.mock('../AgentChatContextProvider', () => ({
-  agentChatContextProvider: {
-    name: 'agent',
-    isPersistentConversation: true,
-    canHandle: mocks.agentCanHandle,
-    prepareDispatch: mocks.agentPrepare
-  }
-}))
 vi.mock('../TemporaryChatContextProvider', () => ({
   temporaryChatContextProvider: {
     name: 'temporary',
@@ -48,9 +39,6 @@ vi.mock('../PersistentChatContextProvider', () => ({
     canHandle: () => true,
     prepareDispatch: mocks.persistentPrepare
   }
-}))
-vi.mock('../../../runtime/agentSessionWorkspace', () => ({
-  isAgentSessionWorkspaceError: mocks.isWorkspaceErr
 }))
 
 const { dispatchStreamRequest } = await import('../dispatch')
@@ -167,45 +155,13 @@ describe('dispatchStreamRequest — steer', () => {
     expect(manager.send).toHaveBeenCalledWith(expect.objectContaining({ isPersistentConversation: false }))
   })
 
-  it('never enqueues a chat steer for an agent-session topic (agent runtime owns its follow-ups)', async () => {
-    mocks.agentCanHandle.mockReturnValue(true)
-    wirePrepare(mocks.agentPrepare, 'agent-session:s1', { inject: true })
-    const manager = makeManager(true)
-
-    await dispatchStreamRequest(manager, makeSubscriber(), chatReq('agent-session:s1'))
-
-    // Even though the agent inject shape has no models, the steer enqueue is gated to the
-    // persistent provider, so the agent path is untouched and still sees the live stream.
-    expect(manager.enqueuePendingSteer).not.toHaveBeenCalled()
-    expect(order).toEqual(['prepareDispatch', 'send'])
-    expect(preparedWithCtx).toEqual({ hasLiveStream: true })
-  })
-
-  // stream-context-1: the workspace-blocked branch was uncovered (the only test stubbed
-  // isAgentSessionWorkspaceError to always-false).
-  it('returns mode:blocked without sending when prepareDispatch throws a workspace error', async () => {
-    mocks.agentCanHandle.mockReturnValue(true)
-    mocks.isWorkspaceErr.mockReturnValue(true)
-    mocks.agentPrepare.mockRejectedValue(new Error('workspace missing'))
-    const manager = makeManager(true)
-
-    const result = await dispatchStreamRequest(manager, makeSubscriber(), chatReq('agent-session:s1'))
-
-    expect(result).toMatchObject({
-      mode: 'blocked',
-      reason: 'agent-session-workspace',
-      message: 'workspace missing'
-    })
-    expect(manager.send).not.toHaveBeenCalled()
-  })
-
   it('rethrows a non-workspace prepareDispatch error and does not send', async () => {
     mocks.agentCanHandle.mockReturnValue(true)
     mocks.isWorkspaceErr.mockReturnValue(false)
-    mocks.agentPrepare.mockRejectedValue(new Error('boom'))
+    mocks.persistentPrepare.mockRejectedValue(new Error('boom'))
     const manager = makeManager(true)
 
-    await expect(dispatchStreamRequest(manager, makeSubscriber(), chatReq('agent-session:s1'))).rejects.toThrow('boom')
+    await expect(dispatchStreamRequest(manager, makeSubscriber(), chatReq('topic-1'))).rejects.toThrow('boom')
     expect(manager.send).not.toHaveBeenCalled()
   })
 

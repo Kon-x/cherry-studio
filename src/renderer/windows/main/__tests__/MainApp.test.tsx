@@ -91,7 +91,7 @@ describe('MainWindowContent', () => {
     expect(document.getElementById('spinner')).toBeNull()
   })
 
-  it('passes the first visible sidebar app as the startup landing tab', () => {
+  it('passes the first visible sidebar app as the startup landing tab after filtering retired favorites', () => {
     MockUsePreferenceUtils.setPreferenceValue('app.onboarding.provider_setup.status', 'completed')
     MockUsePreferenceUtils.setPreferenceValue('ui.sidebar.favorites', [
       { type: 'app', id: 'agents' },
@@ -101,7 +101,7 @@ describe('MainWindowContent', () => {
 
     render(<MainWindowContent />)
 
-    expect(tabsProviderMock.lastInitialDefaultTab).toMatchObject({ url: '/app/agents' })
+    expect(tabsProviderMock.lastInitialDefaultTab).toMatchObject({ url: '/app/translate' })
   })
 
   it('falls back to launchpad when no sidebar app is visible', () => {

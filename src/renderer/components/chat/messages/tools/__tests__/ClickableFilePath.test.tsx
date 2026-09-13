@@ -59,7 +59,7 @@ vi.mock('react-i18next', () => ({
         'chat.input.tools.reveal_in_finder': 'Reveal in Finder',
         'chat.input.tools.file_not_found': `File not found: ${vars?.path ?? ''}`,
         'chat.input.tools.open_file_error': `Failed to open file: ${vars?.path ?? ''}`,
-        'agent.session.file_manager.finder': 'Finder',
+        'files.file_manager.finder': 'Finder',
         'common.more': 'More'
       }
       return map[key] ?? key

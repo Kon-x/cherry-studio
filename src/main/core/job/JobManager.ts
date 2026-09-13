@@ -2079,7 +2079,7 @@ export class JobManager extends BaseService {
    * re-armed — see the guard below.
    */
   private armSchedule(schedule: JobScheduleSnapshot): void {
-    if (!schedule.enabled) return
+    if (!schedule.enabled || !this.handlers.has(schedule.type)) return
     // Dispose any prior registration BEFORE the spent-once guard below: an
     // update that turns an armed one-shot spent (e.g. rescheduling it onto a
     // moment already covered by a manual fire) must cancel the pending timer,
@@ -2201,6 +2201,7 @@ export class JobManager extends BaseService {
    * the timer, and `scheduleOnce` self-cleans from its map before firing.
    */
   private armDelayedJob(snapshot: JobSnapshot): void {
+    if (!this.handlers.has(snapshot.type)) return
     const scheduler = application.get('SchedulerService')
     const jobKey = `job:${snapshot.id}`
     const scheduledMs = Date.parse(snapshot.scheduledAt)
