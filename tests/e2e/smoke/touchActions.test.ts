@@ -35,7 +35,7 @@ test('message and conversation actions remain usable without hover', async ({ ma
     })
     return previous
   })
-  const assistantId = await mainWindow.evaluate(
+  const { assistantId, topicId } = await mainWindow.evaluate(
     async ({ topicName, question, historicalAnswer }) => {
       const assistantResponse = await window.api.dataApi.request({
         id: crypto.randomUUID(),
@@ -67,7 +67,7 @@ test('message and conversation actions remain usable without hover', async ({ ma
         })
         if (response.error) throw new Error(response.error.message)
       }
-      return assistant.id
+      return { assistantId: assistant.id, topicId: topic.id }
     },
     { topicName, question, historicalAnswer }
   )
@@ -86,13 +86,14 @@ test('message and conversation actions remain usable without hover', async ({ ma
 
   try {
     await mainWindow.reload()
-    await mainWindow.getByRole('button', { name: 'Chat', exact: true }).first().click()
+    await mainWindow.evaluate(
+      (id) => window.api.ipcApi.request('navigation.open_route_in_main', { path: `/app/chat?topicId=${id}` }),
+      topicId
+    )
     const row = mainWindow.getByRole('option').filter({ hasText: topicName })
-    if (!(await row.isVisible())) {
-      await mainWindow.getByRole('listbox').getByRole('button', { name: topicName, exact: true }).click()
-    }
-    await row.click()
     await expect(mainWindow.getByRole('region', { name: 'Messages', exact: true })).toContainText(question)
+    await mainWindow.getByRole('listbox').getByRole('button', { name: topicName, exact: true }).click()
+    await expect(row).toBeVisible()
 
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
     expect(await mainWindow.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)

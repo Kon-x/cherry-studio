@@ -40,7 +40,7 @@ for (const decision of ['Allow', 'Deny'] as const) {
       name: 'CI verification',
       type: 'stdio',
       command: process.execPath,
-      args: [path.resolve('tests/e2e/fixtures/mcp-server.mjs')],
+      args: [path.resolve('tests/e2e/smoke/fixtures/mcp-server.mjs')],
       env: { E2E_MCP_CALLS_FILE: callsPath },
       isActive: true,
       isTrusted: true,

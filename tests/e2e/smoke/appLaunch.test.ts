@@ -29,18 +29,23 @@ test('help actions hand their destinations to the system browser', async ({ elec
       state.e2eExternalUrls.push(url)
     }
   })
-  for (const label of ['User guide', "What's new", 'Star us on GitHub']) {
+  const destinations = [
+    ['User guide', 'https://docs.cherryai.com.cn/docs/en-us'],
+    ["What's new", 'https://github.com/Kon-x/cherry-studio/releases']
+  ] as const
+  for (const [label, destination] of destinations) {
     await mainWindow.getByRole('button', { name: 'Help', exact: true }).click()
     await mainWindow.getByText(label, { exact: true }).click()
+    await expect
+      .poll(() =>
+        electronApp.evaluate(() => (globalThis as typeof globalThis & { e2eExternalUrls: string[] }).e2eExternalUrls)
+      )
+      .toContain(destination)
   }
 
   await expect
     .poll(() =>
       electronApp.evaluate(() => (globalThis as typeof globalThis & { e2eExternalUrls: string[] }).e2eExternalUrls)
     )
-    .toEqual([
-      'https://docs.cherryai.com.cn/docs/en-us',
-      'https://github.com/Kon-x/cherry-studio/releases',
-      'https://github.com/CherryHQ/cherry-studio'
-    ])
+    .toEqual(['https://docs.cherryai.com.cn/docs/en-us', 'https://github.com/Kon-x/cherry-studio/releases'])
 })
