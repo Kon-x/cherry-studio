@@ -1,3 +1,7 @@
+import { ListChecks, Plus, Trash2 } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Button } from '@cherrystudio/ui'
 import { usePersistCache } from '@data/hooks/useCache'
 import { useReorder } from '@data/hooks/useReorder'
@@ -14,9 +18,6 @@ import { isProviderSettingsListVisibleProvider } from '@renderer/utils/providerS
 import { cn } from '@renderer/utils/style'
 import type { Provider } from '@shared/data/types/provider'
 import { canManageProvider } from '@shared/utils/provider'
-import { ListChecks, Plus, Trash2 } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { useOvmsSupport } from '../hooks/useOvmsSupport'
 import type { ProviderFilterMode } from './providerFilterMode'

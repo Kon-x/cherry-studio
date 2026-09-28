@@ -1,7 +1,8 @@
-import { BaseService } from '@main/core/lifecycle'
-import { getAppLanguage } from '@main/i18n'
 import { session } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { BaseService } from '@main/core/lifecycle'
+import { getAppLanguage } from '@main/i18n'
 
 import { WebviewService } from '../WebviewService'
 

@@ -1,4 +1,3 @@
-import type { Tab } from '@renderer/hooks/tab'
 import {
   FileSearch,
   Folder,
@@ -11,6 +10,8 @@ import {
   Settings,
   Sparkles
 } from 'lucide-react'
+
+import type { Tab } from '@renderer/hooks/tab'
 
 export type IconComponent = React.FC<{ size?: number; strokeWidth?: number; className?: string }>
 

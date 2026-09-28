@@ -1,3 +1,13 @@
+import * as crypto from 'crypto'
+import * as fs from 'fs'
+import { writeFileSync } from 'fs'
+import { readFile } from 'fs/promises'
+import * as path from 'path'
+
+import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
+import { dialog, net, shell } from 'electron'
+import { v4 as uuidv4 } from 'uuid'
+
 /**
  * @deprecated LEGACY v1 CODE — being migrated to `FileManager`
  * (`src/main/services/file/FileManager.ts`). This file will be DELETED once
@@ -31,14 +41,6 @@ import type { AbsoluteFilePath } from '@shared/types/file'
 import { MB } from '@shared/utils/constants'
 import { parseDataUrl } from '@shared/utils/dataUrl'
 import { documentExts, imageExts } from '@shared/utils/file'
-import * as crypto from 'crypto'
-import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
-import { dialog, net, shell } from 'electron'
-import * as fs from 'fs'
-import { writeFileSync } from 'fs'
-import { readFile } from 'fs/promises'
-import * as path from 'path'
-import { v4 as uuidv4 } from 'uuid'
 
 const logger = loggerService.withContext('FileStorage')
 
@@ -58,8 +60,7 @@ class FileStorage {
   // singleton at the bottom of this file
   // (`export const fileStorage = new FileStorage()`). That singleton is
   // instantiated during the static import graph of `src/main/main.ts`
-  // (via both `ipc.ts` and the `ApiGatewayService → ApiGateway → routes
-  // → KnowledgeService` chain), BEFORE `application.bootstrap()` runs
+  // via `ipc.ts`, BEFORE `application.bootstrap()` runs
   // and builds the path registry. The previous shape used field
   // initializers (`private storageDir = application.getPath(...)`),
   // which threw "PATHS not initialized" at module-load time.

@@ -1,5 +1,8 @@
 const RETIRED_ROUTE_PREFIXES = [
   '/app/agents',
+  '/app/browser',
+  '/settings/browser',
+  '/settings/device-connections',
   '/app/mini-app',
   '/app/code',
   '/app/openclaw',
@@ -50,4 +53,51 @@ export function isAllowedNavigationPath(path: string, allowedRoutes: readonly st
 
     return pathSegments.length === routeSegments.length
   })
+}
+
+/**
+ * Routes that assistant output may open inside Cherry Studio.  Keep this list
+ * shared with markdown linkification so route-shaped paths remain navigable on
+ * every host platform (Windows paths otherwise require a drive or UNC prefix).
+ */
+const KNOWN_NAVIGATION_ROUTES = [
+  '/app/chat',
+  '/app/paintings',
+  '/app/translate',
+  '/app/files',
+  '/app/notes',
+  '/app/knowledge',
+  '/app/launchpad',
+  '/settings/general',
+  '/settings/provider',
+  '/settings/model',
+  '/settings/local-models',
+  '/settings/appearance',
+  '/settings/notifications',
+  '/settings/data',
+  '/settings/archive',
+  '/settings/mcp',
+  '/settings/websearch',
+  '/settings/file-processing',
+  '/settings/ocr',
+  '/settings/shortcut',
+  '/settings/quick-assistant',
+  '/settings/selection-assistant',
+  '/settings/about',
+  '/settings/code-execution',
+  '/settings/dependencies',
+  '/settings/usage',
+  '/settings/mcp/servers',
+  '/settings/mcp/builtin',
+  '/settings/mcp/marketplaces',
+  '/settings/mcp/npx-search',
+  '/settings/mcp/mcp-install',
+  '/settings/mcp/settings',
+  '/app/paintings/$',
+  '/settings/mcp/$',
+  '/settings/mcp/settings/$serverId'
+] as const
+
+export function isKnownNavigationPath(path: string): boolean {
+  return isAllowedNavigationPath(path.split('?')[0], KNOWN_NAVIGATION_ROUTES)
 }

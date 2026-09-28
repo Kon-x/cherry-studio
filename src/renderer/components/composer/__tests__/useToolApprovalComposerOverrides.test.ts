@@ -1,7 +1,8 @@
-import type { CherryMessagePart } from '@shared/data/types/message'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+
+import type { CherryMessagePart } from '@shared/data/types/message'
 
 import { useToolApprovalComposerOverrides } from '../useToolApprovalComposerOverrides'
 
@@ -21,6 +22,7 @@ describe('useToolApprovalComposerOverrides', () => {
   it('presents only the first pending permission', () => {
     const { result } = renderHook(() =>
       useToolApprovalComposerOverrides({
+        persistedPartsByMessageId: {},
         partsByMessageId: {
           'message-1': [
             makePermissionPart(),
@@ -38,6 +40,7 @@ describe('useToolApprovalComposerOverrides', () => {
   it('returns no overrides when no pending approvals exist', () => {
     const { result } = renderHook(() =>
       useToolApprovalComposerOverrides({
+        persistedPartsByMessageId: {},
         partsByMessageId: {
           'message-1': [makePermissionPart({ state: 'approval-responded' })]
         },
@@ -53,6 +56,7 @@ describe('useToolApprovalComposerOverrides', () => {
     const currentPart = makePermissionPart({ state: 'approval-responded' })
     const { result } = renderHook(() =>
       useToolApprovalComposerOverrides({
+        persistedPartsByMessageId: {},
         partsByMessageId: { 'message-1': [currentPart] },
         streamingLayers: {
           historyPartsByMessageId: { 'message-1': [historicalPart] },
@@ -81,7 +85,8 @@ describe('useToolApprovalComposerOverrides', () => {
       toolName: 'Write'
     })
     const { result, rerender } = renderHook(
-      ({ partsByMessageId }) => useToolApprovalComposerOverrides({ partsByMessageId, onRespond }),
+      ({ partsByMessageId }) =>
+        useToolApprovalComposerOverrides({ partsByMessageId, persistedPartsByMessageId: {}, onRespond }),
       {
         initialProps: {
           partsByMessageId: { 'message-1': [firstPart, secondPart] }
@@ -126,6 +131,7 @@ describe('useToolApprovalComposerOverrides', () => {
     const onRespond = vi.fn().mockRejectedValue(new Error('failed'))
     const { result } = renderHook(() =>
       useToolApprovalComposerOverrides({
+        persistedPartsByMessageId: {},
         partsByMessageId: {
           'message-1': [makePermissionPart()]
         },

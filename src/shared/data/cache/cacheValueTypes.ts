@@ -1,6 +1,8 @@
+import type { UpdateInfo } from 'builder-util-runtime'
+
+import type { DoctorState } from '@shared/types/doctor'
 import type { AbsoluteFilePath, FileType } from '@shared/types/file'
 import type { McpTool } from '@shared/types/mcp'
-import type { UpdateInfo } from 'builder-util-runtime'
 
 import type { McpServer } from '../types/mcpServer'
 import type { UniqueModelId } from '../types/model'
@@ -105,7 +107,7 @@ export interface ChatScrollAnchor {
 
 export interface CacheComposerSerializedToken {
   id: string
-  kind: ComposerMessageTokenKind | 'promptVariable'
+  kind: ComposerMessageTokenKind | 'promptVariable' | 'messagePart'
   label: string
   icon?: string
   description?: string
@@ -169,3 +171,5 @@ export type WindowBoundsState = {
    *  longer fits), instead of resetting to the primary display. */
   displayBounds: { x: number; y: number; width: number; height: number }
 }
+/** System Doctor run state; see `@shared/types/doctor`. */
+export type CacheDoctorState = DoctorState

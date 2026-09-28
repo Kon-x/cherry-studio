@@ -1,5 +1,6 @@
-import { application } from '@application'
 import type { StopCondition, ToolSet } from 'ai'
+
+import { application } from '@application'
 
 import { trackSteerYieldStopCondition } from '../../loop/toolLoopTermination'
 import type { RequestFeature } from '../feature'

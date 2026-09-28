@@ -1,11 +1,12 @@
-import { Flex, Tooltip } from '@cherrystudio/ui'
-import type { McpToolResponse, NormalToolResponse } from '@renderer/types/mcpTool'
-import type { McpTool } from '@renderer/types/tool'
-import { PROVIDER_WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
 import { Globe, ShieldCheck, Wrench } from 'lucide-react'
 import type { ComponentPropsWithoutRef, FC, ReactNode } from 'react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { Flex, Tooltip } from '@cherrystudio/ui'
+import type { McpToolResponse, NormalToolResponse } from '@renderer/types/mcpTool'
+import type { McpTool } from '@renderer/types/tool'
+import { PROVIDER_WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
 
 import { PlaceholderShimmerText } from '../blocks/PlaceholderShimmerText'
 import { useOptionalMessageListUi } from '../MessageListProvider'
@@ -278,7 +279,7 @@ const ToolHeader: FC<ToolHeaderProps> = ({
 
   const toolName = propToolName || tool?.name || 'Tool'
 
-  const status = propStatus || (toolResponse?.status as ToolStatus)
+  const status = propStatus || toolResponse?.status
   const hasError = propHasError ?? toolResponse?.response?.isError === true
   const args = toolResponse?.arguments ?? propArgs
   const activity = getReadableToolActivity(toolName, args, isStreaming || isActiveStatus(status), t)

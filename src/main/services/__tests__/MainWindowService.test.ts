@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Hoisted state lets individual tests mutate platform flags / preferences without
@@ -34,6 +35,7 @@ const {
     behavior: {
       setMacShowInDockByType: vi.fn()
     },
+    onWindowCreated: vi.fn(() => vi.fn()),
     onWindowCreatedByType: vi.fn(() => vi.fn()),
     onWindowDestroyedByType: vi.fn(() => vi.fn()),
     open: vi.fn(() => 'mock-window-id'),
@@ -154,10 +156,11 @@ vi.mock('@main/core/lifecycle', async () => {
   return { ...actual, BaseService: StubBase }
 })
 
+import { app } from 'electron'
+
 import { WindowType } from '@main/core/window/types'
 import { IpcChannel } from '@shared/IpcChannel'
 import { HTML_ARTIFACT_PREVIEW_DATA_URL_PREFIX, HTML_ARTIFACT_PREVIEW_PARTITION } from '@shared/utils/htmlArtifact'
-import { app } from 'electron'
 
 import { contextMenu } from '../ContextMenu'
 import { MainWindowService } from '../MainWindowService'
@@ -174,10 +177,14 @@ interface MockBrowserWindow extends EventEmitter {
   focus: ReturnType<typeof vi.fn>
   restore: ReturnType<typeof vi.fn>
   maximize: ReturnType<typeof vi.fn>
+  minimize: ReturnType<typeof vi.fn>
+  setOpacity: ReturnType<typeof vi.fn>
+  setSkipTaskbar: ReturnType<typeof vi.fn>
   setVisibleOnAllWorkspaces: ReturnType<typeof vi.fn>
   setFullScreen: ReturnType<typeof vi.fn>
   webContents: {
     id: number
+    isDestroyed: ReturnType<typeof vi.fn>
     reload: ReturnType<typeof vi.fn>
     setZoomFactor: ReturnType<typeof vi.fn>
     on: ReturnType<typeof vi.fn>
@@ -200,10 +207,14 @@ function createMockWindow(): MockBrowserWindow {
   win.focus = vi.fn()
   win.restore = vi.fn()
   win.maximize = vi.fn()
+  win.minimize = vi.fn()
+  win.setOpacity = vi.fn()
+  win.setSkipTaskbar = vi.fn()
   win.setVisibleOnAllWorkspaces = vi.fn()
   win.setFullScreen = vi.fn()
   win.webContents = {
     id: 1,
+    isDestroyed: vi.fn(() => false),
     reload: vi.fn(),
     setZoomFactor: vi.fn(),
     // capture render-process-gone listener for crash-recovery tests
@@ -222,7 +233,6 @@ function attachCloseListener(svc: MainWindowService, win: MockBrowserWindow) {
 }
 
 function attachCrashMonitor(svc: MainWindowService, win: MockBrowserWindow) {
-
   ;(svc as any).setupMainWindowMonitor(win)
 }
 
@@ -479,7 +489,7 @@ describe('MainWindowService', () => {
       expect(win.hide).not.toHaveBeenCalled()
     })
 
-    it('preventDefaults and hides on Win when tray + on_close are both enabled', () => {
+    it('preventDefaults and minimizes invisibly on Win when tray + on_close are both enabled', () => {
       platformState.isWin = true
       prefValues['app.tray.enabled'] = true
       prefValues['app.tray.on_close'] = true
@@ -490,7 +500,9 @@ describe('MainWindowService', () => {
 
       expect(applicationMock.quit).not.toHaveBeenCalled()
       expect(event.preventDefault).toHaveBeenCalledTimes(1)
-      expect(win.hide).toHaveBeenCalledTimes(1)
+      expect(win.minimize).toHaveBeenCalledTimes(1)
+      expect(win.setOpacity).toHaveBeenCalledWith(0)
+      expect(win.setSkipTaskbar).toHaveBeenCalledWith(true)
     })
 
     it('hides on macOS by default (system handles dock + relaunch)', () => {

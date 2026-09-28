@@ -1,13 +1,16 @@
+import type { McpServer as SdkMcpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+
 import { application } from '@application'
 import { loggerService } from '@logger'
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import type { McpServer } from '@shared/data/types/mcpServer'
 import { type BuiltinMcpServerName, BuiltinMcpServerNames } from '@shared/utils/mcp'
 import { redactRecord } from '@shared/utils/redaction'
 
 const logger = loggerService.withContext('McpFactory')
 
-type InMemoryServerLoader = (args: string[], envs: Record<string, string>) => Promise<Server>
+type InMemoryServer = Pick<SdkMcpServer, 'connect'>
+
+type InMemoryServerLoader = (args: string[], envs: Record<string, string>) => Promise<InMemoryServer>
 
 const inMemoryServers: Partial<Record<BuiltinMcpServerName, InMemoryServerLoader>> = {
   [BuiltinMcpServerNames.memory]: async (_args, envs) => {
@@ -41,10 +44,6 @@ const inMemoryServers: Partial<Record<BuiltinMcpServerName, InMemoryServerLoader
   [BuiltinMcpServerNames.didiMcp]: async (_args, envs) => {
     const { default: DiDiMcpServer } = await import('./didiMcp')
     return new DiDiMcpServer(envs.DIDI_API_KEY).server
-  },
-  [BuiltinMcpServerNames.browser]: async () => {
-    const { BrowserServer } = await import('./browser')
-    return new BrowserServer().server
   }
 }
 
@@ -57,7 +56,7 @@ export async function createInMemoryMcpServer(
   name: string,
   args: string[] = [],
   envs: Record<string, string> = {}
-): Promise<Server> {
+): Promise<InMemoryServer> {
   logger.debug(
     `[MCP] Creating in-memory MCP server: ${name} with args: ${args} and envs: ${JSON.stringify(redactRecord(envs))}`
   )
@@ -83,16 +82,15 @@ export function getBuiltinHttpHeaders(server: McpServer): Record<string, string>
 }
 
 /**
- * Extra env for servers that resolve packages from a custom registry: `@cherry/mcp-auto-install`
- * reads its catalog from a file whose location only exists at runtime.
+ * Env that keeps `@cherry/mcp-auto-install` inside the Cherry tree: its Registry cache, and the
+ * config file it writes to so a missed `dryRun` never lands in the user's other MCP clients.
  */
-export function getBuiltinRegistryEnv(server: McpServer): Record<string, string> {
-  if (
-    server.installSource !== 'builtin' ||
-    server.name !== BuiltinMcpServerNames.mcpAutoInstall ||
-    !server.registryUrl
-  ) {
+export function getBuiltinAutoInstallEnv(server: McpServer): Record<string, string> {
+  if (server.installSource !== 'builtin' || server.name !== BuiltinMcpServerNames.mcpAutoInstall) {
     return {}
   }
-  return { MCP_REGISTRY_PATH: application.getPath('feature.mcp.registry_file') }
+  return {
+    MCP_REGISTRY_PATH: application.getPath('feature.mcp.registry_file'),
+    MCP_SETTINGS_PATH: application.getPath('feature.mcp.auto_install_settings_file')
+  }
 }

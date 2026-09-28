@@ -1,10 +1,11 @@
+import { setupTestDatabase } from '@test-helpers/db'
+import { beforeEach, describe, expect, it } from 'vitest'
+
 import { assistantTable } from '@data/db/schemas/assistant'
 import { messageTable } from '@data/db/schemas/message'
 import { topicTable } from '@data/db/schemas/topic'
 import { ContentSearchQuerySchema } from '@shared/data/api/schemas/search'
 import { DEFAULT_ASSISTANT_SETTINGS } from '@shared/data/types/assistant'
-import { setupTestDatabase } from '@test-helpers/db'
-import { beforeEach, describe, expect, it } from 'vitest'
 
 import { contentSearchService } from '../ContentSearchService'
 

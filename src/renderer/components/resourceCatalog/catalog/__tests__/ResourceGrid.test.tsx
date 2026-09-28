@@ -1,12 +1,13 @@
-import type * as CherryUiModule from '@cherrystudio/ui'
-import { AssistantPresetPreviewDialog } from '@renderer/components/resourceCatalog/dialogs/detail/AssistantPresetPreviewDialog'
-import { toast } from '@renderer/services/toast'
-import type { ResourceItem } from '@renderer/types/resourceCatalog'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type * as ReactModule from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type * as CherryUiModule from '@cherrystudio/ui'
+import { AssistantPresetPreviewDialog } from '@renderer/components/resourceCatalog/dialogs/detail/AssistantPresetPreviewDialog'
+import { toast } from '@renderer/services/toast'
+import type { ResourceItem } from '@renderer/types/resourceCatalog'
 
 import { ResourceCardMenu } from '../ResourceCardMenu'
 import { ResourceCard } from '../ResourceCards'
@@ -41,6 +42,7 @@ vi.mock('react-i18next', () => ({
           'library.assistant_catalog.go_to_chat': '去对话',
           'library.create_menu.create': '新建助手',
           'library.skill_add.add': '添加技能',
+          'library.skill_add.create_with_agent': '通过 Agent 创建',
           'library.skill_add.local_import': '本地导入',
           'library.skill_add.online_search': '在线搜索',
           'library.skill_add.system_search': '系统搜索',
@@ -49,6 +51,8 @@ vi.mock('react-i18next', () => ({
           'library.type.assistant': '助手',
           'library.type.skill': '技能',
           'settings.skills.globalToggle': '全局启用技能',
+          'settings.skills.source.local': '本地',
+          'settings.skills.tryNow': '立即试用',
           'settings.skills.toggleFailed': '更新技能全局状态失败'
         }) satisfies Record<string, string>
       )[key] ?? key
@@ -744,6 +748,20 @@ describe('ResourceGrid card actions', () => {
     expect(screen.queryByRole('button', { name: '删除' })).not.toBeInTheDocument()
   })
 
+  it.each([createAssistantResource])('offers only archiving for owner cards', async (createResource) => {
+    const user = userEvent.setup()
+    const resource = createResource()
+    const onDelete = vi.fn()
+    render(<ResourceCard resource={resource} {...getResourceCardProps({ onDelete })} />)
+
+    await user.click(screen.getByRole('button', { name: /common.more/ }))
+    expect(screen.getByRole('menuitem', { name: 'common.archive' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'common.delete_permanently' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'common.archive' }))
+    await waitFor(() => expect(onDelete).toHaveBeenCalledExactlyOnceWith(resource))
+    expect(screen.queryByRole('button', { name: '删除' })).not.toBeInTheDocument()
+  })
+
   it('shows a direct delete action when delete is the only card action', async () => {
     const user = userEvent.setup()
     const resource = createPromptResource()
@@ -976,13 +994,15 @@ describe('ResourceCardMenu group binding', () => {
 
   it('keeps the divider when assistant resources have actions before delete', async () => {
     const user = userEvent.setup()
+    const resource = createAssistantResource()
+    const onDelete = vi.fn()
 
     render(
       <ResourceCardMenu
-        resource={createAssistantResource()}
+        resource={resource}
         onClose={vi.fn()}
         onDuplicate={vi.fn()}
-        onDelete={vi.fn()}
+        onDelete={onDelete}
         onExport={vi.fn()}
         allGroups={[]}
       />
@@ -991,6 +1011,8 @@ describe('ResourceCardMenu group binding', () => {
     await user.click(screen.getByRole('button', { name: /common.more/ }))
     expect(screen.queryByRole('button', { name: /common.edit/ })).not.toBeInTheDocument()
     expect(screen.getByTestId('menu-divider')).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: '删除' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'common.delete_permanently' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'common.archive' }))
+    await waitFor(() => expect(onDelete).toHaveBeenLastCalledWith(resource))
   })
 })

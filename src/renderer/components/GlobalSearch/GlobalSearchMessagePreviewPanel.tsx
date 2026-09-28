@@ -1,3 +1,8 @@
+import { defaultRangeExtractor, type Range } from '@tanstack/react-virtual'
+import { ExternalLink, MessageSquare, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Button } from '@cherrystudio/ui'
 import { useInfiniteFlatItems } from '@data/hooks/useDataApi'
 import MessageContent from '@renderer/components/chat/messages/frame/MessageContent'
@@ -11,10 +16,6 @@ import { sharedMessageToUIMessage, uiMessagesToPartsMap } from '@renderer/utils/
 import { cn } from '@renderer/utils/style'
 import type { CherryUIMessage } from '@shared/data/types/message'
 import { buildKeywordRegexes, splitKeywordsToTerms } from '@shared/utils/keywordSearch'
-import { defaultRangeExtractor, type Range } from '@tanstack/react-virtual'
-import { ExternalLink, MessageSquare, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 export type GlobalSearchMessagePreviewTarget = {
   sourceType: 'topic'
@@ -54,7 +55,7 @@ function getPreviewTopic(target: GlobalSearchMessagePreviewTarget): Topic {
       createdAt: target.createdAt ?? '',
       updatedAt: target.updatedAt ?? target.createdAt ?? '',
       messages: []
-    } as Topic
+    }
   }
 }
 

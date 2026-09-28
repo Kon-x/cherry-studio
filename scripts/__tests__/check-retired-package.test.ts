@@ -62,11 +62,14 @@ describe('packaged retired features', () => {
     expect(() => checkRetiredPackage(resources)).toThrow('builtin-agents/cherry-assistant/agent.json')
   })
 
-  it('rejects a runtime that was bundled into an otherwise generic chunk', async () => {
-    const resources = await pack({ 'out/main/chunk.js': 'class DshRuntimeDriver {}' })
+  it.each(['DshRuntimeDriver', 'AgentBrowserRegistry', 'RemoteAccessService'])(
+    'rejects %s bundled into a generic chunk',
+    async (runtime) => {
+      const resources = await pack({ 'out/main/chunk.js': `class ${runtime} {}` })
 
-    expect(() => checkRetiredPackage(resources)).toThrow('out/main/chunk.js: DshRuntimeDriver')
-  })
+      expect(() => checkRetiredPackage(resources)).toThrow(`out/main/chunk.js: ${runtime}`)
+    }
+  )
 
   it('rejects an archive that is missing the application entry point', async () => {
     const resources = await pack()

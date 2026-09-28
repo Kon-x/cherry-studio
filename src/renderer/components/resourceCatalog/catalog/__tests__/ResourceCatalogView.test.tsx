@@ -10,7 +10,6 @@ const {
   resourceCatalogControllerMock,
   resourceCreateWizardMock,
   resourceGridMock,
-  skillDetailDialogMock,
   systemSkillDialogMock
 } = vi.hoisted(() => ({
   dialogImplementationsLoadedMock: vi.fn(),
@@ -18,7 +17,6 @@ const {
   resourceCatalogControllerMock: vi.fn(),
   resourceCreateWizardMock: vi.fn(),
   resourceGridMock: vi.fn(),
-  skillDetailDialogMock: vi.fn(),
   systemSkillDialogMock: vi.fn()
 }))
 
@@ -63,12 +61,7 @@ vi.mock('@renderer/components/resourceCatalog/dialogs/delete', () => ({
 }))
 vi.mock('@renderer/components/resourceCatalog/dialogs/detail', () => {
   dialogImplementationsLoadedMock('detail')
-  return {
-    SkillDetailDialog: (props: { open: boolean; skill: { id: string } | null }) => {
-      skillDetailDialogMock(props)
-      return props.open ? <div data-skill-id={props.skill?.id} data-testid="skill-detail-dialog" /> : null
-    }
-  }
+  return {}
 })
 vi.mock('@renderer/components/resourceCatalog/dialogs/edit', () => {
   dialogImplementationsLoadedMock('edit')
@@ -144,12 +137,10 @@ function createController(resourceError?: Error) {
       editDialogTarget: null,
       handleCreateDialogOpenChange: vi.fn(),
       handleSubmitCreateResource: vi.fn(),
-      selectedSkill: null,
       setAssistantImportOpen: vi.fn(),
       setAssistantLibraryOpen: vi.fn(),
       setDeleteConfirm: vi.fn(),
       setEditDialogTarget: vi.fn(),
-      setSelectedSkill: vi.fn(),
       setSkillImportOpen: vi.fn(),
       setSkillMarketplaceOpen: vi.fn(),
       setSystemSkillOpen: vi.fn(),
@@ -167,7 +158,6 @@ describe('ResourceCatalogView', () => {
     resourceCatalogControllerMock.mockReset()
     resourceCreateWizardMock.mockClear()
     resourceGridMock.mockClear()
-    skillDetailDialogMock.mockClear()
     systemSkillDialogMock.mockClear()
     resourceCatalogControllerMock.mockReturnValue(createController())
   })

@@ -6,6 +6,10 @@ Bundled AI provider and model catalog for Cherry Studio: static JSON data files 
 
 > **Contributing?** The `data/*.json` files are **generated** — never hand-edit them. Edit `src/creators/` / `src/providers/` and run `pnpm generate`. See [CLAUDE.md](CLAUDE.md) and [docs/architecture.md](docs/architecture.md).
 
+For stable fork synchronization, set `CATALOG_SNAPSHOT` to a directory containing the three catalog JSON files
+from the upstream release tag and run `pnpm generate`. This preserves released model metadata while filtering
+providers removed from `src/providers`, without importing later online catalog changes.
+
 ## Data Files
 
 ```

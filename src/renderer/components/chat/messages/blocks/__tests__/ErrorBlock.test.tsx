@@ -1,8 +1,9 @@
-import enUS from '@renderer/i18n/locales/en-us.json'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import enUS from '@renderer/i18n/locales/en-us.json'
 
 import type { MessageListActions, MessageListItem } from '../../types'
 
@@ -77,6 +78,7 @@ describe('ErrorBlock', () => {
     mocks.language = 'en'
     mocks.translations.clear()
     mocks.translations.set('error.diagnosis.go_to_settings', GO_TO_SETTINGS_LABEL)
+    mocks.translations.set('HTTP 413', 'Request body too large')
     vi.clearAllMocks()
   })
 
@@ -161,6 +163,7 @@ describe('ErrorBlock', () => {
       removeMessageErrorPart,
       navigateErrorTarget
     }
+    mocks.translations.set('error.diagnosis.auth', 'API Key is invalid, please check and reconfigure')
 
     const { container } = render(
       <ErrorBlock
@@ -175,7 +178,8 @@ describe('ErrorBlock', () => {
       expect.objectContaining({
         message,
         partId: 'message-1-part-0',
-        error: expect.objectContaining({ message: 'Unauthorized' })
+        error: expect.objectContaining({ message: 'Unauthorized' }),
+        localizedErrorMessage: 'API Key is invalid, please check and reconfigure'
       })
     )
 
@@ -226,21 +230,31 @@ describe('ErrorBlock', () => {
     expect(navigateErrorTarget).toHaveBeenCalledWith('/settings/provider?id=openai')
   })
 
-  it('offers the active provider settings for a generic HTTP 400', async () => {
+  it('shows a Claude SDK request failure with its original error and provider settings', async () => {
     const user = userEvent.setup()
     const navigateErrorTarget = vi.fn()
-    mocks.actions = { navigateErrorTarget }
+    const diagnoseMessageError = vi.fn().mockResolvedValue('AI summary')
+    mocks.actions = { navigateErrorTarget, diagnoseMessageError }
+    mocks.translations.set('error.diagnosis.bad_request', enUS['error.diagnosis.bad_request'])
 
     render(
       <ErrorBlock
         partId="message-1-part-0"
-        error={{ name: 'AI_APICallError', message: 'Bad Request', stack: null, statusCode: 400 }}
+        error={{
+          name: 'ClaudeCodeResultError',
+          message: 'API Error: 400 Provider returned error',
+          stack: null,
+          statusCode: 400
+        }}
         message={message}
       />
     )
 
+    expect(screen.getByText('Provider request failed (HTTP 400)')).toBeInTheDocument()
+    expect(screen.getByText(/API Error: 400 Provider returned error/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: GO_TO_SETTINGS_LABEL }))
     expect(navigateErrorTarget).toHaveBeenCalledWith('/settings/provider?id=openai')
+    expect(diagnoseMessageError).not.toHaveBeenCalled()
   })
 
   it('uses injected diagnosis capability for unknown errors', async () => {

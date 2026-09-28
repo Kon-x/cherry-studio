@@ -2,12 +2,13 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { messageTable } from '@data/db/schemas/message'
-import { topicTable } from '@data/db/schemas/topic'
-import { AbsoluteFilePathSchema } from '@shared/types/file'
 import { setupTestDatabase, withRoot } from '@test-helpers/db'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+import { messageTable } from '@data/db/schemas/message'
+import { topicTable } from '@data/db/schemas/topic'
+import { AbsoluteFilePathSchema } from '@shared/types/file'
 
 import { collectChatRecords, stageChatRecords } from '../chatRecordCollector'
 

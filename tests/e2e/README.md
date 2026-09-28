@@ -1,10 +1,17 @@
 # E2E Testing Guide
 
-本目录包含 Cherry Studio 的端到端 (E2E) 测试，使用 Playwright 测试 Electron 应用。
+This directory contains end-to-end (E2E) tests for the Cherry Studio Electron application using Playwright.
 
-## 目录结构
+## Critical-path regression
 
-```
+Cross-platform validation of development branches and release installers uses a separate
+[regression workflow](regression/README.md), which reuses a controller-owned application
+process through CDP. `pnpm test:e2e` runs the existing smoke suite described below;
+`pnpm test:e2e:regression` runs the regression scenarios.
+
+## Directory structure
+
+```text
 tests/e2e/
 ├── README.md                 # 本文档
 ├── global-setup.ts           # 全局测试初始化
@@ -29,9 +36,9 @@ tests/e2e/
 
 ---
 
-## 运行测试
+## Running tests
 
-### 前置条件
+### Smoke suite
 
 1. 安装依赖：`pnpm install`
 2. 构建应用：`pnpm build`
@@ -45,48 +52,72 @@ CI 上传主进程日志、失败截图和 Playwright trace，报告位于 `elec
 缓存统计回归通过夹具的 `extraElectronArgs` 将该用例的 V8 堆限制为 512 MiB，启动后写入含
 32 MiB 二进制记录的 v1 测试库，再反复打开清理弹窗，检查页面、进程和保留数据。其他用例使用默认启动参数。
 
-### 运行命令
+#### Prerequisites
+
+1. Install dependencies: `pnpm install`
+2. Build the application: `pnpm build`
+
+#### Commands
 
 ```bash
-# 运行所有 e2e 测试
+# Run the smoke suite
 pnpm test:e2e
 
-# 带可视化窗口运行（可以看到测试过程）
+# Run with visible windows
 pnpm test:e2e --headed
 
-# 运行特定测试文件
-pnpm playwright test tests/e2e/specs/app-launch.spec.ts
+# Run a specific test file
+pnpm playwright test tests/e2e/smoke/appLaunch.test.ts
 
 # 运行匹配名称的测试
 pnpm playwright test -g "fresh profiles"
 
-# 调试模式（会暂停并打开调试器）
+# Run in debug mode (pauses execution and opens the debugger)
 pnpm playwright test --debug
 
-# 使用 Playwright UI 模式
+# Use Playwright UI mode
 pnpm playwright test --ui
 
-# 查看测试报告
+# View the test report
 pnpm playwright show-report
 ```
 
-## 编写 E2E 测试
+### Critical-path regression suite
 
-测试设计和审查统一遵守[前端测试规范](../../docs/references/testing/frontend-testing.md)。本目录只提供
-Electron E2E 基础设施：
+Use the [regression workflow](../../.github/workflows/e2e-regression-test.yml) for hosted macOS and Windows runs.
+It prepares the application, isolated run directory, and provider configuration before running the scenarios.
+`pnpm test:e2e:regression` selects the regression config, but does not perform that preparation itself:
+execution requires `CHERRY_TEST_RUN_DIR` to point to an initialized controller run.
+See the [scenario guide](regression/README.md) and [controller guide](../../scripts/e2e/regression/README.md)
+for phase execution and configuration. Do not use the smoke suite's launch fixture for regression scenarios.
 
-- 从 `fixtures/electron.fixture.ts` 导入 `test`、`expect`、`electronApp` 和 `mainWindow`。
-- 使用 `utils/ui-locator.ts` 定位
-  [UI Semantic Contract](../../docs/references/components/ui-semantic-contract.md)中的稳定应用边界。
-- 运行参数以根目录 `playwright.config.ts` 为准。
+## Writing E2E tests
 
-新增 E2E 应围绕跨进程的完整用户结果，直接使用稳定的语义定位器和可观察条件。
+Test design and review follow the [Frontend Testing Guidelines](../../docs/references/testing/frontend-testing.md).
+
+### Smoke suite
+
+The smoke suite uses the following Electron E2E infrastructure:
+
+- Import fixtures and assertions from `smoke/fixtures/electron.fixture.ts`: `test`, `expect`, `electronApp`, and `mainWindow`.
+- Use `smoke/utils/uiLocator.ts` to locate stable application boundaries defined in the
+  [UI Semantic Contract](../../docs/references/components/ui-semantic-contract.md).
+- Refer to `playwright.config.ts` in the repository root for runtime settings.
+
+### Critical-path regression suite
+
+- Place numbered phase tests and domain helpers in `regression/`.
+- Import `test` and `expect` from `regression/fixture.ts` in scenarios; use its `app` and `mainWindow` fixtures.
+- Register cases in `scripts/e2e/regression/cases.ts` and follow the [scenario guide](regression/README.md).
+- Use `playwright.regression.config.ts`, not the smoke suite's `playwright.config.ts`.
+
+New E2E tests should verify complete user outcomes across processes using stable semantic locators and observable conditions.
 
 ---
 
-## 配置文件
+## Configuration
 
-主要配置在项目根目录的 `playwright.config.ts`：
+The smoke suite is configured in `playwright.config.ts` in the repository root:
 
 - `testDir`: 测试目录 (`./tests/e2e/specs`)
 - `timeout`: 测试超时 (120秒)
@@ -95,7 +126,7 @@ Electron E2E 基础设施：
 
 ---
 
-## 相关文档
+## Related documentation
 
-- [Playwright 官方文档](https://playwright.dev/docs/intro)
-- [Playwright Electron 测试](https://playwright.dev/docs/api/class-electron)
+- [Playwright documentation](https://playwright.dev/docs/intro)
+- [Playwright Electron testing](https://playwright.dev/docs/api/class-electron)

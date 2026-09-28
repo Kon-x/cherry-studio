@@ -12,9 +12,10 @@
 import os from 'node:os'
 import path from 'node:path'
 
+import { app } from 'electron'
+
 import { loggerService } from '@logger'
 import { isMac, isWin } from '@main/core/platform'
-import { app } from 'electron'
 
 import { CHERRY_HOME, LOGS_DIR } from './constants'
 
@@ -99,6 +100,8 @@ export function buildPathRegistry() {
 
     // -- D. feature.* — grouped by feature, physical location is irrelevant --
 
+    'feature.remote_access.identity_file': path.join(appUserDataRuntime, 'remote-identity.enc'),
+
     // Provider registry data (models.json, providers.json, etc.)
     'feature.provider_registry.data': app.isPackaged
       ? path.join(appExtraResources, 'provider-registry')
@@ -107,6 +110,8 @@ export function buildPathRegistry() {
     // Remote-updated override copy of the registry JSON, preferred over the
     // bundled data when present (see ProviderRegistryUpdaterService). Writable.
     'feature.provider_registry.override': appUserDataProviderRegistryOverride,
+
+    // Isolated preload for site `<webview>` guests. Local mini apps keep their capability bridge.
 
     // Local embedding model cache (transformers.js HF cache root, downloaded on first use)
     'feature.embedding.models': path.join(appUserDataRuntime, 'models', 'qwen3-embedding'),
@@ -141,8 +146,10 @@ export function buildPathRegistry() {
     'feature.mcp.workspace': path.join(appUserDataData, 'Workspace'),
     // MCP memory server's knowledge-graph JSON for the built-in MCP server
     'feature.mcp.memory_file': path.join(CHERRY_HOME, 'config', 'memory.json'),
-    // Server catalog `@cherry/mcp-auto-install` reads when a custom registry is configured
+    // `@cherry/mcp-auto-install` owns both: its Registry API cache, and the config file it
+    // writes to instead of probing the user's other MCP clients
     'feature.mcp.registry_file': path.join(CHERRY_HOME, 'config', 'mcp-registry.json'),
+    'feature.mcp.auto_install_settings_file': path.join(CHERRY_HOME, 'config', 'mcp-auto-install-settings.json'),
 
     // Copilot token
     'feature.copilot.token_file': path.join(CHERRY_HOME, 'config', '.copilot_token'),
@@ -159,6 +166,7 @@ export function buildPathRegistry() {
     'feature.ovms.patch': path.join(CHERRY_HOME, 'ovms', 'patch'),
     'feature.ovms.ovocr': path.join(CHERRY_HOME, 'ovms', 'ovocr'),
 
+    'feature.mini_app.logs': path.join(LOGS_DIR, 'mini-apps'),
     // Preserve the destination of v1 Agent-file imports without starting an Agent runtime.
     'feature.agents.claude.root': path.join(appUserDataData, 'Agents', '.claude'),
 
@@ -259,6 +267,7 @@ const NO_ENSURE = [
   'app.session.webview',
   'app.database.migrations',
   'feature.provider_registry.data',
+  'feature.mini_app.logs',
   'feature.agents.claude.root'
 ] as const satisfies readonly NoEnsureEntry[]
 

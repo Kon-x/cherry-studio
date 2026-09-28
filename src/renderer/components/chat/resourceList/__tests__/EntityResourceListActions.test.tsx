@@ -1,18 +1,28 @@
+import { mockDataApiService } from '@test-mocks/renderer/DataApiService'
+import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ComponentProps, ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { ResolvedAction } from '@renderer/components/chat/actions/actionTypes'
 import type { ResourceEntityRailItem } from '@renderer/components/chat/resourceList/ResourceEntityRail'
 import type { AssistantTopicsSource } from '@renderer/hooks/resourceViewSources'
 import { popup } from '@renderer/services/popup'
+import type * as RecycleBinFeedback from '@renderer/services/recycleBinFeedback'
 import { toast } from '@renderer/services/toast'
-import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { ComponentProps, ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DataApiErrorFactory } from '@shared/data/api/errors'
+import { createSidebarShortcutId, type SidebarShortcutTarget } from '@shared/data/preference/preferenceTypes'
+import { IpcError } from '@shared/ipc/errors/IpcError'
+import { trashErrorCodes } from '@shared/ipc/errors/trash'
 
 import { AssistantResourceList } from '../AssistantResourceList'
 
 const assistantDataMocks = vi.hoisted(() => ({
   deleteTopicsByAssistantId: vi.fn(),
   deleteAssistant: vi.fn(),
+  restoreAssistant: vi.fn(),
+  restoreTopic: vi.fn(),
   refreshTopics: vi.fn(),
   refetchAssistants: vi.fn(),
   topics: [
@@ -22,6 +32,9 @@ const assistantDataMocks = vi.hoisted(() => ({
 }))
 
 const agentDataMocks = vi.hoisted(() => ({
+  error: null as Error | null,
+  getActiveResource: vi.fn(),
+  isLoading: false,
   agents: [
     {
       id: 'agent-1',
@@ -37,7 +50,14 @@ const agentDataMocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   ipcRequest: vi.fn(),
   refetchAgents: vi.fn(),
+  restoreAgent: vi.fn(),
+  restoreSession: vi.fn(),
   toggleAgentPin: vi.fn()
+}))
+
+const recycleBinFeedbackMocks = vi.hoisted(() => ({
+  showRecycleBinBatchUndo: vi.fn(),
+  showRecycleBinUndo: vi.fn()
 }))
 
 const loggerMocks = vi.hoisted(() => ({
@@ -61,6 +81,12 @@ const tabsContextMocks = vi.hoisted(() => ({
   closeConversationTabs: vi.fn()
 }))
 
+const conversationOwnerPopupMocks = vi.hoisted(() => ({ show: vi.fn() }))
+
+vi.mock('@renderer/components/chat/DeleteConversationOwnerConfirmDialog', () => ({
+  deleteConversationOwnerPopup: conversationOwnerPopupMocks
+}))
+
 vi.mock('@cherrystudio/ui', () => ({
   BlurCancelPointerSensor: class BlurCancelPointerSensor {},
   Button: ({ children, onClick, ...props }: { children?: ReactNode; onClick?: () => void }) => (
@@ -68,6 +94,7 @@ vi.mock('@cherrystudio/ui', () => ({
       {children}
     </button>
   ),
+  EmojiIcon: ({ emoji }: { emoji: string }) => <span>{emoji}</span>,
   MenuItem: ({ icon, label, onClick }: { icon?: ReactNode; label: ReactNode; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {icon}
@@ -84,8 +111,7 @@ vi.mock('@cherrystudio/ui', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: { count?: number }) =>
-      key === 'assistants.clear.success_title' ? `${key}:${options?.count}` : key
+    t: (key: string) => key
   })
 }))
 
@@ -110,7 +136,7 @@ vi.mock('@data/hooks/usePreference', () => ({
       (value: unknown) => {
         preferenceMocks.values.set(key, value)
         preferenceMocks.setPreference(key, value)
-        // Mutations through useSidebarFavorites call `.catch` on the returned
+        // Sidebar shortcut mutations call `.catch` on the returned
         // promise; resolve so those toggle paths do not throw.
         return Promise.resolve()
       }
@@ -118,14 +144,20 @@ vi.mock('@data/hooks/usePreference', () => ({
   }
 }))
 
+vi.mock('@renderer/data/PreferenceService', () => ({
+  preferenceService: {
+    get: vi.fn(async (key: string) => preferenceMocks.values.get(key)),
+    set: vi.fn(async (key: string, value: unknown) => {
+      preferenceMocks.values.set(key, value)
+      preferenceMocks.setPreference(key, value)
+    })
+  }
+}))
+
 vi.mock('@logger', () => ({
   loggerService: {
     withContext: () => loggerMocks
   }
-}))
-
-vi.mock('@renderer/components/EmojiIcon', () => ({
-  default: ({ emoji }: { emoji: string }) => <span>{emoji}</span>
 }))
 
 vi.mock('@renderer/components/Avatar/ModelAvatar', () => ({
@@ -148,8 +180,10 @@ vi.mock('@renderer/components/chat/resourceList/ResourceEntityRail', () => ({
     onGroupReorder,
     onReorder,
     onSelect,
+    onSelectedClick,
     reorderEnabled = true,
     selectedId,
+    selectedClickId,
     selectionSuppressed
   }: {
     collapsedState?: readonly string[]
@@ -162,8 +196,10 @@ vi.mock('@renderer/components/chat/resourceList/ResourceEntityRail', () => ({
     onGroupReorder?: (groupId: string, anchor: { before: string }) => void | Promise<void>
     onReorder?: unknown
     onSelect: (item: ResourceEntityRailItem) => void | Promise<void>
+    onSelectedClick?: (item: ResourceEntityRailItem) => void | Promise<void>
     reorderEnabled?: boolean
     selectedId?: string | null
+    selectedClickId?: string | null
     selectionSuppressed?: boolean
   }) => {
     const flattenActions = (actions: readonly ResolvedAction[]): readonly ResolvedAction[] =>
@@ -179,6 +215,7 @@ vi.mock('@renderer/components/chat/resourceList/ResourceEntityRail', () => ({
         data-sortable-container={onReorder || onGroupReorder ? 'enabled' : 'disabled'}
         data-collapsed-state={collapsedState?.join(',') ?? 'uncontrolled'}
         data-selected-id={selectionSuppressed ? '' : (selectedId ?? '')}
+        data-selected-click-id={selectedClickId ?? ''}
         data-selection-suppressed={String(!!selectionSuppressed)}>
         <button
           type="button"
@@ -192,8 +229,14 @@ vi.mock('@renderer/components/chat/resourceList/ResourceEntityRail', () => ({
 
           return (
             <section key={item.id} aria-label={item.name} title={item.tooltip}>
+              <button
+                type="button"
+                aria-label={`Select ${item.name}`}
+                onClick={() =>
+                  selectedClickId === item.id && onSelectedClick ? onSelectedClick(item) : onSelect(item)
+                }
+              />
               {item.icon}
-              <button type="button" aria-label={`Select ${item.name}`} onClick={() => void onSelect(item)} />
               <div data-testid={`${item.id}-context-menu`}>
                 {renderedActions.map((action) => (
                   <button
@@ -227,7 +270,8 @@ vi.mock('@renderer/components/chat/resourceList/ResourceEntityRail', () => ({
 
 vi.mock('@renderer/hooks/useAssistant', () => ({
   useAssistantMutations: () => ({
-    deleteAssistant: assistantDataMocks.deleteAssistant
+    deleteAssistant: assistantDataMocks.deleteAssistant,
+    restoreAssistant: assistantDataMocks.restoreAssistant
   }),
   useAssistantsApi: () => ({
     assistants: [
@@ -318,7 +362,8 @@ vi.mock('@renderer/hooks/useTopic', () => ({
   mapApiTopicToRendererTopic: (topic: unknown) => topic,
   useTopicMutations: () => ({
     deleteTopicsByAssistantId: assistantDataMocks.deleteTopicsByAssistantId,
-    refreshTopics: assistantDataMocks.refreshTopics
+    refreshTopics: assistantDataMocks.refreshTopics,
+    restoreTopic: assistantDataMocks.restoreTopic
   })
 }))
 
@@ -327,8 +372,21 @@ vi.mock('@renderer/data/hooks/useDataApi', () => ({
   useMutation: () => ({ trigger: vi.fn() })
 }))
 
+vi.mock('@renderer/services/recycleBinFeedback', async (importOriginal) => ({
+  ...(await importOriginal<typeof RecycleBinFeedback>()),
+  ...recycleBinFeedbackMocks
+}))
+
 vi.mock('@renderer/ipc', () => ({
-  ipcApi: { request: agentDataMocks.ipcRequest, on: vi.fn(() => () => undefined) }
+  ipcApi: {
+    request: (route: string, input: unknown) =>
+      route === 'ai.agent.restore'
+        ? agentDataMocks.restoreAgent(input)
+        : route === 'ai.agent.session.restore'
+          ? agentDataMocks.restoreSession(input)
+          : agentDataMocks.ipcRequest(route, input),
+    on: vi.fn(() => () => undefined)
+  }
 }))
 
 vi.mock('@renderer/utils/chat/topicsHelpers', () => ({
@@ -336,10 +394,21 @@ vi.mock('@renderer/utils/chat/topicsHelpers', () => ({
 }))
 
 vi.mock('@renderer/utils/error', () => ({
-  formatErrorMessageWithPrefix: (_error: unknown, prefix: string) => prefix
+  formatErrorMessageWithPrefix: (_error: unknown, prefix: string) => prefix,
+  getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error))
 }))
 
 describe('classic layout entity resource list actions', () => {
+  const sidebarShortcut = (providerId: string, resourceId: string, fallbackLabel?: string) => {
+    const target: SidebarShortcutTarget = { kind: 'resource', locator: { providerId, resourceId } }
+    return {
+      type: 'shortcut' as const,
+      id: createSidebarShortcutId(target),
+      target,
+      ...(fallbackLabel ? { fallbackLabel } : {})
+    }
+  }
+
   beforeEach(() => {
     MockUseCacheUtils.resetMocks()
     agentDataMocks.agents = [
@@ -352,6 +421,8 @@ describe('classic layout entity resource list actions', () => {
         modelName: 'Claude Sonnet 4'
       }
     ]
+    agentDataMocks.error = null
+    agentDataMocks.isLoading = false
     preferenceMocks.sortType = 'list'
     preferenceMocks.values.clear()
     preferenceMocks.setPreference.mockClear()
@@ -364,6 +435,10 @@ describe('classic layout entity resource list actions', () => {
     assistantDataMocks.deleteTopicsByAssistantId.mockClear()
     assistantDataMocks.deleteAssistant.mockResolvedValue({ deleted: true, deletedTopicIds: [] })
     assistantDataMocks.deleteAssistant.mockClear()
+    assistantDataMocks.restoreAssistant.mockResolvedValue(undefined)
+    assistantDataMocks.restoreAssistant.mockClear()
+    assistantDataMocks.restoreTopic.mockResolvedValue(undefined)
+    assistantDataMocks.restoreTopic.mockClear()
     assistantDataMocks.refreshTopics.mockResolvedValue(undefined)
     assistantDataMocks.refreshTopics.mockClear()
     assistantDataMocks.refetchAssistants.mockResolvedValue(undefined)
@@ -385,44 +460,186 @@ describe('classic layout entity resource list actions', () => {
     agentDataMocks.ipcRequest.mockClear()
     agentDataMocks.refetchAgents.mockResolvedValue(undefined)
     agentDataMocks.refetchAgents.mockClear()
+    agentDataMocks.restoreAgent.mockResolvedValue(undefined)
+    agentDataMocks.restoreAgent.mockClear()
+    agentDataMocks.restoreSession.mockResolvedValue(undefined)
+    agentDataMocks.restoreSession.mockClear()
+    agentDataMocks.getActiveResource.mockResolvedValue({ id: 'active-resource' })
+    agentDataMocks.getActiveResource.mockClear()
     agentDataMocks.toggleAgentPin.mockResolvedValue(undefined)
     agentDataMocks.toggleAgentPin.mockClear()
     tabsContextMocks.closeConversationTabs.mockClear()
     loggerMocks.error.mockClear()
     loggerMocks.info.mockClear()
     loggerMocks.warn.mockClear()
+    vi.mocked(toast.error).mockClear()
+    vi.mocked(toast.info).mockClear()
+    vi.mocked(toast.success).mockClear()
+    recycleBinFeedbackMocks.showRecycleBinBatchUndo.mockClear()
+    recycleBinFeedbackMocks.showRecycleBinUndo.mockClear()
+    conversationOwnerPopupMocks.show.mockClear()
+    conversationOwnerPopupMocks.show.mockImplementation(
+      async ({ action }: { action: (deleteChildren: boolean) => void | Promise<void> }) => {
+        await action(false)
+        return true
+      }
+    )
   })
 
-  it('uses delete-assistant actions for the classic layout assistant context and more menus', async () => {
+  it('uses archive-assistant actions for the classic layout assistant context and more menus', async () => {
     const onCreateTopic = vi.fn()
     const onActiveAssistantDeleted = vi.fn()
 
     render(
       <TestAssistantResourceList
         activeAssistantId="assistant-1"
+        activeTopicId="topic-1"
         onSelectTopic={vi.fn()}
         onCreateTopic={onCreateTopic}
         onActiveAssistantDeleted={onActiveAssistantDeleted}
       />
     )
 
-    expect(screen.getByTestId('assistant-1-context-menu')).toHaveTextContent('assistants.delete.title')
-    expect(screen.getByTestId('assistant-1-more-menu')).toHaveTextContent('assistants.delete.title')
+    expect(screen.getByTestId('assistant-1-context-menu')).toHaveTextContent('common.archive')
+    expect(screen.getByTestId('assistant-1-context-menu')).not.toHaveTextContent('common.delete_permanently')
+    expect(screen.getByTestId('assistant-1-more-menu')).toHaveTextContent('common.archive')
+    expect(screen.getByTestId('assistant-1-more-menu')).not.toHaveTextContent('common.delete_permanently')
     expect(screen.getByTestId('assistant-1-context-menu')).toHaveTextContent('assistants.clear.menu_title')
     expect(screen.getByTestId('assistant-1-more-menu')).toHaveTextContent('assistants.clear.menu_title')
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'assistants.delete.title' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.archive' })[0])
 
     await waitFor(() =>
-      expect(popup.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'assistants.delete.title' }))
+      expect(assistantDataMocks.deleteAssistant).toHaveBeenCalledWith('assistant-1', {
+        deleteTopics: false
+      })
     )
-    await waitFor(() =>
-      expect(assistantDataMocks.deleteAssistant).toHaveBeenCalledWith('assistant-1', { deleteTopics: true })
-    )
-    // Classic layout resets via the dedicated callback (page settles to the latest
-    // remaining topic) and must NOT open the modern layout draft compose.
-    await waitFor(() => expect(onActiveAssistantDeleted).toHaveBeenCalledWith('assistant-1'))
+    expect(onActiveAssistantDeleted).not.toHaveBeenCalled()
+    expect(tabsContextMocks.closeConversationTabs).not.toHaveBeenCalled()
     expect(onCreateTopic).not.toHaveBeenCalled()
+    expect(recycleBinFeedbackMocks.showRecycleBinUndo).toHaveBeenCalledWith({
+      itemName: 'Assistant 1',
+      onUndo: expect.any(Function)
+    })
+
+    await recycleBinFeedbackMocks.showRecycleBinUndo.mock.calls.at(-1)?.[0].onUndo()
+
+    expect(assistantDataMocks.restoreAssistant).toHaveBeenCalledWith('assistant-1')
+    expect(assistantDataMocks.refetchAssistants).toHaveBeenCalled()
+    expect(assistantDataMocks.refreshTopics).toHaveBeenCalled()
+  })
+
+  it('cascades an Assistant delete only to returned Topics and reconciles the returned active Topic', async () => {
+    const onActiveAssistantDeleted = vi.fn()
+    conversationOwnerPopupMocks.show.mockImplementationOnce(
+      async ({ action }: { action: (deleteChildren: boolean) => void | Promise<void> }) => {
+        await action(true)
+        return true
+      }
+    )
+    assistantDataMocks.deleteAssistant.mockResolvedValueOnce({
+      deleted: true,
+      deletedTopicIds: ['topic-1', 'topic-not-loaded']
+    })
+
+    render(
+      <TestAssistantResourceList
+        activeAssistantId="assistant-1"
+        activeTopicId="topic-1"
+        onSelectTopic={vi.fn()}
+        onCreateTopic={vi.fn()}
+        onActiveAssistantDeleted={onActiveAssistantDeleted}
+      />
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.archive' })[0])
+
+    await waitFor(() =>
+      expect(assistantDataMocks.deleteAssistant).toHaveBeenCalledWith('assistant-1', {
+        deleteTopics: true
+      })
+    )
+    expect(tabsContextMocks.closeConversationTabs).toHaveBeenCalledWith('assistants', ['topic-1', 'topic-not-loaded'])
+    expect(onActiveAssistantDeleted).toHaveBeenCalledWith('assistant-1')
+
+    await recycleBinFeedbackMocks.showRecycleBinUndo.mock.calls.at(-1)?.[0].onUndo()
+
+    expect(assistantDataMocks.restoreAssistant).toHaveBeenCalledWith('assistant-1')
+    expect(assistantDataMocks.restoreTopic).toHaveBeenCalledWith('topic-1')
+    expect(assistantDataMocks.restoreTopic).toHaveBeenCalledWith('topic-not-loaded')
+  })
+
+  it.each(['selection reconciliation', 'Assistant refresh', 'Topic refresh'] as const)(
+    'offers Assistant Undo when post-delete %s fails',
+    async (failureStage) => {
+      conversationOwnerPopupMocks.show.mockImplementationOnce(
+        async ({ action }: { action: (deleteChildren: boolean) => void | Promise<void> }) => {
+          await action(true)
+          return true
+        }
+      )
+      assistantDataMocks.deleteAssistant.mockResolvedValueOnce({ deleted: true, deletedTopicIds: ['topic-1'] })
+      const onActiveAssistantDeleted = vi.fn().mockResolvedValue(undefined)
+      if (failureStage === 'selection reconciliation') {
+        onActiveAssistantDeleted.mockRejectedValueOnce(new Error('selection failed'))
+      } else if (failureStage === 'Assistant refresh') {
+        assistantDataMocks.refetchAssistants.mockRejectedValueOnce(new Error('Assistant refresh failed'))
+      } else {
+        assistantDataMocks.refreshTopics.mockRejectedValueOnce(new Error('Topic refresh failed'))
+      }
+
+      render(
+        <TestAssistantResourceList
+          activeAssistantId="assistant-1"
+          activeTopicId="topic-1"
+          onSelectTopic={vi.fn()}
+          onCreateTopic={vi.fn()}
+          onActiveAssistantDeleted={onActiveAssistantDeleted}
+        />
+      )
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'common.archive' })[0])
+
+      await waitFor(() => expect(recycleBinFeedbackMocks.showRecycleBinUndo).toHaveBeenCalled())
+      expect(assistantDataMocks.refetchAssistants).toHaveBeenCalled()
+      expect(assistantDataMocks.refreshTopics).toHaveBeenCalled()
+      expect(loggerMocks.warn).toHaveBeenCalled()
+      expect(toast.error).not.toHaveBeenCalled()
+    }
+  )
+
+  it('does not fail Assistant Undo when restore succeeds but follow-up refreshes reject', async () => {
+    assistantDataMocks.refetchAssistants
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('restore Assistant refresh failed'))
+    assistantDataMocks.refreshTopics
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('restore Topic refresh failed'))
+
+    render(
+      <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.archive' })[0])
+    await waitFor(() => expect(recycleBinFeedbackMocks.showRecycleBinUndo).toHaveBeenCalled())
+
+    await expect(recycleBinFeedbackMocks.showRecycleBinUndo.mock.calls.at(-1)?.[0].onUndo()).resolves.toBeUndefined()
+
+    expect(assistantDataMocks.restoreAssistant).toHaveBeenCalledWith('assistant-1')
+    expect(loggerMocks.warn).toHaveBeenCalled()
+  })
+
+  it('treats Assistant restore NOT_FOUND as complete only after refresh confirms the Assistant is active', async () => {
+    assistantDataMocks.restoreAssistant.mockRejectedValueOnce(DataApiErrorFactory.notFound('Assistant', 'assistant-1'))
+    mockDataApiService.get.mockResolvedValueOnce({ id: 'assistant-1' })
+
+    render(
+      <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.archive' })[0])
+    await waitFor(() => expect(recycleBinFeedbackMocks.showRecycleBinUndo).toHaveBeenCalled())
+
+    await expect(recycleBinFeedbackMocks.showRecycleBinUndo.mock.calls.at(-1)?.[0].onUndo()).resolves.toBeUndefined()
+
+    expect(mockDataApiService.get).toHaveBeenCalledWith('/assistants/assistant-1')
   })
 
   it('creates a new topic for the hovered assistant row', () => {
@@ -463,58 +680,97 @@ describe('classic layout entity resource list actions', () => {
       })
     )
 
-    await waitFor(() =>
-      expect(popup.confirm).toHaveBeenCalledWith(
-        expect.objectContaining({
-          content: 'assistants.clear.content',
-          title: 'assistants.clear.title'
-        })
-      )
-    )
     await waitFor(() => expect(assistantDataMocks.deleteTopicsByAssistantId).toHaveBeenCalledWith('assistant-1'))
+    expect(popup.confirm).not.toHaveBeenCalled()
     await waitFor(() => expect(assistantDataMocks.refreshTopics).toHaveBeenCalledTimes(1))
     expect(onSelectTopic).toHaveBeenCalledWith(nextTopic)
-    expect(toast.success).toHaveBeenCalledWith('assistants.clear.success_title:1')
+    expect(recycleBinFeedbackMocks.showRecycleBinBatchUndo).toHaveBeenCalledWith({
+      itemCount: 1,
+      onUndo: expect.any(Function)
+    })
+    expect(toast.success).not.toHaveBeenCalled()
+
+    await recycleBinFeedbackMocks.showRecycleBinBatchUndo.mock.calls.at(-1)?.[0].onUndo()
+    expect(assistantDataMocks.restoreTopic).toHaveBeenCalledExactlyOnceWith('topic-1')
   })
 
-  it('does not clear assistant topics when the list empties while the confirm dialog is open', async () => {
-    assistantDataMocks.topics = [
-      { id: 'topic-1', assistantId: 'assistant-1', name: 'Topic 1' },
-      { id: 'topic-2', assistantId: 'assistant-2', name: 'Topic 2' }
-    ]
-    let resolveConfirm!: (value: boolean) => void
-    const confirmPromise = new Promise<boolean>((resolve) => {
-      resolveConfirm = resolve
+  it('offers Topic Undo when post-delete refresh and active reconciliation fail', async () => {
+    assistantDataMocks.refreshTopics.mockRejectedValueOnce(new Error('refresh failed'))
+    const assistantTopicsSource = createAssistantTopicsSource({
+      loadLatestTopic: vi.fn().mockRejectedValue(new Error('selection failed'))
     })
-    vi.mocked(popup.confirm).mockReturnValue(confirmPromise)
 
-    const props = {
-      activeAssistantId: 'assistant-1',
-      onSelectTopic: vi.fn(),
-      onCreateTopic: vi.fn()
-    }
-    const { rerender } = render(<TestAssistantResourceList {...props} />)
+    render(
+      <TestAssistantResourceList
+        activeAssistantId="assistant-1"
+        assistantTopicsSource={assistantTopicsSource}
+        onSelectTopic={vi.fn()}
+        onCreateTopic={vi.fn()}
+      />
+    )
 
     fireEvent.click(
       within(screen.getByTestId('assistant-1-context-menu')).getByRole('button', {
         name: 'assistants.clear.menu_title'
       })
     )
-    await waitFor(() => expect(popup.confirm).toHaveBeenCalledTimes(1))
 
-    // While the confirm dialog is open the topic list drains (e.g. cleared elsewhere).
-    // Re-render so the rail sees the latest topics before the user confirms.
-    assistantDataMocks.topics = [{ id: 'topic-2', assistantId: 'assistant-2', name: 'Topic 2' }]
-    rerender(<TestAssistantResourceList {...props} />)
+    await waitFor(() => expect(recycleBinFeedbackMocks.showRecycleBinBatchUndo).toHaveBeenCalledTimes(1))
+    expect(toast.error).not.toHaveBeenCalled()
+  })
 
-    await act(async () => {
-      resolveConfirm(true)
-      await confirmPromise
-    })
+  it('reports already moved when clearing Assistant Topics changes no rows', async () => {
+    assistantDataMocks.deleteTopicsByAssistantId.mockResolvedValueOnce({ deletedIds: [], deletedCount: 0 })
 
-    expect(assistantDataMocks.deleteTopicsByAssistantId).not.toHaveBeenCalled()
-    expect(assistantDataMocks.refreshTopics).not.toHaveBeenCalled()
+    render(
+      <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
+    )
+
+    fireEvent.click(
+      within(screen.getByTestId('assistant-1-context-menu')).getByRole('button', {
+        name: 'assistants.clear.menu_title'
+      })
+    )
+
+    await waitFor(() => expect(toast.info).toHaveBeenCalledExactlyOnceWith('recycle_bin.already_moved'))
+    expect(assistantDataMocks.refreshTopics).toHaveBeenCalledOnce()
+    expect(recycleBinFeedbackMocks.showRecycleBinBatchUndo).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('keeps Assistant Topics active when one is still generating', async () => {
+    assistantDataMocks.deleteTopicsByAssistantId.mockRejectedValueOnce(
+      new IpcError(trashErrorCodes.TRASH_TOPIC_BUSY, 'Topic is busy', { topicIds: ['topic-1'] })
+    )
+
+    render(
+      <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
+    )
+
+    fireEvent.click(
+      within(screen.getByTestId('assistant-1-context-menu')).getByRole('button', {
+        name: 'assistants.clear.menu_title'
+      })
+    )
+
+    await waitFor(() => expect(toast.info).toHaveBeenCalledExactlyOnceWith('recycle_bin.move.blocked_generation'))
+    expect(recycleBinFeedbackMocks.showRecycleBinBatchUndo).not.toHaveBeenCalled()
+    expect(assistantDataMocks.refreshTopics).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('does not offer the clear action when an assistant has no topics', () => {
+    assistantDataMocks.topics = [{ id: 'topic-2', assistantId: 'assistant-2', name: 'Topic 2' }]
+
+    const props = {
+      activeAssistantId: 'assistant-1',
+      onSelectTopic: vi.fn(),
+      onCreateTopic: vi.fn()
+    }
+    render(<TestAssistantResourceList {...props} />)
+
+    expect(screen.queryByTestId('assistant-1-context-menu')).not.toBeInTheDocument()
+    expect(assistantDataMocks.deleteTopicsByAssistantId).not.toHaveBeenCalled()
   })
 
   it('keeps assistant-less topics under a non-actionable unlinked assistant entry in the classic rail', () => {
@@ -539,6 +795,36 @@ describe('classic layout entity resource list actions', () => {
     expect(screen.getByTestId('assistant-entity:unlinked-context-menu')).toBeEmptyDOMElement()
 
     expect(within(unlinkedAssistantRegion).queryByRole('button', { name: 'chat.conversation.new' })).toBeNull()
+  })
+
+  it('does not create an ownerless Topic when the unlinked Assistant has no retained Topic', async () => {
+    const user = userEvent.setup()
+    assistantDataMocks.topics = [
+      { id: 'topic-unlinked', name: 'Unlinked topic' },
+      { id: 'topic-1', assistantId: 'assistant-1', name: 'Topic 1' }
+    ]
+    const loadLatestTopic = vi.fn().mockResolvedValue(null)
+    const onCreateTopic = vi.fn().mockResolvedValue(null)
+    const onSelectTopic = vi.fn()
+
+    render(
+      <TestAssistantResourceList
+        activeAssistantId="assistant-1"
+        assistantTopicsSource={createAssistantTopicsSource({ loadLatestTopic })}
+        onSelectTopic={onSelectTopic}
+        onCreateTopic={onCreateTopic}
+      />
+    )
+
+    await user.click(
+      within(screen.getByRole('region', { name: 'chat.topics.group.unknown_assistant' })).getByRole('button', {
+        name: 'Select chat.topics.group.unknown_assistant'
+      })
+    )
+
+    await waitFor(() => expect(loadLatestTopic).toHaveBeenCalledExactlyOnceWith(null))
+    expect(onCreateTopic).not.toHaveBeenCalled()
+    expect(onSelectTopic).not.toHaveBeenCalled()
   })
 
   it('groups dangling assistant topics under the unlinked assistant entry in the classic rail', () => {
@@ -578,7 +864,6 @@ describe('classic layout entity resource list actions', () => {
       })
     )
 
-    await waitFor(() => expect(popup.confirm).toHaveBeenCalled())
     await waitFor(() => expect(assistantDataMocks.deleteTopicsByAssistantId).toHaveBeenCalledWith('assistant-2'))
     await waitFor(() => expect(assistantDataMocks.refreshTopics).toHaveBeenCalledTimes(1))
     expect(onClearActiveTopic).toHaveBeenCalledOnce()
@@ -720,7 +1005,7 @@ describe('classic layout entity resource list actions', () => {
     expect(screen.getByTestId('resource-entity-rail')).toHaveAttribute('data-selected-id', '')
   })
 
-  it('offers toggling an assistant into the sidebar from the classic rail context menu', () => {
+  it('offers toggling an assistant into the sidebar from the classic rail context menu', async () => {
     render(
       <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
     )
@@ -730,13 +1015,15 @@ describe('classic layout entity resource list actions', () => {
 
     fireEvent.click(within(menu).getByRole('button', { name: 'launchpad.pin_to_sidebar' }))
 
-    expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar.favorites', [
-      { type: 'assistant', id: 'assistant-1' }
-    ])
+    await waitFor(() =>
+      expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar_shortcut', [
+        sidebarShortcut('core.assistant', 'assistant-1', 'Assistant 1')
+      ])
+    )
   })
 
-  it('toggles an already-pinned assistant out of the sidebar from the classic rail context menu', () => {
-    preferenceMocks.values.set('ui.sidebar.favorites', [{ type: 'assistant', id: 'assistant-1' }])
+  it('toggles an already-pinned assistant out of the sidebar from the classic rail context menu', async () => {
+    preferenceMocks.values.set('ui.sidebar_shortcut', [sidebarShortcut('core.assistant', 'assistant-1')])
 
     render(
       <TestAssistantResourceList activeAssistantId="assistant-1" onSelectTopic={vi.fn()} onCreateTopic={vi.fn()} />
@@ -747,6 +1034,6 @@ describe('classic layout entity resource list actions', () => {
 
     fireEvent.click(within(menu).getByRole('button', { name: 'launchpad.unpin_from_sidebar' }))
 
-    expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar.favorites', [])
+    await waitFor(() => expect(preferenceMocks.setPreference).toHaveBeenCalledWith('ui.sidebar_shortcut', []))
   })
 })

@@ -406,13 +406,10 @@ describe('CodeBlock', () => {
       const saveButton = screen.getByText('Save')
       fireEvent.click(saveButton)
 
-      // Verify getCodeBlockId was called
-      expect(mocks.getCodeBlockId).toHaveBeenCalledWith(defaultProps.node.position.start)
-
       expect(mocks.saveCodeBlock).toHaveBeenCalledOnce()
       expect(mocks.saveCodeBlock).toHaveBeenCalledWith({
         msgBlockId: 'test-msg-block-id',
-        codeBlockId: 'test-code-block-id',
+        originalContent: 'console.log("hello world")',
         newContent: 'new code content'
       })
     })
@@ -429,13 +426,10 @@ describe('CodeBlock', () => {
       const saveButton = screen.getByText('Save HTML')
       fireEvent.click(saveButton)
 
-      // Verify getCodeBlockId was called
-      expect(mocks.getCodeBlockId).toHaveBeenCalledWith(htmlProps.node.position.start)
-
       expect(mocks.saveCodeBlock).toHaveBeenCalledOnce()
       expect(mocks.saveCodeBlock).toHaveBeenCalledWith({
         msgBlockId: 'test-msg-block-id',
-        codeBlockId: 'test-code-block-id',
+        originalContent: '<h1>Hello</h1>',
         newContent: 'new html content'
       })
     })
@@ -454,7 +448,7 @@ describe('CodeBlock', () => {
 
       expect(mocks.saveCodeBlock).toHaveBeenCalledWith({
         msgBlockId: 'test-msg-block-id',
-        codeBlockId: 'test-code-block-id',
+        originalContent: '<h1>Hello</h1>',
         newContent: 'new inline html content'
       })
     })

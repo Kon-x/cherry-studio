@@ -1,9 +1,10 @@
+import { useMemo } from 'react'
+
 import { useToolResult } from '@renderer/hooks/useToolResult'
 import type { McpToolResponse, NormalToolResponse } from '@renderer/types/mcpTool'
 import { normalizeToolOutputResponse } from '@renderer/utils/message/toolOutput'
 import type { DeferredToolOutput } from '@shared/ai/transport'
 import { envelopeDisplayExcerpt, isDeferredToolOutput, isPersistedToolOutput } from '@shared/ai/transport'
-import { useMemo } from 'react'
 
 import { useMessagePartsScopeId } from '../blocks/MessagePartsContext'
 import { useOptionalMessageListTopicId } from '../MessageListProvider'

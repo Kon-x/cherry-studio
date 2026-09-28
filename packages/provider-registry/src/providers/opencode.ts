@@ -34,6 +34,8 @@ const chatFixedModels = [
   'kimi-k2-7-code',
   'mimo-v2-5',
   'mimo-v2-5-pro',
+  'mimo-v2-6-flash',
+  'mimo-v2-6-pro',
   'mimo-v2-omni',
   'mimo-v2-pro'
 ]
@@ -44,6 +46,7 @@ const chatEffortModels: Array<{
   defaultEffort?: ReasoningEffort
   pricing?: ProviderModelOverride['pricing']
 }> = [
+  { modelId: 'deepseek-flash', values: ['high', 'max'] },
   { modelId: 'deepseek-v4-flash', values: ['high', 'max'] },
   { modelId: 'deepseek-v4-1-flash', values: ['low', 'high', 'max'] },
   { modelId: 'deepseek-v4-flash-vision-exp', values: ['high', 'max'] },
@@ -109,6 +112,13 @@ const endpointOverrides: Partial<ProviderModelOverride>[] = [
   },
   {
     modelId: 'grok-4-6',
+    endpointTypes: ['openai-responses'],
+    reasoningContracts: {
+      'openai-responses': { support: effortSupport(['low', 'medium', 'high', 'xhigh']) }
+    }
+  },
+  {
+    modelId: 'grok-4-7',
     endpointTypes: ['openai-responses'],
     reasoningContracts: {
       'openai-responses': { support: effortSupport(['low', 'medium', 'high', 'xhigh']) }

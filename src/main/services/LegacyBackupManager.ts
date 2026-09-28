@@ -18,6 +18,17 @@ import type { Stats } from 'node:fs'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { setTimeout as delay } from 'node:timers/promises'
+import * as path from 'path'
+
+import { ZipArchive } from 'archiver'
+import { Mutex, tryAcquire } from 'async-mutex'
+import Database from 'better-sqlite3'
+import dayjs from 'dayjs'
+import { readMigrationFiles } from 'drizzle-orm/migrator'
+import { app } from 'electron'
+import * as fs from 'fs-extra'
+import StreamZip from 'node-stream-zip'
+import type { CreateDirectoryOptions, FileStat } from 'webdav'
 
 import { application } from '@application'
 import { loggerService } from '@logger'
@@ -34,6 +45,7 @@ import { assertZipEntriesWithin } from '@main/utils/zipSafety'
 import { IpcChannel } from '@shared/IpcChannel'
 import {
   BACKUP_ACTIVE_WRITERS_ERROR_CODE,
+  BACKUP_BACKGROUND_TASKS_ERROR_CODE,
   BACKUP_DISK_FULL_ERROR_CODE,
   BACKUP_NEWER_VERSION_ERROR_CODE,
   BACKUP_OPERATION_BUSY_ERROR_CODE,
@@ -42,16 +54,6 @@ import {
   type WebDavConfig
 } from '@shared/types/backup'
 import { AbsoluteFilePathSchema } from '@shared/types/file'
-import { ZipArchive } from 'archiver'
-import { Mutex, tryAcquire } from 'async-mutex'
-import Database from 'better-sqlite3'
-import dayjs from 'dayjs'
-import { readMigrationFiles } from 'drizzle-orm/migrator'
-import { app } from 'electron'
-import * as fs from 'fs-extra'
-import StreamZip from 'node-stream-zip'
-import * as path from 'path'
-import type { CreateDirectoryOptions, FileStat } from 'webdav'
 
 import S3Storage from './S3Storage'
 import WebDav from './WebDav'
@@ -1070,8 +1072,12 @@ class BackupManager {
 
       const jobManager = application.get('JobManager')
       const quiesceHold = jobManager.pause('backup restore: stage promotion journal')
+      const writerHolds: Array<{ dispose(): void }> = []
       try {
         await this.assertJobsDrained(jobManager)
+        const aiStreamManager = application.get('AiStreamManager')
+        writerHolds.push(aiStreamManager.pause('backup restore'))
+        this.assertWritersDrained([await aiStreamManager.drainInFlight({ timeoutMs: QUIESCE_TIMEOUT_MS })])
         this.assertNoActiveDataWriters()
         const dbService = application.get('DbService')
         dbService.checkpointTruncate()
@@ -1097,6 +1103,7 @@ class BackupManager {
         logger.info('[restoreDirect] Restore journal committed and ready for relaunch', { restoreId })
       } finally {
         if (!journalCommitted) {
+          for (const hold of writerHolds.reverse()) hold.dispose()
           quiesceHold.dispose()
         }
       }
@@ -1531,9 +1538,17 @@ class BackupManager {
     this.assertWritersDrained([verdict])
   }
 
-  private assertWritersDrained(verdicts: Array<{ stragglerIds: string[]; startupRecoveryPending?: boolean }>): void {
-    if (verdicts.some((verdict) => verdict.stragglerIds.length > 0 || verdict.startupRecoveryPending === true)) {
-      throw new Error('Background data writes did not quiesce in time. Please retry after current tasks finish.')
+  private assertWritersDrained(
+    verdicts: Array<{ stragglerIds: string[]; startupRecoveryPending?: boolean } | { settled: boolean }>
+  ): void {
+    if (
+      verdicts.some((verdict) =>
+        'settled' in verdict
+          ? !verdict.settled
+          : verdict.stragglerIds.length > 0 || verdict.startupRecoveryPending === true
+      )
+    ) {
+      throw new Error(`${BACKUP_BACKGROUND_TASKS_ERROR_CODE}: Background data writes did not quiesce in time.`)
     }
   }
 

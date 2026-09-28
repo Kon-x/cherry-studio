@@ -651,6 +651,39 @@ function buildProviderModels(
 }
 
 void (async () => {
+  const snapshotDirectory = process.env.CATALOG_SNAPSHOT
+  if (snapshotDirectory) {
+    const readSnapshot = (name: string) => JSON.parse(fs.readFileSync(path.join(snapshotDirectory, name), 'utf8'))
+    const snapshot = readSnapshot('models.json')
+    const activeProviders = new Set(PROVIDERS.map(({ id }) => id))
+    const providers = readSnapshot('providers.json').providers.filter((provider: { id: string }) =>
+      activeProviders.has(provider.id)
+    )
+    const overrides = readSnapshot('provider-models.json').overrides.filter((row: { providerId: string }) =>
+      activeProviders.has(row.providerId)
+    )
+    const models = new Map<string, any>(snapshot.models.map((model: { id: string }) => [model.id, model]))
+    const authored = buildProviderModels({}, { data: [] }, { data: [] }, new Set(models.keys()))
+    for (const row of authored.overrides) {
+      if (
+        !overrides.some(
+          (existing: { providerId: string; modelId: string; apiModelId?: string }) =>
+            existing.providerId === row.providerId &&
+            existing.modelId === row.modelId &&
+            (!row.apiModelId || existing.apiModelId === row.apiModelId)
+        )
+      )
+        overrides.push(row)
+    }
+    if (!WRITE) return
+    fs.writeFileSync(MODELS_PATH, stampAndSerialize({ models: snapshot.models }))
+    fs.writeFileSync(PROVIDERS_PATH, stampAndSerialize({ providers }))
+    fs.writeFileSync(PROVIDER_MODELS_PATH, stampAndSerialize({ overrides }))
+    fs.writeFileSync(REASONING_FAMILIES_GEN_PATH, buildReasoningFamiliesGen())
+    fs.writeFileSync(SERVER_TOOL_MODELS_GEN_PATH, buildServerToolModelsGen(models))
+    fs.writeFileSync(SERVER_TOOL_CONSTRAINTS_GEN_PATH, buildServerToolConstraintsGen(models))
+    return
+  }
   const md = await load('MODELSDEV_CACHE', 'https://models.dev/api.json', ModelsDevApiSchema)
   const [orModels, orImageModels] = await Promise.all([
     load('OPENROUTER_CACHE', 'https://openrouter.ai/api/v1/models', OpenRouterApiSchema),

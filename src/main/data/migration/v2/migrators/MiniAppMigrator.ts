@@ -5,13 +5,14 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 
+import { sql } from 'drizzle-orm'
+
 import { miniAppLogoFileRefTable } from '@data/db/schemas/fileRelations'
 import type { InsertMiniAppRow, MiniAppStatus } from '@data/db/schemas/miniApp'
 import { miniAppTable } from '@data/db/schemas/miniApp'
 import { loggerService } from '@logger'
 import type { ExecuteResult, PrepareResult, ValidateResult } from '@shared/data/migration/v2/types'
 import { miniAppLogoRef } from '@shared/data/types/file'
-import { sql } from 'drizzle-orm'
 
 import type { MigrationContext } from '../core/MigrationContext'
 import { assignOrderKeysByScope } from '../utils/orderKey'
@@ -231,9 +232,7 @@ export class MiniAppMigrator extends BaseMigrator {
 
       // Stamp orderKey in the same visible/hidden scopes used by runtime writes.
       const rowsWithoutOrder: MiniAppRowWithoutOrderKey[] = [...seenIds.values()]
-      this.preparedRows = assignOrderKeysByScope(rowsWithoutOrder, (row) =>
-        orderKeyScopeForStatus(row.status)
-      ) as InsertMiniAppRow[]
+      this.preparedRows = assignOrderKeysByScope(rowsWithoutOrder, (row) => orderKeyScopeForStatus(row.status))
 
       const byStatus = {
         enabled: this.preparedRows.filter((r) => r.status === 'enabled').length,
@@ -338,7 +337,10 @@ export class MiniAppMigrator extends BaseMigrator {
 
   async validate(ctx: MigrationContext): Promise<ValidateResult> {
     try {
-      const result = ctx.db.select({ count: sql<number>`count(*)` }).from(miniAppTable).get()
+      const result = ctx.db
+        .select({ count: sql<number>`count(*)` })
+        .from(miniAppTable)
+        .get()
       const appCount = result?.count ?? 0
       const errors: { key: string; message: string }[] = []
 

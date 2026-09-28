@@ -1,13 +1,14 @@
-import { ResourcePaneCountButton } from '@renderer/components/chat/panes/Shell'
-import { TabIdProvider } from '@renderer/components/layout/TabIdProvider'
-import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
+import { MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ResourcePaneCountButton } from '@renderer/components/chat/panes/Shell'
+import { TabIdProvider } from '@renderer/components/layout/TabIdProvider'
+import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
+
 import { TopicRightPane } from '../TopicRightPane'
 
-const developerModeEnabled = vi.fn(() => true)
 const useCommandHandlerMock = vi.hoisted(() => vi.fn())
 const topicBranchPanelModuleState = vi.hoisted(() => ({ importCount: 0 }))
 
@@ -18,11 +19,6 @@ vi.mock('@renderer/hooks/command', () => ({
 vi.mock('@renderer/hooks/tab', async (importOriginal) => ({
   ...(await importOriginal()),
   useIsActiveTab: () => true
-}))
-
-vi.mock('@renderer/data/hooks/usePreference', () => ({
-  usePreference: (key: string) =>
-    key === 'app.developer_mode.enabled' ? [developerModeEnabled(), vi.fn()] : [undefined, vi.fn()]
 }))
 
 vi.mock('@cherrystudio/ui', async (importOriginal) => {
@@ -119,7 +115,7 @@ vi.mock('react-i18next', () => ({
 describe('TopicRightPane', () => {
   beforeEach(() => {
     useCommandHandlerMock.mockClear()
-    developerModeEnabled.mockReturnValue(true)
+    MockUsePreferenceUtils.setPreferenceValue('app.developer_mode.enabled', true)
   })
 
   const triggerRightSidebarShortcut = () => {
@@ -269,7 +265,7 @@ describe('TopicRightPane', () => {
   })
 
   it('hides the trace tab when developer mode is off', async () => {
-    developerModeEnabled.mockReturnValue(false)
+    MockUsePreferenceUtils.setPreferenceValue('app.developer_mode.enabled', false)
 
     render(
       <TopicRightPane.Scope topicId="topic-a" traceId="trace-a">

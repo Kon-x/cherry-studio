@@ -12,7 +12,6 @@
 // BootConfig must load before any other import (configures userData path)
 
 import '@main/data/bootConfig'
-
 import { application } from '@application'
 import { serviceList } from '@main/core/application/serviceRegistry'
 // Preboot phase — order matters. See core/preboot/README.md.
@@ -24,6 +23,7 @@ import { resolveUserDataLocation } from '@main/core/preboot/userDataLocation'
 import { runV2MigrationGate } from '@main/core/preboot/v2MigrationGate'
 import { runDataReset } from '@main/services/dataReset'
 import { CHERRY_MEDIA_SCHEME_DECLARATION } from '@main/services/mediaProtocol'
+import { initSentry } from '@main/services/sentry'
 import { runUserDataRelocation } from '@main/services/userDataRelocation'
 import { getApplicationId } from '@main/utils/appEdition'
 
@@ -32,6 +32,7 @@ resolveUserDataLocation()
 requireSingleInstance()
 configureChromiumFlags()
 initCrashTelemetry()
+initSentry()
 // Privileged schemes must be declared before the app is ready, and only ONCE per
 // process — startApp() itself awaits app.whenReady(), so this cannot move in there.
 protocol.registerSchemesAsPrivileged([CHERRY_MEDIA_SCHEME_DECLARATION])
@@ -39,8 +40,9 @@ protocol.registerSchemesAsPrivileged([CHERRY_MEDIA_SCHEME_DECLARATION])
 application.initPathRegistry()
 
 import { electronApp } from '@electron-toolkit/utils'
-import { loggerService } from '@logger'
 import { app, protocol } from 'electron'
+
+import { loggerService } from '@logger'
 
 import { registerIpc } from './ipc'
 import { versionService } from './services/VersionService'

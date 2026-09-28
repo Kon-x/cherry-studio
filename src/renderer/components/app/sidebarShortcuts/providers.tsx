@@ -1,0 +1,294 @@
+import { Database, FileText, MessagesSquare } from 'lucide-react'
+
+import { renderAssistantEntityIcon } from '@renderer/components/chat/resourceList/base'
+import { dataApiService } from '@renderer/data/DataApiService'
+import { preferenceService } from '@renderer/data/PreferenceService'
+import { getSidebarIconLabelKey } from '@renderer/i18n/label'
+import i18n from '@renderer/i18n/resolver'
+import { resolveChatEntryTopicIdForAssistant } from '@renderer/utils/conversationEntry'
+import {
+  getSidebarApp,
+  getSidebarMenuPath,
+  isSidebarAppId,
+  SIDEBAR_SHORTCUT_PROVIDER_IDS,
+  tabBelongsToApp
+} from '@renderer/utils/sidebar'
+import { createSidebarShortcutId, type SidebarShortcutTarget } from '@shared/data/preference/preferenceTypes'
+import { FileEntryIdSchema } from '@shared/data/types/file'
+
+import { SIDEBAR_ICON_COMPONENTS } from '../sidebarIcons'
+import type { ResolvedShortcut, SidebarShortcutProvider } from './types'
+
+const REVEAL_ACTIVATIONS = new Set<string | undefined>([undefined, 'reveal'])
+
+function validates(providerId: string, target: SidebarShortcutTarget): boolean {
+  return (
+    target.kind === 'resource' &&
+    target.locator.providerId === providerId &&
+    target.locator.resourceId.length > 0 &&
+    REVEAL_ACTIVATIONS.has(target.activationId)
+  )
+}
+
+function mapRequested<T>(
+  targets: readonly SidebarShortcutTarget[],
+  entities: readonly T[],
+  idOf: (entity: T) => string,
+  resolve: (entity: T) => ResolvedShortcut
+): Map<string, ResolvedShortcut> {
+  const targetsByResourceId = new Map<string, SidebarShortcutTarget[]>()
+  for (const target of targets) {
+    const matches = targetsByResourceId.get(target.locator.resourceId) ?? []
+    matches.push(target)
+    targetsByResourceId.set(target.locator.resourceId, matches)
+  }
+  const result = new Map<string, ResolvedShortcut>()
+  for (const entity of entities) {
+    const matches = targetsByResourceId.get(idOf(entity))
+    if (!matches) continue
+    const resource = resolve(entity)
+    for (const target of matches) result.set(createSidebarShortcutId(target), resource)
+  }
+  return result
+}
+
+async function resolvePaginatedTargets<T>(
+  targets: readonly SidebarShortcutTarget[],
+  maxBatchSize: number,
+  fetchBatch: (ids: string[]) => Promise<{ items: T[] }>,
+  idOf: (entity: T) => string,
+  resolve: (entity: T) => ResolvedShortcut
+): Promise<Map<string, ResolvedShortcut>> {
+  const ids = [...new Set(targets.map((target) => target.locator.resourceId))]
+  const batches: string[][] = []
+  for (let index = 0; index < ids.length; index += maxBatchSize) {
+    batches.push(ids.slice(index, index + maxBatchSize))
+  }
+  const pages = await Promise.all(batches.map(fetchBatch))
+  return mapRequested(
+    targets,
+    pages.flatMap((page) => page.items),
+    idOf,
+    resolve
+  )
+}
+
+function isActiveResourceUrl(url: string, pathname: string, param: string, resourceId: string): boolean {
+  const parsed = new URL(url, 'app://cherry')
+  return parsed.pathname === pathname && parsed.searchParams.get(param) === resourceId
+}
+
+function collectionSubscription(
+  endpoint: Parameters<typeof dataApiService.onDataChanged>[0]
+): NonNullable<SidebarShortcutProvider['subscribe']> {
+  return (_targets, invalidate) => dataApiService.onDataChanged(endpoint, invalidate)
+}
+
+function languageSubscription(invalidate: () => void): () => void {
+  i18n.on('languageChanged', invalidate)
+  return () => i18n.off('languageChanged', invalidate)
+}
+
+function localizedCollectionSubscription(
+  endpoint: Parameters<typeof dataApiService.onDataChanged>[0]
+): NonNullable<SidebarShortcutProvider['subscribe']> {
+  return (_targets, invalidate) => {
+    const unsubscribeData = dataApiService.onDataChanged(endpoint, invalidate)
+    const unsubscribeLanguage = languageSubscription(invalidate)
+    return () => {
+      unsubscribeData()
+      unsubscribeLanguage()
+    }
+  }
+}
+
+const appProvider: SidebarShortcutProvider = {
+  id: SIDEBAR_SHORTCUT_PROVIDER_IDS.APP,
+  validate: (target) =>
+    validates(SIDEBAR_SHORTCUT_PROVIDER_IDS.APP, target) && isSidebarAppId(target.locator.resourceId),
+  async resolveMany(targets) {
+    const result = new Map<string, ResolvedShortcut>()
+    for (const target of targets) {
+      const id = target.locator.resourceId
+      if (!isSidebarAppId(id) || !getSidebarApp(id)) continue
+      const Icon = SIDEBAR_ICON_COMPONENTS[id]
+      result.set(createSidebarShortcutId(target), {
+        label: i18n.t(getSidebarIconLabelKey(id)),
+        renderIcon: ({ glyphSize }) => <Icon size={glyphSize} strokeWidth={1.6} />,
+        supportsNewTab: true
+      })
+    }
+    return result
+  },
+  async activate(target, gateway) {
+    if (!this.validate(target)) return
+    const id = target.locator.resourceId
+    const defaultPaintingProvider =
+      id === 'paintings' ? await preferenceService.get('feature.paintings.default_provider') : ''
+    if (!isSidebarAppId(id)) return
+    const url = getSidebarMenuPath(id, defaultPaintingProvider)
+    const app = getSidebarApp(id)
+    if (!url || !app) return
+    gateway.openWorkspace({
+      url,
+      title: i18n.t(getSidebarIconLabelKey(id)),
+      matchesCurrent: (currentUrl) => this.isActive!(target, { url: currentUrl }),
+      // App entries have no resource identity: always replace the active tab, never focus a sibling.
+      matchesTab: () => false
+    })
+  },
+  subscribe: (_targets, invalidate) => languageSubscription(invalidate),
+  isActive(target, navigation) {
+    const app = isSidebarAppId(target.locator.resourceId) ? getSidebarApp(target.locator.resourceId) : undefined
+    return !!app && (app.exactRouteFocus ? navigation.url === app.routePrefix : tabBelongsToApp(app, navigation.url))
+  }
+}
+
+const assistantProvider: SidebarShortcutProvider = {
+  id: SIDEBAR_SHORTCUT_PROVIDER_IDS.ASSISTANT,
+  validate: (target) => validates(SIDEBAR_SHORTCUT_PROVIDER_IDS.ASSISTANT, target),
+  async resolveMany(targets) {
+    const [iconType, defaultModelId] = await Promise.all([
+      preferenceService.get('assistant.icon_type'),
+      preferenceService.get('chat.default_model_id')
+    ])
+    return resolvePaginatedTargets(
+      targets,
+      500,
+      (ids) => dataApiService.get('/assistants', { query: { ids, limit: ids.length } }),
+      (assistant) => assistant.id,
+      (assistant) => ({
+        label: assistant.name,
+        renderIcon: ({ slotSize, glyphSize }) =>
+          renderAssistantEntityIcon(
+            iconType === 'none' ? 'emoji' : iconType,
+            assistant,
+            defaultModelId,
+            slotSize,
+            glyphSize
+          ),
+        supportsNewTab: true
+      })
+    )
+  },
+  subscribe: resourceIconSubscription('/assistants', 'assistant.icon_type'),
+  async activate(target, gateway) {
+    if (!this.validate(target)) return
+    const topicId = await resolveChatEntryTopicIdForAssistant(target.locator.resourceId)
+    gateway.openWorkspace({
+      url: topicId
+        ? getSidebarApp('assistants')!.conversationRoute!.urlForKey(topicId)
+        : `/app/chat?assistantId=${encodeURIComponent(target.locator.resourceId)}`,
+      conversation: topicId ? { conversationType: 'assistant', conversationId: topicId } : undefined,
+      title: target.locator.resourceId
+    })
+  },
+  isActive: (target, navigation) =>
+    navigation.assistantId === target.locator.resourceId ||
+    isActiveResourceUrl(navigation.url, '/app/chat', 'assistantId', target.locator.resourceId)
+}
+
+const knowledgeBaseProvider: SidebarShortcutProvider = {
+  id: SIDEBAR_SHORTCUT_PROVIDER_IDS.KNOWLEDGE_BASE,
+  validate: (target) => validates(SIDEBAR_SHORTCUT_PROVIDER_IDS.KNOWLEDGE_BASE, target),
+  resolveMany: (targets) =>
+    resolvePaginatedTargets(
+      targets,
+      100,
+      (ids) => dataApiService.get('/knowledge-bases', { query: { ids, limit: ids.length } }),
+      (base) => base.id,
+      (base) => ({
+        label: base.name,
+        renderIcon: ({ glyphSize }) => <Database size={glyphSize} strokeWidth={1.6} />,
+        supportsNewTab: true
+      })
+    ),
+  subscribe: collectionSubscription('/knowledge-bases'),
+  activate(target, gateway) {
+    if (!this.validate(target)) return
+    gateway.openWorkspace({
+      url: `/app/knowledge?baseId=${encodeURIComponent(target.locator.resourceId)}`,
+      title: target.locator.resourceId
+    })
+  },
+  isActive: (target, navigation) =>
+    isActiveResourceUrl(navigation.url, '/app/knowledge', 'baseId', target.locator.resourceId)
+}
+
+const topicProvider: SidebarShortcutProvider = {
+  id: SIDEBAR_SHORTCUT_PROVIDER_IDS.TOPIC,
+  validate: (target) => validates(SIDEBAR_SHORTCUT_PROVIDER_IDS.TOPIC, target),
+  resolveMany: (targets) =>
+    resolvePaginatedTargets(
+      targets,
+      200,
+      (ids) => dataApiService.get('/topics', { query: { ids, limit: ids.length } }),
+      (topic) => topic.id,
+      (topic) => ({
+        label: topic.name.trim() || i18n.t('chat.conversation.new'),
+        renderIcon: ({ glyphSize }) => <MessagesSquare size={glyphSize} strokeWidth={1.6} />,
+        supportsNewTab: true
+      })
+    ),
+  subscribe: localizedCollectionSubscription('/topics'),
+  activate(target, gateway) {
+    if (!this.validate(target)) return
+    gateway.openWorkspace({
+      url: `/app/chat?topicId=${encodeURIComponent(target.locator.resourceId)}`,
+      conversation: { conversationType: 'assistant', conversationId: target.locator.resourceId },
+      title: target.locator.resourceId
+    })
+  },
+  isActive: (target, navigation) =>
+    isActiveResourceUrl(navigation.url, '/app/chat', 'topicId', target.locator.resourceId)
+}
+
+const fileEntryProvider: SidebarShortcutProvider = {
+  id: SIDEBAR_SHORTCUT_PROVIDER_IDS.FILE_ENTRY,
+  validate: (target) =>
+    validates(SIDEBAR_SHORTCUT_PROVIDER_IDS.FILE_ENTRY, target) &&
+    FileEntryIdSchema.safeParse(target.locator.resourceId).success,
+  resolveMany: (targets) =>
+    resolvePaginatedTargets(
+      targets,
+      100,
+      (ids) => dataApiService.get('/files/entries', { query: { ids, limit: ids.length } }),
+      (entry) => entry.id,
+      (entry) => ({
+        label: entry.ext ? `${entry.name}.${entry.ext}` : entry.name,
+        renderIcon: ({ glyphSize }) => <FileText size={glyphSize} strokeWidth={1.6} />,
+        supportsNewTab: true
+      })
+    ),
+  subscribe: collectionSubscription('/files/entries'),
+  activate(target, gateway) {
+    if (!this.validate(target)) return
+    gateway.openWorkspace({
+      url: `/app/files?entryId=${encodeURIComponent(target.locator.resourceId)}`,
+      title: target.locator.resourceId
+    })
+  },
+  isActive: (target, navigation) =>
+    isActiveResourceUrl(navigation.url, '/app/files', 'entryId', target.locator.resourceId)
+}
+
+export const CORE_SIDEBAR_SHORTCUT_PROVIDERS: readonly SidebarShortcutProvider[] = [
+  appProvider,
+  assistantProvider,
+  knowledgeBaseProvider,
+  topicProvider,
+  fileEntryProvider
+]
+function resourceIconSubscription(
+  endpoint: '/assistants',
+  iconPreference: 'assistant.icon_type'
+): NonNullable<SidebarShortcutProvider['subscribe']> {
+  return (_targets, invalidate) => {
+    const cleanups = [
+      dataApiService.onDataChanged(endpoint, invalidate),
+      preferenceService.subscribeChange(iconPreference)(invalidate),
+      preferenceService.subscribeChange('chat.default_model_id')(invalidate)
+    ]
+    return () => cleanups.forEach((cleanup) => cleanup())
+  }
+}

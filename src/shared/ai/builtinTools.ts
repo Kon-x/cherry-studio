@@ -1,6 +1,7 @@
+import * as z from 'zod'
+
 import { KnowledgeItemStatusSchema } from '@shared/data/types/knowledge'
 import { isHttpUrl } from '@shared/utils/url'
-import * as z from 'zod'
 
 /**
  * Wire contracts for builtin agent tools.
@@ -454,11 +455,7 @@ export type WebFetchOutput = z.infer<typeof webFetchOutputSchema>
 // ── generate_image ───────────────────────────────────────────────
 
 export type { GenerateImageOutput, GenerateImageOutputItem } from './generateImageTool'
-export {
-  GENERATE_IMAGE_TOOL_NAME,
-  generateImageOutputItemSchema,
-  generateImageOutputSchema
-} from './generateImageTool'
+export { GENERATE_IMAGE_TOOL_NAME, generateImageOutputItemSchema, generateImageOutputSchema } from './generateImageTool'
 
 // ── agent autonomy tools (cron / notify / config) ────────────────
 // Hosted by the same in-process `cherry-tools` MCP server as the tools above. Their input schemas

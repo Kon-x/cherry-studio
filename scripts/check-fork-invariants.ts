@@ -48,6 +48,13 @@ for (const relativePath of [
   'src/main/services/OpenClawService.ts',
   'src/main/services/HermesService.ts',
   'packages/dsh-bridge',
+  'packages/remote-protocol',
+  'packages/remote-transport',
+  'src/main/features/browser',
+  'src/main/services/remoteAccess',
+  'src/renderer/routes/app/browser.tsx',
+  'src/renderer/routes/settings/browser.tsx',
+  'src/renderer/routes/settings/device-connections.tsx',
   'packages/provider-registry/src/providers/claude-code.ts',
   'resources/builtin-agents',
   'resources/builtin-mini-apps',
@@ -86,7 +93,9 @@ const removedServices = [
   'ChannelManager',
   'MiniAppService',
   'CodeCliService',
-  'DeepSeekHarnessService'
+  'DeepSeekHarnessService',
+  'BrowserSessionService',
+  'RemoteAccessService'
 ]
 const sourceFiles = listFiles('src').filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/'))
 for (const file of sourceFiles) {
@@ -116,7 +125,9 @@ for (const dependency of [
   '@anthropic-ai/claude-agent-sdk',
   '@earendil-works/pi-',
   '@deepseek-ai/dsh-',
-  '@cherrystudio/dsh-bridge'
+  '@cherrystudio/dsh-bridge',
+  '@cherrystudio/remote-protocol',
+  '@cherrystudio/remote-transport'
 ]) {
   if (dependencySources.includes(dependency)) failures.push(`${dependency} must stay removed`)
 }

@@ -1,5 +1,6 @@
-import { ipcApi } from '@renderer/ipc'
 import { useCallback } from 'react'
+
+import { ipcApi } from '@renderer/ipc'
 
 export function useOpenReleaseNotes() {
   return useCallback(

@@ -1,8 +1,9 @@
+import { useCallback, useMemo } from 'react'
+
 import { useGroups } from '@renderer/hooks/useGroups'
 import type { ResourceItem, ResourceType, SortKey } from '@renderer/types/resourceCatalog'
 import type { Assistant } from '@shared/data/types/assistant'
 import type { Prompt } from '@shared/data/types/prompt'
-import { useCallback, useMemo } from 'react'
 
 import { assistantAdapter } from './assistantAdapter'
 import { promptAdapter } from './promptAdapter'

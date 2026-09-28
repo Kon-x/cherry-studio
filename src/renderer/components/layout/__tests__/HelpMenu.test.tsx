@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-
-import type * as CherryStudioUi from '@cherrystudio/ui'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryStudioUi from '@cherrystudio/ui'
+
 const mocks = vi.hoisted(() => ({
-  ipcRequest: vi.fn(),
   language: 'en-US',
+  ipcRequest: vi.fn(),
   openFeedback: vi.fn(),
   openReleaseNotes: vi.fn(),
-  openSmartMiniApp: vi.fn()
+  openSmartMiniApp: vi.fn(),
+  showDoctor: vi.fn()
 }))
 
 vi.mock('@cherrystudio/ui', async (importOriginal) => importOriginal<typeof CherryStudioUi>())
@@ -24,6 +25,10 @@ vi.mock('@renderer/hooks/useOpenReleaseNotes', () => ({
   useOpenReleaseNotes: () => mocks.openReleaseNotes
 }))
 
+vi.mock('@renderer/components/doctor', () => ({
+  DoctorPopup: { show: (...args: unknown[]) => mocks.showDoctor(...args) }
+}))
+
 vi.mock('@renderer/ipc', () => ({
   ipcApi: { request: mocks.ipcRequest }
 }))
@@ -31,7 +36,11 @@ vi.mock('@renderer/ipc', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: mocks.language, resolvedLanguage: mocks.language },
-    t: (key: string) => key
+    t: (key: string) => {
+      if (key === 'help.star') return 'Star us on GitHub'
+      if (key === 'settings.doctor.entry.title') return 'System diagnostics'
+      return key
+    }
   })
 }))
 
@@ -42,7 +51,7 @@ beforeAll(() => {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as any
+  }
 })
 
 afterEach(() => {
@@ -81,7 +90,7 @@ describe('HelpMenu', () => {
     render(<HelpMenu layout="icon" onFeedbackClick={mocks.openFeedback} />)
     const user = await openMenu()
 
-    const actions = ['help.whats_new', 'help.guide', 'help.feedback', 'help.star'].map((name) =>
+    const actions = ['help.whats_new', 'help.guide', 'help.feedback', 'System diagnostics'].map((name) =>
       screen.getByRole('button', { name })
     )
     expect(actions).toHaveLength(4)
@@ -126,19 +135,14 @@ describe('HelpMenu', () => {
     await waitFor(() => expect(mocks.openFeedback).toHaveBeenCalledOnce())
   })
 
-  it('opens the repository in the system browser for the GitHub Star action', async () => {
+  it('opens system diagnostics checks in place of the GitHub Star action', async () => {
     render(<HelpMenu layout="icon" onFeedbackClick={mocks.openFeedback} />)
     const user = await openMenu()
 
-    await user.click(screen.getByRole('button', { name: 'help.star' }))
+    expect(screen.queryByRole('button', { name: 'Star us on GitHub' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'System diagnostics' }))
 
-    await waitFor(() =>
-      expect(mocks.ipcRequest).toHaveBeenCalledWith(
-        'system.shell.open_website',
-        'https://github.com/CherryHQ/cherry-studio'
-      )
-    )
-    expect(mocks.openSmartMiniApp).not.toHaveBeenCalled()
+    await waitFor(() => expect(mocks.showDoctor).toHaveBeenCalledWith({ initialPanel: 'checks' }))
   })
 
   it('supports keyboard activation from the focused first action', async () => {

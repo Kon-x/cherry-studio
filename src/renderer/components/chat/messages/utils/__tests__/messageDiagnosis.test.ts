@@ -1,7 +1,8 @@
+import { describe, expect, it } from 'vitest'
+
 import { UpdateMessageSchema } from '@shared/data/api/schemas/messages'
 import type { CherryMessagePart } from '@shared/data/types/message'
 import { type DiagnosisResult, readCherryMeta } from '@shared/data/types/uiParts'
-import { describe, expect, it } from 'vitest'
 
 import { withMessagePartDiagnosis } from '../messageDiagnosis'
 

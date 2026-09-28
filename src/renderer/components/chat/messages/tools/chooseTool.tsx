@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
+
 import type { NormalToolResponse } from '@renderer/types/mcpTool'
 import { KB_SEARCH_TOOL_NAME, PROVIDER_WEB_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
-import type { ReactNode } from 'react'
 
 import { MessageKnowledgeSearchToolTitle } from './knowledge/MessageKnowledgeSearch'
 import MessageMetaTool, { isMetaToolName } from './meta/MessageMetaTool'

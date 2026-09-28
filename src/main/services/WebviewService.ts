@@ -1,8 +1,9 @@
+import type { WebContents } from 'electron'
+import { session } from 'electron'
+
 import { installProviderUserAgentInterceptor } from '@main/ai/utils/customFetch'
 import { BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 import { getAppLanguage } from '@main/i18n'
-import type { WebContents } from 'electron'
-import { session } from 'electron'
 
 const WEBVIEW_PARTITION = 'persist:webview'
 

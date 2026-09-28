@@ -1,3 +1,6 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { dataApiService } from '@data/DataApiService'
 import { resolveTemplate } from '@renderer/data/utils/dataApiPath'
 import { useGroupMutations, useGroups } from '@renderer/hooks/useGroups'
@@ -13,8 +16,6 @@ import { serializeAssistantForExport } from '@renderer/utils/assistantTransfer'
 import { buildCreateAssistantDto } from '@renderer/utils/resourceCatalog'
 import type { ConcreteApiPaths } from '@shared/data/api/paths'
 import type { Group } from '@shared/data/types/group'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { useAssistantMutations } from './assistantAdapter'
 import { useResourceLibrary } from './useResourceLibrary'

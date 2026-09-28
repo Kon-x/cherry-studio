@@ -1,7 +1,8 @@
+import { isToolUIPart } from 'ai'
+
 import { getDisplayComposerTokens } from '@renderer/utils/message/composerTokens'
 import type { CherryMessagePart } from '@shared/data/types/message'
 import { readCherryMeta } from '@shared/data/types/uiParts'
-import { isToolUIPart } from 'ai'
 
 import { isGeneratedImageResultPart } from '../tools/painting/generateImageTool'
 

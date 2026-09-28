@@ -79,6 +79,11 @@ Never create the unmodified upstream tag in the fork. Resolve conflicts using th
 baseline, then restore the fork behavior listed above. Regenerate `pnpm-lock.yaml` with the pinned Node and pnpm
 versions; do not hand-edit it. Preserve upstream dependency and patch changes except the removed channel, Claude Agent SDK, Pi, and DSH stacks and their patches.
 
+Regenerate the provider catalog from the release snapshot, not live models.dev/OpenRouter data: export the tag's
+`packages/provider-registry/data/{models,providers,provider-models}.json` into a temporary directory, then run
+`CATALOG_SNAPSHOT=<directory> pnpm --filter @cherrystudio/provider-registry generate`. This retains released
+metadata and applies the fork's provider removals plus authored overrides.
+
 Commit the merge without flattening its two parents:
 
 ```bash

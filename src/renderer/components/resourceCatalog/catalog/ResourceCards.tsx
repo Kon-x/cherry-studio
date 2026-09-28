@@ -1,10 +1,11 @@
+import { Trash2 } from 'lucide-react'
+import type { KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Badge, Button } from '@cherrystudio/ui'
 import type { ResourceItem } from '@renderer/types/resourceCatalog'
 import { cn } from '@renderer/utils/style'
 import type { Group } from '@shared/data/types/group'
-import { Trash2 } from 'lucide-react'
-import type { KeyboardEvent } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { ResourceCardMenu } from './ResourceCardMenu'
 

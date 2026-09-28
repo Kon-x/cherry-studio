@@ -1,7 +1,8 @@
-import type { Assistant } from '@shared/data/types/assistant'
-import type { Topic as ApiTopic } from '@shared/data/types/topic'
 import type { TFunction } from 'i18next'
 import { Bot } from 'lucide-react'
+
+import type { Assistant } from '@shared/data/types/assistant'
+import type { Topic as ApiTopic } from '@shared/data/types/topic'
 
 import type { HistorySourceOption } from './historyRecordsTypes'
 
