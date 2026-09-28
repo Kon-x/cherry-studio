@@ -1,19 +1,23 @@
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
-import react from '@vitejs/plugin-react-swc'
-import { CodeInspectorPlugin } from 'code-inspector-plugin'
-import { defineConfig } from 'electron-vite'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+
+import { sentryVitePlugin } from '@sentry/vite-plugin'
+import tailwindcss from '@tailwindcss/vite'
+import { tanstackRouter } from '@tanstack/router-plugin/vite'
+import react from '@vitejs/plugin-react'
+import { CodeInspectorPlugin } from 'code-inspector-plugin'
+import { defineConfig } from 'electron-vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { parse } from 'yaml'
 
-// assert not supported by biome
+// Import attributes are not supported by the current Electron config loader.
 // import pkg from './package.json' assert { type: 'json' }
 import pkg from './package.json'
 import { chunkExportGuardPlugin } from './scripts/checkChunkExports'
 import { uiContractPlugin } from './scripts/uiContract/vitePlugin'
 import { APP_EDITIONS, type AppEdition } from './src/shared/types/appEdition'
 import { parseReleaseHistory, validateCurrentReleaseHistory } from './src/shared/utils/releaseNotes'
+import { getSentryBuildContext } from './src/shared/utils/sentry'
 
 type ElectronBuilderConfig = {
   releaseInfo?: {
@@ -41,6 +45,19 @@ const visualizerPlugin = (type: 'renderer' | 'main') => {
 const isDev = process.env.NODE_ENV === 'development'
 const isProd = process.env.NODE_ENV === 'production'
 
+const SENTRY_UPLOAD_ENV_KEYS = ['SENTRY_AUTH_TOKEN', 'SENTRY_ORG', 'SENTRY_PROJECT'] as const
+
+export function resolveSentryBuildSettings(env: NodeJS.ProcessEnv) {
+  const sourceMapUploadEnabled = env.NODE_ENV === 'production' && env.SENTRY_SOURCE_MAP_UPLOAD === 'true'
+  const missingUploadEnv = sourceMapUploadEnabled ? SENTRY_UPLOAD_ENV_KEYS.filter((key) => !env[key]?.trim()) : []
+
+  if (missingUploadEnv.length > 0) {
+    throw new Error(`Sentry production builds require: ${missingUploadEnv.join(', ')}`)
+  }
+
+  return { sourceMapUploadEnabled }
+}
+
 export function resolveRendererEdition(value: string | undefined): AppEdition {
   const edition = value?.trim().toLowerCase() || 'global'
   if (APP_EDITIONS.includes(edition as AppEdition)) return edition as AppEdition
@@ -48,20 +65,36 @@ export function resolveRendererEdition(value: string | undefined): AppEdition {
 }
 
 const rendererEdition = resolveRendererEdition(process.env.CHERRY_EDITION)
+const sentryBuildContext = getSentryBuildContext(pkg.name, pkg.version, rendererEdition)
+const { sourceMapUploadEnabled } = resolveSentryBuildSettings(process.env)
+const sentrySourceMap = sourceMapUploadEnabled ? ('hidden' as const) : isDev
+const sentrySourceMapPlugins = (outputDirectory: 'main' | 'preload' | 'renderer') =>
+  sourceMapUploadEnabled
+    ? sentryVitePlugin({
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        telemetry: false,
+        release: {
+          name: sentryBuildContext.release,
+          create: false,
+          finalize: false,
+          setCommits: false
+        },
+        sourcemaps: {
+          filesToDeleteAfterUpload: `./out/${outputDirectory}/**/*.map`
+        }
+      })
+    : []
 
-// Bundle/externalize split for the main process: everything in `dependencies` is
-// marked `external` below (kept in node_modules of the packaged app), and everything
-// NOT in `dependencies` (i.e. in `devDependencies`) is bundled into the main bundle by
-// rollup. Pure-JS server stacks belong in `devDependencies` for exactly this reason —
-// they bundle cleanly, while a `dependencies` entry would be externalized and then
-// pruned from production packages, failing at runtime with MODULE_NOT_FOUND.
+// Production dependencies stay external; development dependencies bundle into the main process.
 const mainExternalDependencies = [
   ...Object.keys(pkg.dependencies),
   // optionalDependencies too: platform-gated natives (e.g. node-mac-permissions) are real import
   // targets, not napi sub-packages, so rollup would fail on the .node; production keeps them installed.
   ...Object.keys(pkg.optionalDependencies ?? {})
 ]
-const mainExternalModules = ['bufferutil', 'utf-8-validate', 'electron', ...mainExternalDependencies]
+export const mainExternalModules = ['bufferutil', 'utf-8-validate', 'electron', ...mainExternalDependencies]
 
 export const isMainExternalModule = (id: string) => {
   return mainExternalModules.some((moduleId) => id === moduleId || id.startsWith(`${moduleId}/`))
@@ -86,12 +119,15 @@ export const mainResolveAlias = {
 
 export default defineConfig({
   main: {
-    plugins: [chunkExportGuardPlugin(), ...visualizerPlugin('main')],
+    define: { __APP_EDITION__: JSON.stringify(rendererEdition) },
+    plugins: [chunkExportGuardPlugin(), ...visualizerPlugin('main'), ...sentrySourceMapPlugins('main')],
     resolve: { alias: mainResolveAlias },
     build: {
+      externalizeDeps: {
+        include: mainExternalModules
+      },
       lib: { entry: resolve(__dirname, 'src/main/main.ts') },
-      rollupOptions: {
-        external: isMainExternalModule,
+      rolldownOptions: {
         output: {
           manualChunks: (id) => {
             // conf removes its containing file from require.cache; isolate it so the app entry stays cached.
@@ -100,34 +136,30 @@ export default defineConfig({
             // facade chunk, leaving createOpenAI undefined at runtime. Keep it alone.
             if (id.includes('/node_modules/@ai-sdk/openai/')) return 'ai-sdk-openai'
             return undefined
-          }
+          },
+          comments: isProd ? { legal: false } : undefined
         },
         onwarn(warning, warn) {
           if (warning.code === 'COMMONJS_VARIABLE_IN_ESM') return
           warn(warning)
         }
       },
-      sourcemap: isDev
+      sourcemap: sentrySourceMap
     },
-    esbuild: isProd ? { legalComments: 'none' } : {},
     optimizeDeps: {
       noDiscovery: isDev
     }
   },
   preload: {
-    plugins: [
-      react({
-        tsDecorators: true
-      })
-    ],
+    plugins: [...sentrySourceMapPlugins('preload')],
     resolve: {
       alias: {
         '@shared': resolve('src/shared')
       }
     },
     build: {
-      sourcemap: isDev,
-      rollupOptions: {
+      sourcemap: sentrySourceMap,
+      rolldownOptions: {
         // Unlike renderer which auto-discovers entries from HTML files,
         // preload requires explicit entry point configuration for multiple scripts
         input: {
@@ -157,12 +189,11 @@ export default defineConfig({
         routesDirectory: resolve('src/renderer/routes'),
         generatedRouteTree: resolve('src/renderer/routeTree.gen.ts')
       }),
-      (async () => (await import('@tailwindcss/vite')).default())(),
-      react({
-        tsDecorators: true
-      }),
+      tailwindcss(),
+      react(),
       ...(isDev ? [CodeInspectorPlugin({ bundler: 'vite' })] : []), // 只在开发环境下启用 CodeInspectorPlugin
-      ...visualizerPlugin('renderer')
+      ...visualizerPlugin('renderer'),
+      ...sentrySourceMapPlugins('renderer')
     ],
     resolve: {
       alias: {
@@ -185,16 +216,19 @@ export default defineConfig({
     },
     optimizeDeps: {
       exclude: ['pyodide'],
-      esbuildOptions: {
-        target: 'esnext' // for dev
+      rolldownOptions: {
+        transform: {
+          target: 'esnext' // for dev
+        }
       }
     },
     worker: {
       format: 'es'
     },
     build: {
+      sourcemap: sentrySourceMap,
       target: 'esnext', // for build
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/windows/main/index.html'),
           quickAssistant: resolve(__dirname, 'src/renderer/windows/quickAssistant/index.html'),
@@ -210,6 +244,7 @@ export default defineConfig({
           warn(warning)
         },
         output: {
+          comments: isProd ? { legal: false } : undefined,
           advancedChunks: {
             // Without this, groups recursively capture dependencies — React
             // itself ends up inside an icon bucket and every window preloads it.
@@ -233,7 +268,6 @@ export default defineConfig({
           }
         }
       }
-    },
-    esbuild: isProd ? { legalComments: 'none' } : {}
+    }
   }
 })

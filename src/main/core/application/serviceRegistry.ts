@@ -30,11 +30,14 @@ import { CherryCloudService } from '@main/services/cherryCloud/CherryCloudServic
 import { CitationPreviewService } from '@main/services/CitationPreviewService'
 import { CommandService } from '@main/services/CommandService'
 import { ConversationNavigationService } from '@main/services/ConversationNavigationService'
+import { DoctorService } from '@main/services/diagnostics'
 import { DirectoryTreeManager, FileManager } from '@main/services/file'
 import { LanTransferService } from '@main/services/lanTransfer'
+import { LogRetentionService } from '@main/services/LogRetentionService'
 import { MainNetworkDevtoolsService } from '@main/services/mainNetworkDevtools'
 import { MainWindowService } from '@main/services/MainWindowService'
 import { MediaProtocolService } from '@main/services/mediaProtocol'
+import { NetworkService } from '@main/services/network'
 import { NotificationService } from '@main/services/NotificationService'
 import { OAuthRuntimeService } from '@main/services/oauth/runtime/OAuthRuntimeService'
 import { OvmsManager } from '@main/services/OvmsManager'
@@ -46,10 +49,12 @@ import { PythonService } from '@main/services/PythonService'
 import { QuickAssistantService } from '@main/services/QuickAssistantService'
 import { ScreenshotOverlayService } from '@main/services/screenshot'
 import { SelectionService } from '@main/services/selection/SelectionService'
+import { SentryLogService } from '@main/services/SentryLogService'
 import { ShortcutService } from '@main/services/ShortcutService'
 import { StorageMonitorService } from '@main/services/StorageMonitorService'
 import { SubWindowService } from '@main/services/SubWindowService'
 import { ThemeService } from '@main/services/ThemeService'
+import { TrashService } from '@main/services/trash'
 import { TrayService } from '@main/services/TrayService'
 import { WebSearchService } from '@main/services/webSearch'
 import { WebviewService } from '@main/services/WebviewService'
@@ -87,6 +92,7 @@ export const services = {
   IpcApiService,
   SubWindowService,
   PreferenceService,
+  SentryLogService,
   TesseractRuntimeService,
   AnalyticsService,
   AppMenuService,
@@ -110,7 +116,10 @@ export const services = {
   MediaProtocolService,
   ScreenshotOverlayService,
   ProxyService,
+  NetworkService,
   StorageMonitorService,
+  DoctorService,
+  LogRetentionService,
   PythonService,
   TrayService,
   WebSearchService,
@@ -135,7 +144,8 @@ export const services = {
   AutoBackupService,
   ProviderRegistryUpdaterService,
   SchedulerService,
-  JobManager
+  JobManager,
+  TrashService
 } as const
 
 /** Auto-derived service name to instance type mapping */

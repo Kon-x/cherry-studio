@@ -3,11 +3,12 @@ import { type BigIntStats, constants, createReadStream } from 'node:fs'
 import { copyFile, cp, link, lstat, mkdir, readdir, readlink, realpath, rename, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 
+import PQueue from 'p-queue'
+import { validate as isUuid } from 'uuid'
+
 import { loggerService } from '@logger'
 import { isMac, isWin } from '@main/core/platform'
 import { isPathInside, isSameOrInside } from '@main/utils/file'
-import PQueue from 'p-queue'
-import { validate as isUuid } from 'uuid'
 
 import {
   agentDataDirectoryPath,

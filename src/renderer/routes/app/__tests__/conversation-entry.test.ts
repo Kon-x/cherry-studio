@@ -1,5 +1,6 @@
-import type { ChatRouteSearch } from '@renderer/pages/home/routeSearch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { ChatRouteSearch } from '@renderer/pages/home/routeSearch'
 
 const mocks = vi.hoisted(() => ({
   resolveAgentEntrySessionId: vi.fn(),

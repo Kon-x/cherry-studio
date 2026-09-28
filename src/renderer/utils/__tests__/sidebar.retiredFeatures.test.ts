@@ -1,12 +1,6 @@
-import type { SidebarFavoriteItem } from '@shared/data/preference/preferenceTypes'
 import { describe, expect, it } from 'vitest'
 
-import {
-  getOrderedLaunchpadApps,
-  getSidebarFavoriteItems,
-  reorderSidebarFavorites,
-  setSidebarAppPinned
-} from '../sidebar'
+import { getOrderedLaunchpadApps, normalizeSidebarShortcutItems } from '../sidebar'
 
 describe('retired feature navigation', () => {
   const favorites = [
@@ -18,28 +12,13 @@ describe('retired feature navigation', () => {
     { type: 'app', id: 'code_tools' },
     { type: 'app', id: 'mini_app' },
     { type: 'app', id: 'assistants' }
-  ] as SidebarFavoriteItem[]
+  ]
 
-  it('keeps the order of surviving app and custom assistant favorites', () => {
-    expect(getSidebarFavoriteItems(favorites)).toEqual([
-      { type: 'assistant', id: 'custom-assistant' },
-      { type: 'app', id: 'notes' },
-      { type: 'app', id: 'assistants' }
-    ])
-  })
-
-  it('discards retired favorite types when saving a new order or pin', () => {
-    const reordered = reorderSidebarFavorites(favorites, [{ type: 'app', id: 'notes' }])
-    expect(reordered).toEqual([
-      { type: 'app', id: 'notes' },
-      { type: 'assistant', id: 'custom-assistant' },
-      { type: 'app', id: 'assistants' }
-    ])
-    expect(setSidebarAppPinned(favorites, 'files', true)).toEqual([
-      { type: 'assistant', id: 'custom-assistant' },
-      { type: 'app', id: 'notes' },
-      { type: 'app', id: 'assistants' },
-      { type: 'app', id: 'files' }
+  it('migrates supported favorites in order and drops retired navigation targets', () => {
+    expect(normalizeSidebarShortcutItems(favorites).map((item) => item.target.locator)).toEqual([
+      { providerId: 'core.assistant', resourceId: 'custom-assistant' },
+      { providerId: 'core.app', resourceId: 'notes' },
+      { providerId: 'core.app', resourceId: 'assistants' }
     ])
   })
 

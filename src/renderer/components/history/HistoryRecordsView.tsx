@@ -1,7 +1,8 @@
-import { Skeleton } from '@cherrystudio/ui'
-import type { Topic as RendererTopic } from '@renderer/types/topic'
 import { lazy, type ReactNode, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { Skeleton } from '@cherrystudio/ui'
+import type { Topic as RendererTopic } from '@renderer/types/topic'
 
 import type { HistoryRecordsMode } from './historyRecordsTypes'
 const AssistantHistoryRecords = lazy(() => import('./AssistantHistoryRecords'))
@@ -25,6 +26,7 @@ interface HistoryRecordsViewBaseProps {
   mode: HistoryRecordsMode
   open: boolean
   activeRecordId?: string | null
+  onActiveRecordChange?: (topic: RendererTopic | null) => void
   onClose: () => void
   /** Leading navbar slot (shared sidebar toggle), mirrors ConversationResourceView's toolbarLeading. */
   toolbarLeading?: ReactNode
@@ -32,7 +34,7 @@ interface HistoryRecordsViewBaseProps {
 
 type HistoryRecordsViewProps = HistoryRecordsViewBaseProps & {
   mode: 'assistant'
-  onRecordSelect?: (topic: RendererTopic | null) => void
+  onRecordSelect?: (topic: RendererTopic) => void
 }
 
 const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
@@ -46,6 +48,7 @@ const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
             activeRecordId={props.activeRecordId}
             onClose={props.onClose}
             onRecordSelect={props.onRecordSelect}
+            onActiveRecordChange={props.onActiveRecordChange}
             toolbarLeading={props.toolbarLeading}
           />
         }

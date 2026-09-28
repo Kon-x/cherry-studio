@@ -1,8 +1,9 @@
-import { useTabsContext } from '@renderer/hooks/tab'
-import type { Tab } from '@shared/data/cache/cacheValueTypes'
 import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
 import { cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { useTabsContext } from '@renderer/hooks/tab'
+import type { Tab } from '@shared/data/cache/cacheValueTypes'
 
 import { TabsProvider } from '../TabsProvider'
 

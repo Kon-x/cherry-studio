@@ -1,5 +1,6 @@
-import { PROVIDER_WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
 import { describe, expect, it, vi } from 'vitest'
+
+import { PROVIDER_WEB_SEARCH_TOOL_NAME } from '@shared/ai/builtinTools'
 
 import { getReadableToolActivity } from '../ToolHeader'
 

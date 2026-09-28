@@ -1,3 +1,6 @@
+import type { TFunction } from 'i18next'
+import React from 'react'
+
 import type {
   ComposerToolFooterAction,
   ComposerToolLauncher,
@@ -6,8 +9,6 @@ import type {
 import type { Assistant } from '@renderer/types/assistant'
 import { TopicType } from '@renderer/types/topic'
 import type { Model } from '@shared/data/types/model'
-import type { TFunction } from 'i18next'
-import React from 'react'
 
 import type { ComposerSerializedToken } from '../tokens'
 import type { ComposerToolContextValue } from './ComposerToolProvider'

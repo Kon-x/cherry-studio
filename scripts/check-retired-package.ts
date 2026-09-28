@@ -4,13 +4,13 @@ import path from 'node:path'
 import { extractFile, listPackage } from '@electron/asar'
 
 const retiredPaths = [
-  /(?:^|\/)node_modules\/(?:@anthropic-ai\/claude-agent-sdk(?:-[^/]+)?|@earendil-works\/pi-[^/]+|@deepseek-ai\/(?:dsh-|node-addon-landlock-run)[^/]*|@cherrystudio\/dsh-bridge|@larksuiteoapi\/node-sdk|grammy|telegram-markdown-v2)(?:\/|$)/,
+  /(?:^|\/)node_modules\/(?:@anthropic-ai\/claude-agent-sdk(?:-[^/]+)?|@earendil-works\/pi-[^/]+|@deepseek-ai\/(?:dsh-|node-addon-landlock-run)[^/]*|@cherrystudio\/(?:dsh-bridge|remote-protocol|remote-transport)|@larksuiteoapi\/node-sdk|grammy|telegram-markdown-v2)(?:\/|$)/,
   /^(?:app\.asar\.unpacked\/)?(?:resources\/)?(?:builtin-agents|builtin-mini-apps|code-cli-skills|skills|dsh-runtime)(?:\/|$)/,
   /^out\/preload\/miniApp(?:Bridge)?\.js$/,
   /^out\/main\/assets\/miniAppTheme\.css$/
 ]
 const retiredRuntime =
-  /\b(?:ClaudeCodeRuntimeDriver|PiRuntimeDriver|DshRuntimeDriver|AgentSessionRuntimeService|AgentSessionDeliveryService|AgentJobsService|MiniAppRuntimeService|CodeCliService|DeepSeekHarnessService|OpenClawService|HermesDashboardService|SkillService|ChannelManager|ApiGatewayService)\b/
+  /\b(?:ClaudeCodeRuntimeDriver|PiRuntimeDriver|DshRuntimeDriver|AgentSessionRuntimeService|AgentSessionDeliveryService|AgentJobsService|MiniAppRuntimeService|CodeCliService|DeepSeekHarnessService|OpenClawService|HermesDashboardService|SkillService|ChannelManager|ApiGatewayService|AgentBrowserRegistry|BrowserSessionService|RemoteAccessService)\b/
 
 export function checkRetiredPackage(resourcesDirectory: string) {
   const archive = path.join(resourcesDirectory, 'app.asar')

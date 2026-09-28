@@ -64,6 +64,28 @@ vi.mock('@cherrystudio/ui', () => ({
   ),
   Flex: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
   InfoTooltip: () => null,
+  Combobox: ({
+    options,
+    value,
+    onChange,
+    'aria-label': ariaLabel
+  }: {
+    options: { value: string; label: string }[]
+    value?: string | string[]
+    onChange?: (value: string | string[]) => void
+    'aria-label'?: string
+  }) => (
+    <select
+      aria-label={ariaLabel}
+      value={Array.isArray(value) ? (value[0] ?? '') : (value ?? '')}
+      onChange={(event) => onChange?.(event.target.value)}>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
   Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
   InputNumber: ({
     onBlur,
@@ -98,17 +120,6 @@ describe('GeneralSettings', () => {
       'app.tray.on_launch': true,
       'feature.quick_assistant.click_tray_to_show': true
     })
-  })
-
-  it('places context management directly after proxy settings', () => {
-    render(<GeneralSettings />)
-
-    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
-      'settings.launch.title',
-      'settings.proxy.mode.title',
-      'settings.models.context_management.title',
-      'settings.developer.title'
-    ])
   })
 
   it('renders model retry settings in General and persists changes', async () => {

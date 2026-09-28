@@ -1,11 +1,13 @@
+import { CopyPlus, Edit, Trash2, UserPen } from 'lucide-react'
+import { Square, SquareCheckBig } from 'lucide-react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { CommandContextMenu, type CommandContextMenuExtraItem, CommandPopupMenu } from '@renderer/components/command'
 import ModelNotesPopup from '@renderer/pages/settings/ProviderSettings/ModelNotesPopup'
 import { providerListClasses } from '@renderer/pages/settings/ProviderSettings/primitives/ProviderSettingsPrimitives'
 import { getFancyProviderName } from '@renderer/pages/settings/ProviderSettings/utils/providerDisplay'
 import type { Provider } from '@shared/data/types/provider'
-import { CopyPlus, Edit, Square, SquareCheckBig, Trash2, UserPen } from 'lucide-react'
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import ProviderListItem from '../components/ProviderListItem'
 
@@ -82,7 +84,7 @@ export default function ProviderListItemWithContextMenu({
       onSelect: onDelete
     })
     return items
-  }, [onDelete, onDuplicate, onEdit, provider.id, showManagementActions, t])
+  }, [onDelete, onDuplicate, onEdit, provider, showManagementActions, t])
 
   // Selection mode: rows become plain checkable targets — no context menus, no drag affordance.
   if (selectionMode) {

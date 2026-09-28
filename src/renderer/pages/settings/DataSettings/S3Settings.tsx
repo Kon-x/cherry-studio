@@ -1,3 +1,9 @@
+import dayjs from 'dayjs'
+import { FolderOpen, RefreshCw, Save } from 'lucide-react'
+import type { FC } from 'react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Button, InfoTooltip, Input, RowFlex, Switch, WarnTooltip } from '@cherrystudio/ui'
 import { usePreference } from '@data/hooks/usePreference'
 import { S3BackupManager } from '@renderer/components/S3BackupManager'
@@ -14,11 +20,6 @@ import {
 import { useBackupSyncState } from '@renderer/hooks/useBackupSyncState'
 import { useTheme } from '@renderer/hooks/useTheme'
 import { ipcApi } from '@renderer/ipc'
-import dayjs from 'dayjs'
-import { FolderOpen, RefreshCw, Save } from 'lucide-react'
-import type { FC } from 'react'
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 const SYNC_STATUS_COLOR = 'var(--muted-foreground)'
 

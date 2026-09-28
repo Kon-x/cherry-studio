@@ -1,9 +1,10 @@
+import { useCallback } from 'react'
+
 import { useMutation, useQuery } from '@data/hooks/useDataApi'
 import { resolveTemplate } from '@renderer/data/utils/dataApiPath'
 import type { ConcreteApiPaths } from '@shared/data/api/paths'
 import type { CreatePromptDto, PromptBindingParams, UpdatePromptDto } from '@shared/data/api/schemas/prompts'
 import type { Prompt, PromptBindingTarget } from '@shared/data/types/prompt'
-import { useCallback } from 'react'
 
 import type { ResourceAdapter, ResourceListQuery, ResourceListResult } from './types'
 
@@ -72,12 +73,7 @@ function getPromptBindingCollectionPath(target: PromptBindingTarget) {
 
 function getPromptBindingRefreshPaths(params: PromptBindingParams): ConcreteApiPaths[] {
   const target: PromptBindingTarget = { type: 'assistant', id: params.targetId }
-  return [
-    '/prompts',
-    '/prompt-bindings',
-    getPromptBindingCollectionPath(target),
-    `/prompts/${params.id}/bindings` as ConcreteApiPaths
-  ]
+  return ['/prompts', '/prompt-bindings', getPromptBindingCollectionPath(target), `/prompts/${params.id}/bindings`]
 }
 
 export function usePromptBindingMutations(target: PromptBindingTarget) {

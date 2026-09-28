@@ -9,8 +9,11 @@
  * 3. Readonly updater static guarantees (compile-time) — `prev` is shallow
  *    readonly so mutating it in place (a footgun the `isEqual` short-circuit
  *    would silently swallow) is a compile error. These assertions are enforced
- *    by `tsgo`: each `@ts-expect-error` must suppress a real error.
+ *    by `tsc`: each `@ts-expect-error` must suppress a real error.
  */
+
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import { cacheService } from '@data/CacheService'
 import { useCache, usePersistCache, useSharedCache } from '@data/hooks/useCache'
@@ -25,8 +28,6 @@ import type {
   UseCacheCasualKey,
   UseCacheKey
 } from '@shared/data/cache/cacheSchemas'
-import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import { installCacheApiMock } from './testUtils'
 
@@ -212,7 +213,7 @@ describe('functional updater (runtime)', () => {
 
     // Reset the singleton keys these suites touch (state persists across tests).
     cacheService.set('chat.selected_message_ids', [])
-    cacheService.setShared('feature.api_gateway.running', false)
+    cacheService.setShared('network.online', false)
     cacheService.setPersist('ui.emoji.recently_used', [])
   })
 
@@ -270,20 +271,20 @@ describe('functional updater (runtime)', () => {
 
   describe('shared tier (useSharedCache)', () => {
     it('resolves the updater against the latest shared value', () => {
-      cacheService.setShared('feature.api_gateway.running', false)
-      const { result } = renderHook(() => useSharedCache('feature.api_gateway.running'))
+      cacheService.setShared('network.online', false)
+      const { result } = renderHook(() => useSharedCache('network.online'))
       act(() => {
         result.current[1]((prev) => !prev)
       })
-      expect(cacheService.getShared('feature.api_gateway.running')).toBe(true)
+      expect(cacheService.getShared('network.online')).toBe(true)
     })
 
     it('still accepts a concrete value (backward compatible)', () => {
-      const { result } = renderHook(() => useSharedCache('feature.api_gateway.running'))
+      const { result } = renderHook(() => useSharedCache('network.online'))
       act(() => {
         result.current[1](true)
       })
-      expect(cacheService.getShared('feature.api_gateway.running')).toBe(true)
+      expect(cacheService.getShared('network.online')).toBe(true)
     })
   })
 
@@ -356,7 +357,7 @@ describe('functional updater (runtime)', () => {
 // ============================================================================
 // Readonly updater — static (compile-time) guarantees
 //
-// The real assertions run at typecheck (`tsgo`): every `@ts-expect-error` must
+// The real assertions run at typecheck (`tsc`): every `@ts-expect-error` must
 // suppress a genuine error and every `expectTypeOf` must hold. If the readonly
 // guard regresses, the directives become "unused" and `pnpm typecheck` fails
 // here. Mutation lines live inside functions that are never invoked, so nothing
@@ -383,7 +384,7 @@ type PersistPrev<K extends Parameters<typeof usePersistCache>[0]> = Parameters<U
 // Representative value types
 type SelectedIds = InferUseCacheValue<'chat.selected_message_ids'> // string[]
 type PersistedTabs = RendererPersistCacheSchema['ui.tab.normal_tabs']
-type GatewayRunning = InferSharedCacheValue<'feature.api_gateway.running'> // boolean
+type GatewayRunning = InferSharedCacheValue<'network.online'> // boolean
 type JobProgress = InferSharedCacheValue<'jobs.progress.job-1'> // { progress: number, ... }
 
 describe('readonly updater (static guarantees)', () => {
@@ -402,8 +403,8 @@ describe('readonly updater (static guarantees)', () => {
     it('primitive value → passes through unchanged (not wrapped)', () => {
       // ReadonlyValue<boolean> must stay `boolean`, else `prev => !prev` and
       // `prev => prev + 1` would stop compiling.
-      expectTypeOf<SharedPrev<'feature.api_gateway.running'>>().toEqualTypeOf<GatewayRunning>()
-      expectTypeOf<SharedPrev<'feature.api_gateway.running'>>().toEqualTypeOf<boolean>()
+      expectTypeOf<SharedPrev<'network.online'>>().toEqualTypeOf<GatewayRunning>()
+      expectTypeOf<SharedPrev<'network.online'>>().toEqualTypeOf<boolean>()
       expect(true).toBe(true)
     })
 
@@ -417,7 +418,7 @@ describe('readonly updater (static guarantees)', () => {
 
   describe('in-place mutation is a compile error (footgun blocked)', () => {
     it('array: push / sort / index / length assignment all rejected', () => {
-      // Never invoked — defining it is enough for tsgo to enforce the guards.
+      // Never invoked — defining it is enough for tsc to enforce the guards.
       const guard = (prev: MemoryPrev<'chat.selected_message_ids'>): readonly string[] => {
         // @ts-expect-error `push` does not exist on a readonly array
         prev.push('x')
@@ -454,7 +455,7 @@ describe('readonly updater (static guarantees)', () => {
     })
 
     it('primitive negation / arithmetic compile', () => {
-      const flip = (prev: SharedPrev<'feature.api_gateway.running'>): boolean => !prev
+      const flip = (prev: SharedPrev<'network.online'>): boolean => !prev
       const persistCopy = (prev: PersistPrev<'ui.emoji.recently_used'>): string[] => [...prev]
       expect(flip).toBeTypeOf('function')
       expect(persistCopy).toBeTypeOf('function')

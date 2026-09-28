@@ -4,11 +4,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 
+import { mockMainLoggerService } from '@test-mocks/MainLoggerService'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 import { translateErrorCodes } from '@shared/ipc/errors/translate'
 import type { AbsoluteFilePath } from '@shared/types/file'
-import { mockMainLoggerService } from '@test-mocks/MainLoggerService'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   appGet: vi.fn(),

@@ -1,3 +1,7 @@
+import type { Node } from 'mdast'
+import React, { memo, type ReactNode, useCallback, useMemo } from 'react'
+import { useIsCodeFenceIncomplete } from 'streamdown'
+
 import { MessageHtmlArtifact } from '@renderer/components/chat/messages/blocks/MessageHtmlArtifact'
 import { ClickableFilePath } from '@renderer/components/chat/messages/tools/shared/ClickableFilePath'
 import { CodeBlockView } from '@renderer/components/CodeBlockView/CodeBlockView'
@@ -7,9 +11,6 @@ import { isInlineFilePath, normalizeInlineFilePath } from '@renderer/utils/fileP
 import { getCodeBlockId } from '@renderer/utils/markdownLight'
 import { isWin } from '@renderer/utils/platform'
 import { getNodeText } from '@renderer/utils/reactNodeText'
-import type { Node } from 'mdast'
-import React, { memo, type ReactNode, useCallback, useMemo } from 'react'
-import { useIsCodeFenceIncomplete } from 'streamdown'
 
 import { useMessageRenderConfig, useOptionalMessageListActions } from '../MessageListProvider'
 import type { InlineHtmlPreviewMode } from './ChatMarkdown'
@@ -70,12 +71,12 @@ const CodeBlock: React.FC<Props> = ({
       if (id != null) {
         void actions?.saveCodeBlock?.({
           msgBlockId: blockId,
-          codeBlockId: id,
+          originalContent: text,
           newContent
         })
       }
     },
-    [actions, blockId, id]
+    [actions, blockId, id, text]
   )
 
   // Widget swaps race the per-tick span rebuild, so they wait for this block

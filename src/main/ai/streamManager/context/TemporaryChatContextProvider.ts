@@ -4,6 +4,8 @@
  * moves out of the in-memory map and the persistent provider takes over.
  */
 
+import { v7 as uuidv7 } from 'uuid'
+
 import { assistantDataService } from '@data/services/AssistantService'
 import { loggerService } from '@logger'
 import { resolveContextSettings } from '@main/ai/contextBuild/resolveContextSettings'
@@ -13,7 +15,6 @@ import { temporaryChatService } from '@main/data/services/TemporaryChatService'
 import { toContentRole } from '@shared/data/types/message'
 import { parseUniqueModelId, type UniqueModelId } from '@shared/data/types/model'
 import { getKnowledgeBaseIdsFromParts } from '@shared/data/types/uiParts'
-import { v7 as uuidv7 } from 'uuid'
 
 import type { AiStreamRequest } from '../../types'
 import { PersistenceListener } from '../listeners/PersistenceListener'

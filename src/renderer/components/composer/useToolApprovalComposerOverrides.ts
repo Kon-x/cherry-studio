@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
+
 import type { MessageStreamingLayers, MessageToolApprovalInput } from '@renderer/components/chat/messages/types'
 import type { CherryMessagePart } from '@shared/data/types/message'
-import { useMemo } from 'react'
 
 import type { ComposerOverride } from './ComposerContext'
 import { createPermissionRequestComposerOverride } from './variants/PermissionRequestComposer'
@@ -8,6 +9,8 @@ import { findNextPendingPermissionRequest } from './variants/permissionRequestCo
 
 type ToolApprovalComposerOverridesOptions = {
   partsByMessageId: Record<string, CherryMessagePart[]>
+  /** Database message parts, before live overlays or optimistic projections. */
+  persistedPartsByMessageId: Record<string, CherryMessagePart[]>
   streamingLayers?: MessageStreamingLayers
   onRespond: (input: MessageToolApprovalInput) => void | Promise<void>
 }

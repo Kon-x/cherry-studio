@@ -1,8 +1,8 @@
-import i18n from '@renderer/i18n/resolver'
-import type { AiStreamOpenResponse } from '@shared/ai/transport'
-import type { CherryUIMessage } from '@shared/data/types/message'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import i18n from '@renderer/i18n/resolver'
+import type { AiStreamOpenResponse } from '@shared/ai/transport'
 
 import { type ConversationHistoryAdapter, useConversationTurnController } from '../useConversationTurnController'
 
@@ -86,7 +86,7 @@ describe('useConversationTurnController', () => {
     await act(async () => {
       pendingAck.resolve({
         mode: 'started',
-        reservedMessages: [{ id: 'assistant-a', role: 'assistant', parts: [] } as CherryUIMessage]
+        reservedMessages: [{ id: 'assistant-a', role: 'assistant', parts: [] }]
       })
       await sendFromA
     })

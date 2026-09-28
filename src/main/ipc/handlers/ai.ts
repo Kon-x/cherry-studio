@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { isToolUIPart } from 'ai'
+
 import { application } from '@application'
 import { fileEntryService } from '@data/services/FileEntryService'
 import { messageService } from '@data/services/MessageService'
@@ -7,18 +9,12 @@ import { loggerService } from '@logger'
 import { inflateEntities, isToolOutputBlobEntry, reconstructOutput } from '@main/ai/contextBuild/toolOutputStore'
 import { AiStreamAdmissionError, WebContentsListener } from '@main/ai/streamManager'
 import { serializeError } from '@main/ai/utils/serializeError'
-import type {
-  AiStreamOpenRequest,
-  AiToolResultResponse,
-  PersistedToolOutput,
-  PersistedToolOutputBlobRef
-} from '@shared/ai/transport'
+import type { AiToolResultResponse, PersistedToolOutput, PersistedToolOutputBlobRef } from '@shared/ai/transport'
 import { blobRefsOf, isPersistedToolOutput } from '@shared/ai/transport'
 import { aiErrorCodes } from '@shared/ipc/errors/ai'
 import { IpcError } from '@shared/ipc/errors/IpcError'
 import type { aiRequestSchemas } from '@shared/ipc/schemas/ai'
 import type { IpcHandlersFor, WindowId } from '@shared/ipc/types'
-import { isToolUIPart } from 'ai'
 
 const logger = loggerService.withContext('ipc/ai')
 
@@ -159,9 +155,7 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
     const wc = senderWebContents(senderId)
     if (!wc) throw new Error('ai.stream.open requires a managed window')
     const subscriber = new WebContentsListener(wc, request.topicId)
-    return exposeAiStreamAdmission(() =>
-      application.get('AiStreamManager').dispatch(subscriber, request as AiStreamOpenRequest)
-    )
+    return exposeAiStreamAdmission(() => application.get('AiStreamManager').dispatch(subscriber, request))
   },
   'ai.stream.attach': async (request, { senderId }) => {
     const wc = senderWebContents(senderId)

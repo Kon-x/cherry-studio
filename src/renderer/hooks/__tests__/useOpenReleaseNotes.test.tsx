@@ -1,6 +1,7 @@
-import { ipcApi } from '@renderer/ipc'
 import { act, renderHook } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
+
+import { ipcApi } from '@renderer/ipc'
 
 import { useOpenReleaseNotes } from '../useOpenReleaseNotes'
 

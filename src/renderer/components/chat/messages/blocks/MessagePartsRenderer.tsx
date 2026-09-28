@@ -14,6 +14,11 @@
  * - data-video parts with same filePath → video block row
  */
 
+import { isDataUIPart, isFileUIPart, isToolUIPart } from 'ai'
+import { AnimatePresence, motion, type Variants } from 'motion/react'
+import React, { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { loggerService } from '@logger'
 import type { ReadOnlyComposerFileTokenPreview } from '@renderer/components/composer/tokenView'
 import { ErrorBoundary } from '@renderer/components/ErrorBoundary'
@@ -37,11 +42,6 @@ import type { CompactionAnchorData } from '@shared/ai/compaction'
 import type { FileHandle } from '@shared/data/types/file'
 import type { CherryMessagePart, ContentReference, ReasoningUIPart } from '@shared/data/types/message'
 import type { CherryProviderMetadata, ComposerMessageSnapshot, ComposerMessageToken } from '@shared/data/types/uiParts'
-import { readCherryMeta } from '@shared/data/types/uiParts'
-import { isDataUIPart, isFileUIPart, isToolUIPart } from 'ai'
-import { AnimatePresence, motion, type Variants } from 'motion/react'
-import React, { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import MessageAttachments from '../frame/MessageAttachments'
 import ChatMarkdown, { type InlineHtmlPreviewMode } from '../markdown/ChatMarkdown'
@@ -61,8 +61,8 @@ import CompactBlock from './CompactBlock'
 import CompactionAnchorBlock from './CompactionAnchorBlock'
 import ConversationResetBlock from './ConversationResetBlock'
 import ErrorBlock from './ErrorBlock'
-import ImageBlock from './ImageBlock'
 import MainTextBlock, { buildUserMessagePreview } from './MainTextBlock'
+import MessageImageBlock, { type MessageImageSource } from './MessageImageBlock'
 import {
   findOpenTextTailIndex,
   isHiddenPart,
@@ -198,6 +198,11 @@ function extractImageUrl(part: CherryMessagePart): string | undefined {
   return filePart.url || undefined
 }
 
+function toImageSource(part: CherryMessagePart): MessageImageSource | undefined {
+  const url = extractImageUrl(part)
+  return url ? { handle: fileHandleFromPart(part), url } : undefined
+}
+
 export interface HoistedFileAttachment {
   key: string
   handle: FileHandle
@@ -222,14 +227,14 @@ function isHoistableFilePart(part: CherryMessagePart): boolean {
 
 /** Attachments a hoisting container renders in place of the inline file blocks. */
 export function getHoistedAttachments(parts: readonly CherryMessagePart[], message: MessageListItem) {
-  const images: string[] = []
+  const images: MessageImageSource[] = []
   const files: HoistedFileAttachment[] = []
 
   parts.forEach((part, index) => {
     if ((part.type as string) !== 'file') return
     if (isImageFilePart(part)) {
-      const url = extractImageUrl(part)
-      if (url) images.push(url)
+      const source = toImageSource(part)
+      if (source) images.push(source)
       return
     }
     const attachment = toFileAttachment(part, `${message.id}-part-${index}`)
@@ -266,7 +271,6 @@ interface RenderGroupedEntryOptions {
   settleActiveTools?: boolean
   settleStreamingReasoning?: boolean
   toolDisplay?: 'content' | 'disclosure'
-  onRemoveTranslation?: () => void
 }
 
 const EMPTY_CITATION_PROJECTIONS: ReadonlyMap<CherryMessagePart, ResolvedCitationMarkers> = new Map()
@@ -535,20 +539,12 @@ function isPotentiallyVisibleEntry(entry: PartEntry, messageId: string): boolean
 /** Extract CherryProviderMetadata from a part. */
 function getCherryMeta(part: CherryMessagePart): CherryProviderMetadata | undefined {
   if ('providerMetadata' in part && part.providerMetadata) {
-    return part.providerMetadata.cherry as CherryProviderMetadata | undefined
+    return part.providerMetadata.cherry
   }
   return undefined
 }
 
-/**
- * Memoized adapter from a `data-error` part to the normalized `SerializedError`
- * shape `ErrorBlock` consumes, plus the persisted AI diagnosis it rehydrates.
- * Takes the whole `part` — not pre-extracted props — so both the normalized
- * error and the parsed `cachedDiagnosis` derive their identity from the part,
- * not from whichever render of the parent triggered it. Keeping identity stable
- * lets `React.memo(ErrorBlock)` and the downstream `useMemo`s actually do their
- * job; passing a freshly-parsed object every render would break memoization.
- */
+// Keep normalized error identity stable across parent renders.
 const ErrorPartView = React.memo(function ErrorPartView({
   partId,
   part,
@@ -568,8 +564,35 @@ const ErrorPartView = React.memo(function ErrorPartView({
     }),
     [rawData]
   )
-  const cachedDiagnosis = useMemo(() => readCherryMeta(part)?.diagnosis, [part])
-  return <ErrorBlock partId={partId} error={error} message={message} cachedDiagnosis={cachedDiagnosis} />
+  return <ErrorBlock partId={partId} error={error} message={message} />
+})
+
+const TranslationPartView = React.memo(function TranslationPartView({
+  content,
+  id,
+  isStreaming,
+  messageId
+}: {
+  content: string
+  id: string
+  isStreaming: boolean
+  messageId: string
+}) {
+  const { removeMessageTranslation, notifySuccess } = useMessageListActions()
+  const { t } = useTranslation()
+  const handleRemoveTranslation = React.useCallback(async () => {
+    await removeMessageTranslation?.(messageId)
+    notifySuccess?.(t('translate.closed'))
+  }, [messageId, notifySuccess, removeMessageTranslation, t])
+
+  return (
+    <TranslationBlock
+      id={id}
+      content={content}
+      isStreaming={isStreaming}
+      onDelete={removeMessageTranslation ? handleRemoveTranslation : undefined}
+    />
+  )
 })
 
 /**
@@ -630,12 +653,12 @@ function renderPart(
     case 'data-translation': {
       const translationData = (part as { data: { content: string } }).data
       return (
-        <TranslationBlock
+        <TranslationPartView
           key={partId}
           id={partId}
           content={translationData.content}
           isStreaming={isStreaming}
-          onDelete={options?.onRemoveTranslation}
+          messageId={message.id}
         />
       )
     }
@@ -728,9 +751,9 @@ function renderPart(
     case 'file': {
       const filePart = part as { url?: string; mediaType?: string; filename?: string }
       if (filePart.mediaType?.startsWith('image/')) {
-        const url = filePart.url
-        if (!url) return null
-        return <ImageBlock key={partId} images={[url]} isSingle={true} thumbnail={message.role === 'user'} />
+        const source = toImageSource(part)
+        if (!source) return null
+        return <MessageImageBlock key={partId} sources={[source]} isSingle={true} thumbnail={message.role === 'user'} />
       }
       const attachment = toFileAttachment(part, partId)
       if (!attachment) {
@@ -882,20 +905,20 @@ function renderGroupedEntry(
     const firstPart = entry[0].part
 
     if (isImageFilePart(firstPart)) {
-      const images = entry.map((e) => extractImageUrl(e.part)).filter(Boolean) as string[]
+      const images = entry.map((e) => toImageSource(e.part)).filter((s) => s !== undefined)
       if (images.length === 0) return null
 
       const thumbnail = message.role === 'user'
       if (images.length === 1) {
         return (
           <AnimatedBlockWrapper key={groupKey} enableAnimation={enableAnimation}>
-            <ImageBlock images={images} isSingle={true} thumbnail={thumbnail} />
+            <MessageImageBlock sources={images} isSingle={true} thumbnail={thumbnail} />
           </AnimatedBlockWrapper>
         )
       }
       return (
         <AnimatedBlockWrapper key={groupKey} enableAnimation={enableAnimation}>
-          <ImageBlock images={images} isSingle={false} thumbnail={thumbnail} />
+          <MessageImageBlock sources={images} isSingle={false} thumbnail={thumbnail} />
         </AnimatedBlockWrapper>
       )
     }
@@ -1387,6 +1410,11 @@ interface MessagePartsRendererContentProps extends Props {
   priorCitationParts: readonly CherryMessagePart[]
 }
 
+const ActiveTurnStatusView = ({ fallback }: { fallback: React.ReactNode }) => {
+  const activeTurnStatus = useMessageListActiveTurnStatus()
+  return activeTurnStatus ? activeTurnStatus(fallback) : fallback
+}
+
 const MessagePartsRendererContent = React.memo(function MessagePartsRendererContent({
   collapseCompletedToolHistory,
   hoistAttachments,
@@ -1396,19 +1424,6 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
   messageParts,
   priorCitationParts
 }: MessagePartsRendererContentProps) {
-  // Inline ephemeral status for the live turn (e.g. agent api-retry). Only the active-turn message
-  // renders it; the node itself renders nothing when there is no such state.
-  const activeTurnStatus = useMessageListActiveTurnStatus()
-  const { removeMessageTranslation, notifySuccess } = useMessageListActions()
-  const { t } = useTranslation()
-  const canRemoveTranslation = !!removeMessageTranslation
-  const removeTranslationRef = React.useRef({ removeMessageTranslation, notifySuccess, t })
-  removeTranslationRef.current = { removeMessageTranslation, notifySuccess, t }
-  const handleRemoveTranslation = React.useCallback(async () => {
-    const { removeMessageTranslation, notifySuccess, t } = removeTranslationRef.current
-    await removeMessageTranslation?.(message.id)
-    notifySuccess?.(t('translate.closed'))
-  }, [message.id])
   const [expandedTextPartIds, setExpandedTextPartIds] = React.useState<ReadonlySet<string>>(() => new Set())
   const handleTextPartExpandedChange = React.useCallback((partId: string, expanded: boolean) => {
     setExpandedTextPartIds((current) => {
@@ -1472,15 +1487,12 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
       messageCitations,
       readOnlyFilePreviews,
       hiddenComposerTokens: displayProjection.hiddenImageTokens,
-      onTextPartExpandedChange: handleTextPartExpandedChange,
-      onRemoveTranslation: canRemoveTranslation ? handleRemoveTranslation : undefined
+      onTextPartExpandedChange: handleTextPartExpandedChange
     }),
     [
-      canRemoveTranslation,
       expandedTextPartIds,
       citationProjectionByPart,
       handleTextPartExpandedChange,
-      handleRemoveTranslation,
       messageCitations,
       readOnlyFilePreviews,
       displayProjection.hiddenImageTokens
@@ -1501,7 +1513,9 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
       // The status renderer replaces the placeholder while active (e.g. an api-retry line) and falls
       // back to it otherwise.
       return (
-        <AnimatePresence mode="sync">{activeTurnStatus ? activeTurnStatus(placeholder) : placeholder}</AnimatePresence>
+        <AnimatePresence mode="sync">
+          <ActiveTurnStatusView fallback={placeholder} />
+        </AnimatePresence>
       )
     }
     if (message.role === 'assistant' && message.status === 'paused') {
@@ -1521,7 +1535,7 @@ const MessagePartsRendererContent = React.memo(function MessagePartsRendererCont
         message={message}
         renderOptions={renderOptions}
       />
-      {isActiveTurnProcessing && activeTurnStatus?.(null)}
+      {isActiveTurnProcessing && <ActiveTurnStatusView fallback={null} />}
     </AnimatePresence>
   )
 })

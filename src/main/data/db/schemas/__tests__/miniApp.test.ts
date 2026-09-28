@@ -1,8 +1,9 @@
-import type { MiniAppManifest } from '@data/db/schemas/miniApp'
-import { miniAppGrantTable, miniAppInstallationTable, miniAppTable } from '@data/db/schemas/miniApp'
 import { setupTestDatabase } from '@test-helpers/db'
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
+
+import type { MiniAppManifest } from '@data/db/schemas/miniApp'
+import { miniAppGrantTable, miniAppInstallationTable, miniAppTable } from '@data/db/schemas/miniApp'
 
 const APP_ID = 'com.example.mygame'
 

@@ -1,5 +1,4 @@
 import '@testing-library/jest-dom/vitest'
-
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   ipcRequest: vi.fn(),
   loggerError: vi.fn(),
   openRoute: vi.fn(),
+  showDoctor: vi.fn(),
   toastError: vi.fn()
 }))
 
@@ -35,8 +35,8 @@ vi.mock('react-i18next', () => ({
   })
 }))
 
-vi.mock('@renderer/components/feedback/DiagnosticUploadDialog', () => ({
-  default: ({ open }: { open: boolean }) => (open ? <div role="dialog">diagnostic-upload-dialog</div> : null)
+vi.mock('@renderer/components/doctor', () => ({
+  DoctorPopup: { show: (...args: unknown[]) => mocks.showDoctor(...args) }
 }))
 
 import { FEEDBACK_GITHUB_URL, FeedbackDialog } from '../FeedbackDialog'
@@ -57,8 +57,10 @@ describe('FeedbackDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /settings.about.feedback.diagnostics.title/ }))
 
-    await waitFor(() => expect(screen.getByText('diagnostic-upload-dialog')).toBeInTheDocument())
-    expect(mocks.ipcRequest).not.toHaveBeenCalledWith('diagnostics.bundle.upload', expect.anything())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.showDoctor).not.toHaveBeenCalled()
+
+    await waitFor(() => expect(mocks.showDoctor).toHaveBeenCalledWith({ initialPanel: 'report' }))
   })
 
   it('opens the GitHub issue chooser', async () => {
@@ -66,12 +68,14 @@ describe('FeedbackDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /settings.about.feedback.github.title/ }))
 
-    await waitFor(() => expect(mocks.ipcRequest).toHaveBeenCalledWith('system.shell.open_website', FEEDBACK_GITHUB_URL))
+    await waitFor(() =>
+      expect(mocks.ipcRequest).toHaveBeenCalledWith('system.shell.open_external_website', FEEDBACK_GITHUB_URL)
+    )
   })
 
   it('closes before reporting GitHub issue chooser failures', async () => {
     mocks.ipcRequest.mockImplementation((route: string) => {
-      if (route === 'system.shell.open_website') {
+      if (route === 'system.shell.open_external_website') {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         return Promise.reject(new Error('open failed'))
       }

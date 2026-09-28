@@ -1,7 +1,10 @@
-import zhCN from '@renderer/i18n/locales/zh-cn.json'
+import { MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import zhCN from '@renderer/i18n/locales/zh-cn.json'
+import { ipcApi } from '@renderer/ipc'
 
 import SettingsPage from '../SettingsPage'
 
@@ -9,6 +12,8 @@ const { isMacTransparentWindowMock, navigateMock } = vi.hoisted(() => ({
   isMacTransparentWindowMock: vi.fn(),
   navigateMock: vi.fn()
 }))
+
+vi.mock('@renderer/ipc', () => ({ ipcApi: { request: vi.fn().mockResolvedValue(undefined) } }))
 
 vi.mock('@cherrystudio/ui', () => ({
   MenuDivider: () => <hr data-testid="menu-divider" />,
@@ -50,7 +55,14 @@ vi.mock('@renderer/hooks/useMacTransparentWindow', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  Outlet: () => null,
+  Outlet: () => (
+    <>
+      <a href="https://open.cherryin.ai" target="_blank" rel="noreferrer">
+        <span>Provider website</span>
+      </a>
+      <a href="#provider">Internal settings</a>
+    </>
+  ),
   useLocation: () => ({ pathname: '/settings/provider' }),
   useNavigate: () => navigateMock,
   useRouter: () => ({ history: { canGoBack: () => false, back: vi.fn() } }),
@@ -89,8 +101,21 @@ vi.mock('react-i18next', () => ({
 
 describe('SettingsPage', () => {
   beforeEach(() => {
+    MockUsePreferenceUtils.resetMocks()
     isMacTransparentWindowMock.mockReturnValue(false)
     navigateMock.mockReset()
+    vi.mocked(ipcApi.request).mockClear()
+  })
+
+  it('leaves internal settings navigation and right-click menus alone', () => {
+    render(<SettingsPage />)
+    const internalClick = new MouseEvent('click', { bubbles: true, cancelable: true })
+    fireEvent(screen.getByText('Internal settings'), internalClick)
+    const rightClick = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 2 })
+    fireEvent(screen.getByText('Provider website'), rightClick)
+    expect(internalClick.defaultPrevented).toBe(false)
+    expect(rightClick.defaultPrevented).toBe(false)
+    expect(ipcApi.request).not.toHaveBeenCalled()
   })
 
   it('mounts the full-width search field from the header icon only on demand', () => {

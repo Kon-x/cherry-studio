@@ -18,9 +18,9 @@
  * import type { TranslateHistory, CreateTranslateHistoryDto } from '@shared/data/api/schemas/translate'
  * ```
  */
-
 import type { AssertValidSchemas } from '../types'
 import type { AiUsageRecordSchemas } from './aiUsageRecords'
+import type { ArchiveSchemas } from './archives'
 import type { AssistantSchemas } from './assistants'
 import type { FileSchemas } from './files'
 import type { GroupSchemas } from './groups'
@@ -64,6 +64,7 @@ export type ApiSchemas = AssertValidSchemas<
     McpServerSchemas &
     KnowledgeSchemas &
     NoteSchemas &
+    ArchiveSchemas &
     AssistantSchemas &
     TagSchemas &
     PromptSchemas &

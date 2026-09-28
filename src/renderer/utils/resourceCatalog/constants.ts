@@ -1,6 +1,7 @@
+import { FileText, MessageCircle } from 'lucide-react'
+
 import type { ResourceType, ResourceTypeUIConfig } from '@renderer/types/resourceCatalog'
 import type { AssistantSettings } from '@shared/data/types/assistant'
-import { FileText, MessageCircle } from 'lucide-react'
 
 export type AssistantConfigMcpMode = AssistantSettings['mcpMode']
 

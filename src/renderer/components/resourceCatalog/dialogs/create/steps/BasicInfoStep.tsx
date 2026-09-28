@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react'
+import { type UseFormReturn, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+
 import {
   FormControl,
   FormField,
@@ -15,9 +19,6 @@ import {
   type ModelLabels,
   TextInputField
 } from '@renderer/components/resourceCatalog/dialogs/components/EditDialogShared'
-import { useEffect, useState } from 'react'
-import { type UseFormReturn, useWatch } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
 
 import type { ResourceCreateWizardFormValues } from '../types'
 

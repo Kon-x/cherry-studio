@@ -9,6 +9,7 @@ import { cherryCloudHandlers } from './cherryCloud'
 import { cherryinHandlers } from './cherryin'
 import { citationHandlers } from './citation'
 import { diagnosticsHandlers } from './diagnostics'
+import { doctorHandlers } from './doctor'
 import { exportHandlers } from './export'
 import { externalAppHandlers } from './externalApp'
 import { fileHandlers } from './file'
@@ -29,6 +30,7 @@ import { selectionHandlers } from './selection'
 import { systemHandlers } from './system'
 import { tabHandlers } from './tab'
 import { translateHandlers } from './translate'
+import { trashHandlers } from './trash'
 import { webSearchHandlers } from './webSearch'
 import { windowHandlers } from './window'
 
@@ -50,6 +52,7 @@ export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...cherryCloudHandlers,
   ...citationHandlers,
   ...diagnosticsHandlers,
+  ...doctorHandlers,
   ...exportHandlers,
   ...externalAppHandlers,
   ...fileHandlers,
@@ -70,6 +73,7 @@ export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...systemHandlers,
   ...tabHandlers,
   ...translateHandlers,
+  ...trashHandlers,
   ...webSearchHandlers,
   ...windowHandlers
 }

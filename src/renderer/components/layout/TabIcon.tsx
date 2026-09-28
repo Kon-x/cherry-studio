@@ -1,7 +1,8 @@
-import EmojiIcon from '@renderer/components/EmojiIcon'
+import type { FC } from 'react'
+
+import { EmojiIcon } from '@cherrystudio/ui'
 import { cn } from '@renderer/utils/style'
 import { TAB_ICON_EMOJI_PREFIX } from '@renderer/utils/tabIcons'
-import type { FC } from 'react'
 
 import type { Tab } from '../../hooks/tab'
 import { getTabIcon } from './tabIcons'
@@ -17,21 +18,14 @@ export const TabIcon: FC<{ tab: Tab; size: number; className?: string }> = ({ ta
   if (tab.icon) {
     // Per-entity emoji (chat assistant / agent avatar), stored as `emoji:<glyph>`.
     if (tab.icon.startsWith(TAB_ICON_EMOJI_PREFIX)) {
-      return (
-        <EmojiIcon
-          emoji={tab.icon.slice(TAB_ICON_EMOJI_PREFIX.length)}
-          size={size}
-          fontSize={Math.round(size * 0.62)}
-          className={cn('mr-0', className)}
-        />
-      )
+      return <EmojiIcon emoji={tab.icon.slice(TAB_ICON_EMOJI_PREFIX.length)} size={size} className={className} />
     }
     return (
       <img
         src={tab.icon}
         alt=""
         draggable={false}
-        className={cn('select-none rounded-[3px] object-cover', className)}
+        className={cn('rounded-[3px] object-cover select-none', className)}
         style={{ width: size, height: size }}
       />
     )

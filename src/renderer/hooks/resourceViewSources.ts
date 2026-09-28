@@ -1,7 +1,8 @@
+import { createContext, use, useCallback } from 'react'
+
 import { dataApiService } from '@data/DataApiService'
 import type { Topic as RendererTopic } from '@renderer/types/topic'
 import type { Topic as ApiTopic } from '@shared/data/types/topic'
-import { createContext, use, useCallback } from 'react'
 
 import { mapApiTopicToRendererTopic, useTopics } from './useTopic'
 

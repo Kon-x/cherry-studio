@@ -7,6 +7,7 @@ import { type CherryCloudEventSchemas, cherryCloudRequestSchemas } from './cherr
 import { cherryinRequestSchemas } from './cherryin'
 import { citationRequestSchemas } from './citation'
 import { diagnosticsRequestSchemas } from './diagnostics'
+import { doctorRequestSchemas } from './doctor'
 import { exportRequestSchemas } from './export'
 import { externalAppRequestSchemas } from './externalApp'
 import { type FileEventSchemas, fileRequestSchemas } from './file'
@@ -16,7 +17,7 @@ import { localModelRequestSchemas } from './localModel'
 import { type McpEventSchemas, mcpRequestSchemas } from './mcp'
 import { type NavigationEventSchemas, navigationRequestSchemas } from './navigation'
 import { type NotificationEventSchemas, notificationRequestSchemas } from './notification'
-import { type OAuthEventSchemas, oauthRequestSchemas } from './oauth'
+import { oauthRequestSchemas } from './oauth'
 import { ovmsRequestSchemas } from './ovms'
 import { printRequestSchemas } from './print'
 import { profileRequestSchemas } from './profile'
@@ -27,6 +28,7 @@ import { type SelectionEventSchemas, selectionRequestSchemas } from './selection
 import { type SystemEventSchemas, systemRequestSchemas } from './system'
 import { type TabEventSchemas, tabRequestSchemas } from './tab'
 import { type TranslateEventSchemas, translateRequestSchemas } from './translate'
+import { trashRequestSchemas } from './trash'
 import { webSearchRequestSchemas } from './webSearch'
 import { type WindowEventSchemas, windowRequestSchemas } from './window'
 
@@ -46,6 +48,7 @@ export const ipcRequestSchemas = {
   ...cherryCloudRequestSchemas,
   ...citationRequestSchemas,
   ...diagnosticsRequestSchemas,
+  ...doctorRequestSchemas,
   ...exportRequestSchemas,
   ...externalAppRequestSchemas,
   ...fileRequestSchemas,
@@ -66,6 +69,7 @@ export const ipcRequestSchemas = {
   ...systemRequestSchemas,
   ...tabRequestSchemas,
   ...translateRequestSchemas,
+  ...trashRequestSchemas,
   ...webSearchRequestSchemas,
   ...windowRequestSchemas
 } satisfies Record<string, RouteDef>
@@ -88,7 +92,6 @@ export type IpcEventSchemas = AiEventSchemas &
   McpEventSchemas &
   NavigationEventSchemas &
   NotificationEventSchemas &
-  OAuthEventSchemas &
   QuickAssistantEventSchemas &
   ScreenshotEventSchemas &
   SelectionEventSchemas &
