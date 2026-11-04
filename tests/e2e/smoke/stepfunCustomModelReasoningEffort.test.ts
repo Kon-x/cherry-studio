@@ -1,3 +1,4 @@
+import en from '../../../src/renderer/i18n/locales/en-us.json'
 import { expect, test } from './fixtures/electron.fixture'
 
 test('manually added StepFun preview exposes low, medium and high reasoning effort', async ({
@@ -34,7 +35,7 @@ test('manually added StepFun preview exposes low, medium and high reasoning effo
   await expect(dialog).toBeHidden()
 
   await mainWindow.getByRole('button', { name: 'Back', exact: true }).first().click()
-  await mainWindow.getByRole('button', { name: 'Chat', exact: true }).first().click()
+  await mainWindow.getByRole('button', { name: en['title.chat'], exact: true }).first().click()
   await expect(composer).toBeVisible()
   await mainWindow.getByRole('button', { name: 'Selected models', exact: true }).click()
   const selector = mainWindow.getByTestId('model-selector-content').filter({ visible: true })
