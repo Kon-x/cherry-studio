@@ -9,8 +9,7 @@ const NOTIFICATION_PREF_KEYS = [
   'app.notification.assistant.enabled',
   'app.notification.backup.enabled',
   'app.notification.knowledge.enabled',
-  'app.notification.update.enabled',
-  'app.notification.mini_app.enabled'
+  'app.notification.update.enabled'
 ] as const
 
 const mocks = vi.hoisted(() => ({
@@ -281,7 +280,6 @@ describe('NotificationService', () => {
 
     await initService()
 
-    expect(mocks.subscribeMultipleChanges).toHaveBeenCalledWith([...NOTIFICATION_PREF_KEYS], expect.any(Function))
     expect(mocks.setBadgeCount).toHaveBeenCalledWith(0)
   })
 

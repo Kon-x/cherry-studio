@@ -82,7 +82,14 @@ vi.mock('react-i18next', () => ({
         'chat.input.tools.file_not_found': `File not found: ${vars?.path ?? ''}`,
         'chat.input.tools.open_file_error': `Failed to open file: ${vars?.path ?? ''}`,
         'files.file_manager.finder': 'Finder',
-        'common.more': 'More'
+        'common.more': 'More',
+        'common.open': 'Open',
+        'chat.input.tools.open_with': 'Open With',
+        'chat.input.tools.reveal_in_file_explorer': 'Show in File Explorer',
+        'chat.input.tools.reveal_in_file_manager': 'Show in File Manager',
+        'chat.preview_pane.copy_path': 'Copy Path',
+        'chat.input.tools.copy_file_content': 'Copy File Contents',
+        'preview.save_as': 'Save As'
       }
       return map[key] ?? key
     }

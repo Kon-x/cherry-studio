@@ -89,7 +89,7 @@ vi.mock('react-i18next', () => ({
     i18n: { language: 'en' },
     t: (key: string, options?: { count?: number; name?: string }) => {
       if (key === 'common.open_in') return `Open in ${options?.name ?? ''}`
-      if (key === 'agent.session.file_manager.finder') return 'Finder'
+      if (key === 'files.file_manager.finder') return 'Finder'
       return key
     }
   })
@@ -265,16 +265,14 @@ describe('ArtifactPane Context Menu Integration', () => {
     fireEvent.contextMenu(titleElement)
 
     // Default app and reveal sit at the top level; other apps and copy actions are grouped.
-    expect(
-      await screen.findByRole('menuitem', { name: /Open in agent\.preview_pane\.default_app/ })
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: /Open in chat\.preview_pane\.default_app/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /chat\.input\.tools\.reveal_in_finder/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /chat\.input\.tools\.open_with/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /VS Code/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /common\.copy/ })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /agent\.preview_pane\.copy_menu\.absolute_path/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /chat\.preview_pane\.copy_menu\.absolute_path/ })).toBeInTheDocument()
     // Tabs and the Escape key close the file; the menu does not repeat it.
-    expect(screen.queryByRole('menuitem', { name: /agent\.preview_pane\.close/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /chat\.preview_pane\.close/ })).toBeNull()
 
     // Test external open
     fireEvent.click(screen.getByRole('menuitem', { name: /chat\.input\.tools\.reveal_in_finder/ }))

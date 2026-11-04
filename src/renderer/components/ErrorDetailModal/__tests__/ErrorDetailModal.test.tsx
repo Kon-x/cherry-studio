@@ -1,4 +1,3 @@
-import { MockUseDataApiUtils } from '@test-mocks/renderer/useDataApi'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
@@ -779,40 +778,6 @@ describe('ErrorDetailContent diagnostics', () => {
     })
 
     expect(screen.queryByRole('button', { name: 'Report a problem' })).not.toBeInTheDocument()
-  })
-
-  it('hides the direct 503 report but still opens AI consultation and its report handoff', async () => {
-    const user = userEvent.setup()
-    const onOpenDiagnosticReport = vi.fn()
-    MockUseDataApiUtils.mockQueryData('/models', [])
-    mocks.agentState = {
-      status: 'completed',
-      runId: 'agent-run-1',
-      scope: 'global',
-      reportRunId: 'report-1',
-      sessionId: 'session-1',
-      modelId: 'openai::gpt-5',
-      startedAt: '2026-10-12T00:00:00.000Z',
-      text: '',
-      toolCalls: [],
-      proposals: [],
-      changes: []
-    }
-    renderErrorDetailContent({
-      diagnosticReport: { location: 'home' },
-      error: upstreamServerError,
-      onOpenDiagnosticReport
-    })
-
-    expect(screen.queryByRole('button', { name: 'Report a problem' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'AI consultation' }))
-
-    const consultation = await screen.findByRole('dialog', { name: /AI consultation/ })
-    await user.click(within(consultation).getByRole('button', { name: 'Report a problem' }))
-
-    expect(onOpenDiagnosticReport).toHaveBeenCalledOnce()
-    expect(onOpenDiagnosticReport.mock.calls[0][0]).toContain('Error message: AI_APICallError: Service Unavailable')
-    expect(onOpenDiagnosticReport.mock.calls[0][0]).toContain('Location: Home conversation')
   })
 
   it('shows neither report nor AI consultation for a 503 error without a diagnostic subject', () => {

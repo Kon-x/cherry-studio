@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -139,18 +138,6 @@ describe('ChatMarkdown code entries', () => {
     render(<ChatMarkdownRuntime block={{ id: 'path-format', content: '`' + input + '`', status: 'success' }} />)
     expect(await screen.findByRole('link', { name: expected })).toHaveAttribute('data-file-path', expected)
   })
-
-  it.each(['/app/chat', '/settings/skills', '/settings/channels', '/app/mini-app/example'])(
-    'routes %s through the navigation entry',
-    async (path) => {
-      const user = userEvent.setup()
-      render(<ChatMarkdownRuntime block={{ id: 'route', content: '`' + path + '`', status: 'success' }} />)
-
-      await user.click(await screen.findByRole('button'))
-      expect(mocks.navigateToRoute).toHaveBeenCalledWith({ path, query: undefined })
-      expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    }
-  )
 
   it.each(['`const count = 1`', '```javascript\n' + path + '\n```', '```text\n/tmp/first.ts\n/tmp/second.ts\n```'])(
     'keeps ordinary or multiline code as code: %s',

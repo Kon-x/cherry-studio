@@ -53,6 +53,7 @@ for (const relativePath of [
   'packages/agent-runtime-pi-durable',
   'src/main/features/computerUse',
   'src/main/ai/automation',
+  'src/main/services/automation',
   'src/main/services/ClaudeCodeBinaryService.ts',
   'src/main/ipc/handlers/doctorAgent.ts',
   'src/renderer/pages/settings/ComputerUseSettings.tsx',

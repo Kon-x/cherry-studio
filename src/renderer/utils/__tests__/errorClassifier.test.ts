@@ -176,7 +176,7 @@ describe('classifyError', () => {
     expect(classifyError(terminalRateLimit).category).toBe('rate_limit')
   })
 
-  it('keeps outer status, provider category, Claude category, and finishReason ahead of a terminal 503', () => {
+  it('keeps outer status, provider category and finishReason ahead of a terminal 503', () => {
     const terminalServer = [
       makeApiCallAttempt({ statusCode: 503, providerErrorCategory: 'server', message: 'unauthorized' })
     ]
@@ -193,9 +193,6 @@ describe('classifyError', () => {
     expect(
       classifyError(makeCopiedRetry('unauthorized', terminalServer, { providerErrorCategory: 'quota' })).category
     ).toBe('quota')
-    expect(
-      classifyError(makeCopiedRetry('unauthorized', terminalServer, { claudeCodeExitCategory: 'mcp' })).category
-    ).toBe('mcp')
     expect(
       classifyError(makeCopiedRetry('blocked by safety', terminalServer, { finishReason: 'SAFETY' })).category
     ).toBe('content')

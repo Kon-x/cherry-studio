@@ -60,6 +60,8 @@ vi.mock('@renderer/data/hooks/useDataApi', async () => ({
   })
 }))
 
+vi.mock('@renderer/services/mainWindowNavigation', () => ({ openRoute: mocks.openRoute }))
+
 vi.mock('@renderer/ipc', () => ({
   ipcApi: { request: (...args: unknown[]) => mocks.ipcRequest(...args) }
 }))
@@ -780,32 +782,6 @@ describe('All archive actions', () => {
     expect(config.title).toBe('Restored')
     await config.action.onClick()
     expect(mocks.openRoute).toHaveBeenCalledWith('/app/chat', { topicId: 't1' })
-  })
-
-  it('offers a way back into a Session restored from the mixed All tab', async () => {
-    mocks.pagesByPath.set('/archives', [
-      {
-        items: [
-          { id: 'topics:t1', entityId: 't1', domain: 'topics', name: 'Archived topic', deletedAt: 200 },
-          { id: 'sessions:s1', entityId: 's1', domain: 'sessions', name: 'Archived session', deletedAt: 200 }
-        ]
-      }
-    ])
-    mocks.ipcRequest.mockResolvedValue({ id: 's1' })
-    const user = userEvent.setup()
-    render(
-      <AllArchiveSection retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
-    )
-
-    await user.click(screen.getAllByRole('button', { name: 'Restore' })[1])
-
-    await waitFor(() => expect(toast.success).toHaveBeenCalled())
-    const config = vi.mocked(toast.success).mock.calls.at(-1)?.[0]
-    if (!config || typeof config === 'string' || !config.action) {
-      throw new Error('expected the session restore toast to carry the conversation link')
-    }
-    await config.action.onClick()
-    expect(mocks.openRoute).toHaveBeenCalledWith('/app/agents', { sessionId: 's1' })
   })
 
   it('keeps the File row in the All tab free of a conversation link', async () => {

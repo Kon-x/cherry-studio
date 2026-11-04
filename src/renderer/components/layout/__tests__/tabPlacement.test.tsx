@@ -1,19 +1,17 @@
 import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { useTabsContext } from '@renderer/hooks/tab'
 import type { Tab } from '@shared/data/cache/cacheValueTypes'
 
 import { TabsProvider } from '../TabsProvider'
 
-vi.mock('@renderer/components/AgentBrowserRuntimeHost', () => ({ AgentBrowserRuntimeHost: () => null }))
-
-const browserTab: Tab = {
-  id: 'browser',
+const notesTab: Tab = {
+  id: 'notes',
   type: 'route',
-  url: '/app/browser?url=https%3A%2F%2Fexample.com',
+  url: '/app/notes?noteId=example',
   title: 'Example'
 }
 const normalTabs: Tab[] = ['first', 'middle', 'last'].map((id) => ({
@@ -49,20 +47,20 @@ describe('tab placement', () => {
     const { result } = renderTabs()
 
     act(() => {
-      if (entry === 'openTab') result.current.openTab(browserTab.url, { id: browserTab.id })
-      else result.current.attachTab(browserTab)
+      if (entry === 'openTab') result.current.openTab(notesTab.url, { id: notesTab.id })
+      else result.current.attachTab(notesTab)
     })
 
-    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'browser', 'last'])
-    expect(result.current.activeTabId).toBe('browser')
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'notes', 'last'])
+    expect(result.current.activeTabId).toBe('notes')
   })
 
   it('appends after the last tab when it is active', () => {
     const { result } = renderTabs()
     act(() => result.current.setActiveTab('last'))
-    act(() => result.current.attachTab(browserTab))
+    act(() => result.current.attachTab(notesTab))
 
-    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'last', 'browser'])
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'last', 'notes'])
   })
 
   it('inserts at the start of normal tabs when a pinned tab is active', () => {
@@ -72,35 +70,35 @@ describe('tab placement', () => {
     )
     MockUseCacheUtils.setPersistCacheValue('ui.tab.active_tab_id', 'pin-1')
     const { result } = renderTabs()
-    act(() => result.current.attachTab(browserTab))
+    act(() => result.current.attachTab(notesTab))
 
-    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['pin-1', 'pin-2', 'browser', 'first', 'middle', 'last'])
-    expect(result.current.tabs.find((tab) => tab.id === 'browser')?.isPinned).toBeFalsy()
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['pin-1', 'pin-2', 'notes', 'first', 'middle', 'last'])
+    expect(result.current.tabs.find((tab) => tab.id === 'notes')?.isPinned).toBeFalsy()
   })
 
-  it('activates an existing browser tab without moving or duplicating it', () => {
-    MockUseCacheUtils.setPersistCacheValue('ui.tab.normal_tabs', [...normalTabs, browserTab])
+  it('activates an existing notes tab without moving or duplicating it', () => {
+    MockUseCacheUtils.setPersistCacheValue('ui.tab.normal_tabs', [...normalTabs, notesTab])
     const { result } = renderTabs()
     act(() => {
-      result.current.openTab(browserTab.url)
+      result.current.openTab(notesTab.url)
     })
 
-    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'last', 'browser'])
-    expect(result.current.activeTabId).toBe('browser')
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'last', 'notes'])
+    expect(result.current.activeTabId).toBe('notes')
   })
 
   it('uses the latest active tab when multiple links open before a render', () => {
     const { result } = renderTabs()
     act(() => {
-      result.current.attachTab(browserTab)
-      result.current.attachTab({ ...browserTab, id: 'second-browser', url: '/app/browser?url=https://second.test' })
+      result.current.attachTab(notesTab)
+      result.current.attachTab({ ...notesTab, id: 'second-notes', url: '/app/notes?noteId=second' })
     })
 
-    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'browser', 'second-browser', 'last'])
-    expect(result.current.activeTabId).toBe('second-browser')
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'middle', 'notes', 'second-notes', 'last'])
+    expect(result.current.activeTabId).toBe('second-notes')
   })
 
-  it('uses the same insertion rule for non-browser tabs', () => {
+  it('uses the same insertion rule for non-notes tabs', () => {
     const { result } = renderTabs()
     act(() => {
       result.current.openTab('/app/files', { id: 'files' })

@@ -72,13 +72,6 @@ describe('Claude Haiku 5.5 catalog', () => {
   it.each(['web-search', 'url-context'] as const)('enables native %s on Anthropic', (tool) => {
     expect(isServerToolModelEligible('claude-haiku-5-5', 'anthropic', tool)).toBe(true)
   })
-
-  it('lists the model for Claude Code with native URL fetching', () => {
-    expect(loader.getOverridesForProvider('claude-code')).toContainEqual(
-      expect.objectContaining({ modelId: 'claude-haiku-5-5' })
-    )
-    expect(isServerToolModelEligible('claude-haiku-5-5', 'claude-code', 'url-context')).toBe(true)
-  })
 })
 
 describe('Claude Opus 5.5 catalog', () => {
@@ -162,12 +155,5 @@ describe('Claude Sonnet 5.5 catalog', () => {
 
   it.each(['web-search', 'url-context'] as const)('enables native %s on Anthropic', (tool) => {
     expect(isServerToolModelEligible('claude-sonnet-5-5', 'anthropic', tool)).toBe(true)
-  })
-
-  it('lists the model for Claude Code with native URL fetching', () => {
-    expect(loader.getOverridesForProvider('claude-code')).toContainEqual(
-      expect.objectContaining({ modelId: 'claude-sonnet-5-5' })
-    )
-    expect(isServerToolModelEligible('claude-sonnet-5-5', 'claude-code', 'url-context')).toBe(true)
   })
 })

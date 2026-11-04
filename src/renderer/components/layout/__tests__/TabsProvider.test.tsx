@@ -215,14 +215,17 @@ function BatchCloseControls() {
         type="button"
         onClick={() => {
           for (const id of ['b', 'c', 'd']) {
-            addTab({
-              id,
-              type: 'route',
-              url: `/app/chat?topicId=${id}`,
-              title: id.toUpperCase(),
-              lastAccessTime: 0,
-              isDormant: false
-            })
+            addTab(
+              {
+                id,
+                type: 'route',
+                url: `/app/chat?topicId=${id}`,
+                title: id.toUpperCase(),
+                lastAccessTime: 0,
+                isDormant: false
+              },
+              'end'
+            )
           }
         }}>
         Seed tabs

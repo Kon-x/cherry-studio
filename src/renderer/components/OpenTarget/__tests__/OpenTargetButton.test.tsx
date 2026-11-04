@@ -22,6 +22,8 @@ vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof ReactI18next>()),
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) => {
+      if (key.startsWith('files.file_manager.')) return 'File manager'
+      if (key === 'common.more') return 'More'
       if (key === 'common.open_in') return `Open in ${values?.name}`
       if (key === 'files.error.open_path') return `Failed to open ${values?.path}`
       if (key === 'chat.preview_pane.default_app') return 'Default app'

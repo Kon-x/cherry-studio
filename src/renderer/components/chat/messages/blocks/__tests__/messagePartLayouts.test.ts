@@ -106,10 +106,10 @@ describe('projectLiveMessageParts', () => {
 
     expect(processIndexes(after)).toEqual(processIndexes(before))
     expect(directIndexes(after)).toEqual(directIndexes(before))
-    expect(directIndexes(after)).toContain(9)
+    expect(processIndexes(after)).toContain(9)
     expect(directIndexes(after)).toContain(10)
-    expect(directIndexes(after)).toContain(11)
-    expect(directIndexes(after)).toContain(15)
+    expect(processIndexes(after)).toContain(11)
+    expect(processIndexes(after)).toContain(15)
     expect(
       after.filter((item) => item.kind === 'part' && item.entry.part.type === 'text').map((item) => item.key)
     ).toEqual([0, 16])

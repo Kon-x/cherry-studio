@@ -450,7 +450,7 @@ describe('CherryCloudService', () => {
         `http://127.0.0.1/cloud-auth/callback?authorization_id=${authorizationId}&handoff_code=${token('D')}&state=${createBody.state}`
       )
     )
-    expect(await service.getStatus()).toEqual({ phase: 'signed-in', displayName: 'Sora' })
+    expect(await service.getStatus()).toEqual({ phase: 'signed-in', accountId, displayName: 'Sora' })
     expect(mocks.gatewayStart).not.toHaveBeenCalled()
     expect(mocks.showMainWindow).toHaveBeenCalledOnce()
 
@@ -580,7 +580,7 @@ describe('CherryCloudService', () => {
     const service = await createSignedInService()
 
     expect(mocks.gatewayStart).not.toHaveBeenCalled()
-    expect(await service.getStatus()).toEqual({ phase: 'signed-in', displayName: 'Sora' })
+    expect(await service.getStatus()).toEqual({ phase: 'signed-in', accountId, displayName: 'Sora' })
   })
 
   it('reports that a Product Session is required for authenticated requests', async () => {

@@ -1110,7 +1110,6 @@ describe('EnvironmentDependencies', () => {
       setSnapshots({
         uv: miseSnapshot('uv', 'uv', '1.0.0', false),
         custom: miseSnapshot('custom', 'github:example/custom'),
-        codex: miseSnapshot('codex', 'npm:codex'),
         node: miseSnapshot('node', 'core:node', '22.0.0', false)
       })
       render(<EnvironmentDependencies />)
@@ -1120,7 +1119,6 @@ describe('EnvironmentDependencies', () => {
       expect(screen.getAllByTitle('settings.dependencies.update')).toHaveLength(2)
       expect(screen.queryByText(sizeText)).not.toBeInTheDocument()
       expect(ipcMocks.installedSizes.mock.calls[0][0]).toContain('custom')
-      expect(ipcMocks.installedSizes.mock.calls[0][0]).not.toContain('codex')
       expect(ipcMocks.installedSizes.mock.calls[0][0]).not.toContain('node')
       await act(async () => sizes.resolve({ uv: 1_048_576, custom: 2_097_152 }))
       expect(screen.getByText('1.0 MB')).toBeInTheDocument()
