@@ -68,6 +68,7 @@ describe('packaged retired features', () => {
     'RemoteAccessService',
     'ClaudeCodeBinaryService',
     'ComputerUseService',
+    'AutomationReplService',
     'DoctorAgentService'
   ])('rejects %s bundled into a generic chunk', async (runtime) => {
     const resources = await pack({ 'out/main/chunk.js': `class ${runtime} {}` })

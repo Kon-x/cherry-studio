@@ -10,7 +10,7 @@ const retiredPaths = [
   /^out\/main\/assets\/miniAppTheme\.css$/
 ]
 const retiredRuntime =
-  /\b(?:ClaudeCodeRuntimeDriver|PiRuntimeDriver|DshRuntimeDriver|AgentSessionRuntimeService|AgentSessionDeliveryService|AgentJobsService|MiniAppRuntimeService|CodeCliService|DeepSeekHarnessService|OpenClawService|HermesDashboardService|SkillService|ChannelManager|ApiGatewayService|AgentBrowserRegistry|BrowserSessionService|RemoteAccessService|ClaudeCodeBinaryService|ComputerUseService|AutomationService|DoctorAgentService)\b/
+  /\b(?:ClaudeCodeRuntimeDriver|PiRuntimeDriver|DshRuntimeDriver|AgentSessionRuntimeService|AgentSessionDeliveryService|AgentJobsService|MiniAppRuntimeService|CodeCliService|DeepSeekHarnessService|OpenClawService|HermesDashboardService|SkillService|ChannelManager|ApiGatewayService|AgentBrowserRegistry|BrowserSessionService|RemoteAccessService|ClaudeCodeBinaryService|ComputerUseService|AutomationService|AutomationReplService|DoctorAgentService)\b/
 
 export function checkRetiredPackage(resourcesDirectory: string) {
   const archive = path.join(resourcesDirectory, 'app.asar')

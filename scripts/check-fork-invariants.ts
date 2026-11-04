@@ -108,6 +108,7 @@ const removedServices = [
   'ClaudeCodeBinaryService',
   'ComputerUseService',
   'AutomationService',
+  'AutomationReplService',
   'DoctorAgentService'
 ]
 const sourceFiles = listFiles('src').filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/'))
