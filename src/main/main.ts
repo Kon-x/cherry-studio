@@ -41,8 +41,6 @@ initSentry()
 // Privileged schemes must be declared before the app is ready, and only ONCE per
 // process — startApp() itself awaits app.whenReady(), so this cannot move in there.
 protocol.registerSchemesAsPrivileged([CHERRY_MEDIA_SCHEME_DECLARATION])
-// Freeze the path registry — bootstrap() asserts this completed.
-application.initPathRegistry()
 
 import { electronApp } from '@electron-toolkit/utils'
 import { app, protocol } from 'electron'
