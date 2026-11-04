@@ -50,7 +50,7 @@ for (const decision of ['Allow', 'Deny'] as const) {
       mcpServerIds: [server.id],
       settings: { mcpMode: 'manual' }
     })
-    expect(await ipcRequest(mainWindow, 'mcp.server.check_connectivity', { serverId: server.id })).toBe(true)
+    expect(await ipcRequest(mainWindow, 'mcp.server.get_version', { serverId: server.id })).toBe('1.0.0')
     await ipcRequest(mainWindow, 'mcp.server.refresh_tools', { serverId: server.id })
     await sendMessage(mainWindow, 'Use the verification MCP tool.')
     const allow = mainWindow.getByRole('button', { name: 'Allow', exact: true })

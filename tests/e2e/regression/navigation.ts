@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
+import en from '../../../src/renderer/i18n/locales/en-us.json'
+
 export async function dismissTransientDialogs(page: Page): Promise<void> {
   // Escape also closes popovers; repeated presses let nested dialogs finish their exit animations.
   await page.keyboard.press('Escape')
@@ -30,10 +32,14 @@ export async function openLaunchpad(page: Page): Promise<void> {
 
 export async function openLaunchpadApp(page: Page, name: string): Promise<void> {
   await openLaunchpad(page)
-  await page.getByRole('button', { name, exact: true }).last().click()
+  await page
+    .getByRole('button', { name: name === 'Chat' ? en['title.chat'] : name, exact: true })
+    .last()
+    .click()
 }
 
 export async function selectSidebarApp(page: Page, name: string): Promise<void> {
+  const label = name === 'Chat' ? en['title.chat'] : name
   await dismissOnboarding(page)
   const targetView = {
     Chat: '[data-ui="chat.view"]:visible',
@@ -46,9 +52,9 @@ export async function selectSidebarApp(page: Page, name: string): Promise<void> 
       .catch(() => false)
   ) {
     await page.getByRole('button', { name: 'Back', exact: true }).first().click()
-    await expect(page.getByRole('button', { name: 'Chat', exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: en['title.chat'], exact: true }).first()).toBeVisible()
   }
-  const sidebarButton = page.getByRole('button', { name, exact: true }).first()
+  const sidebarButton = page.getByRole('button', { name: label, exact: true }).first()
   if (await sidebarButton.isVisible().catch(() => false)) {
     await sidebarButton.click({ noWaitAfter: true })
   } else {
@@ -61,7 +67,7 @@ export async function selectSidebarApp(page: Page, name: string): Promise<void> 
       await sidebarButton.click({ noWaitAfter: true })
     } else {
       await openLaunchpad(page)
-      await page.getByRole('button', { name, exact: true }).last().click({ noWaitAfter: true })
+      await page.getByRole('button', { name: label, exact: true }).last().click({ noWaitAfter: true })
     }
   }
   if (targetView) await expect(page.locator(targetView).first()).toBeVisible({ timeout: 30_000 })

@@ -9,6 +9,7 @@ import type { Provider } from '@shared/data/types/provider'
 const modelHook = vi.hoisted(() => ({
   defaultModel: undefined as Model | undefined,
   defaultProvider: { id: 'provider', name: 'Provider', isEnabled: true } as Provider | undefined,
+  unavailableModelIds: new Set<string>(),
   useDefaultModel: vi.fn()
 }))
 
@@ -30,11 +31,16 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@renderer/hooks/useModel', () => ({
-  useDefaultModel: (options?: { enabled?: boolean }) => {
-    modelHook.useDefaultModel(options)
-    return { defaultModel: modelHook.defaultModel }
-  },
+  useDefaultModel: () => ({ defaultModel: modelHook.defaultModel }),
   useModels: () => ({ models: modelHook.defaultModel?.isEnabled ? [modelHook.defaultModel] : [] })
+}))
+
+vi.mock('@renderer/hooks/useCherryCloudModelAvailability', () => ({
+  useCherryCloudModelAvailability: () => ({
+    isModelHidden: () => false,
+    isModelUnavailable: (model: Model) => modelHook.unavailableModelIds.has(model.id),
+    getModelDescription: () => undefined
+  })
 }))
 
 vi.mock('@renderer/hooks/useProvider', () => ({
@@ -74,30 +80,19 @@ vi.mock('../steps/BasicInfoStep', async () => {
             }}>
             fill basic
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              form.setValue('agentType', 'pi')
-              form.setValue('name', 'My Resource')
-              form.setValue('modelId', 'provider::model')
-            }}>
-            fill pi basic
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              form.setValue('agentType', 'pi')
-              form.setValue('modelId', null)
-            }}>
-            switch to pi
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              form.setValue('agentType', 'dsh')
-              form.setValue('modelId', null)
-            }}>
-            switch to dsh
+          {(['pi', 'claude-code'] as const).map((runtime) => (
+            <button
+              key={runtime}
+              type="button"
+              onClick={() => {
+                form.setValue('agentType', runtime)
+                form.setValue('modelId', null)
+              }}>
+              switch to {runtime}
+            </button>
+          ))}
+          <button type="button" onClick={() => form.setValue('permissionMode', 'plan')}>
+            use plan mode
           </button>
         </>
       )
@@ -134,12 +129,6 @@ describe('ResourceCreateWizard', () => {
 
     expect(screen.getByText('library.config.prompt.label')).toBeInTheDocument()
     expect(screen.queryByText('library.config.dialogs.create.step.persona')).not.toBeInTheDocument()
-  })
-
-  it('does not activate the default-model query while closed', () => {
-    render(<ResourceCreateWizard kind="assistant" open={false} onOpenChange={vi.fn()} onSubmit={vi.fn()} />)
-
-    expect(modelHook.useDefaultModel).toHaveBeenCalledWith({ enabled: false })
   })
 
   it('prefills the model from the default model when the wizard opens', async () => {

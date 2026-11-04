@@ -1,6 +1,7 @@
 import {
   Activity,
   Archive,
+  AudioLines,
   Bell,
   Cloud,
   Command,
@@ -34,7 +35,6 @@ export function getSettingsSectionTitleKey(url: string): string | undefined {
     (pathname === '/settings/search' ? 'common.search' : undefined)
   )
 }
-
 export interface SettingsMenuEntry {
   /** Settings section route; also the aggregation key for `.search.ts` leaves */
   route: string
@@ -105,6 +105,12 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     route: '/settings/notifications',
     titleKey: 'settings.notification.title',
     icon: createElement(Bell),
+    groupKey: 'settings.menuGroups.personal'
+  },
+  {
+    route: '/settings/voice',
+    titleKey: 'settings.voice.title',
+    icon: createElement(AudioLines),
     groupKey: 'settings.menuGroups.personal'
   },
   {

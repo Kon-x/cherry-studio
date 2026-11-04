@@ -1,4 +1,4 @@
-import { MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
+import { mockUsePreference, MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,8 @@ import { TabIdProvider } from '@renderer/components/layout/TabIdProvider'
 import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 
 import { TopicRightPane } from '../TopicRightPane'
+
+const defaultPreferenceImplementation = mockUsePreference.getMockImplementation()!
 
 const useCommandHandlerMock = vi.hoisted(() => vi.fn())
 const topicBranchPanelModuleState = vi.hoisted(() => ({ importCount: 0 }))
@@ -89,6 +91,10 @@ vi.mock('@renderer/components/chat/trace/TracePane', () => ({
     payload ? <div data-testid="trace-pane" data-topic-id={payload.topicId} data-trace-id={payload.traceId} /> : null
 }))
 
+vi.mock('@renderer/components/SessionBrowserView', () => ({
+  SessionBrowserView: () => <div>Session browser</div>
+}))
+
 vi.mock('../TopicBranchPanel', () => {
   topicBranchPanelModuleState.importCount += 1
   return {
@@ -115,6 +121,7 @@ vi.mock('react-i18next', () => ({
 describe('TopicRightPane', () => {
   beforeEach(() => {
     useCommandHandlerMock.mockClear()
+    mockUsePreference.mockImplementation(defaultPreferenceImplementation)
     MockUsePreferenceUtils.setPreferenceValue('app.developer_mode.enabled', true)
   })
 
@@ -442,7 +449,7 @@ describe('TopicRightPane', () => {
     expect(screen.getByTestId('right-pane')).toHaveAttribute('data-open', 'false')
   })
 
-  it('reconciles an open resource capability to the next ready capability', async () => {
+  it('closes an unavailable resource pane without opening an unrelated capability', () => {
     const { rerender } = render(
       <TopicRightPane.Scope
         topicId="topic-a"
@@ -461,9 +468,9 @@ describe('TopicRightPane', () => {
       </TopicRightPane.Scope>
     )
 
-    expect(screen.getByTestId('right-pane')).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId('right-pane')).toHaveAttribute('data-open', 'false')
     expect(screen.queryByTestId('resource-list')).toBeNull()
-    expect(await screen.findByTestId('branch-pane')).toBeInTheDocument()
+    expect(screen.queryByTestId('branch-pane')).toBeNull()
   })
 
   it('opens the resource pane on a locate reveal request', () => {

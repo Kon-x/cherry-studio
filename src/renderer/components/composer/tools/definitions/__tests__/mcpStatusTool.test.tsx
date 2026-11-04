@@ -360,7 +360,7 @@ describe('mcpStatusTool', () => {
   it('keeps the MCP launcher openable when disabled so the config entry stays reachable', () => {
     const launcher = createMcpStatusLauncher([], t, 'disabled', false)
 
-    expect(launcher).toMatchObject({ id: 'mcp-status', description: 'Disabled' })
+    expect(launcher).toMatchObject({ id: 'mcp-status', description: 'Disabled', active: false })
     expect(launcher.disabled).toBeFalsy()
     expect(launcher.action).toEqual(expect.any(Function))
 
@@ -368,6 +368,11 @@ describe('mcpStatusTool', () => {
     launcher.action?.({ quickPanel } as any)
     expect(quickPanel.open).toHaveBeenCalledWith(expect.objectContaining({ readOnly: true, list: [] }))
     expect(quickPanel.open.mock.calls[0][0]).not.toHaveProperty('footerActions')
+  })
+
+  it('marks the MCP launcher active when the conversation has enabled MCP tools', () => {
+    expect(createMcpStatusLauncher([], t, 'auto', false, undefined, true)).toMatchObject({ active: true })
+    expect(createMcpStatusLauncher([], t, 'disabled', false, undefined, false)).toMatchObject({ active: false })
   })
 
   it('registers scoped MCP management actions alongside its launcher', async () => {

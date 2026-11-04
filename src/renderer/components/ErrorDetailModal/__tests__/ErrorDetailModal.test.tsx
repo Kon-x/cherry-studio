@@ -25,7 +25,13 @@ const aiDiagnosis: DiagnosisResult = {
 const providerError = {
   name: 'ProviderError',
   message: 'failed',
-  stack: 'private stack',
+  stack: 'private stack'
+} satisfies SerializedError
+
+const upstreamServerError = {
+  name: 'AI_APICallError',
+  message: 'Service Unavailable',
+  stack: null,
   statusCode: 503
 } satisfies SerializedError
 
@@ -89,6 +95,7 @@ const skippedResult: DoctorCheckResult = {
 const chatSubject = { kind: 'chat' as const, providerId: 'deepseek', modelId: 'deepseek-v4-flash' }
 
 const mocks = vi.hoisted(() => ({
+  agentState: undefined as unknown,
   cacheReady: true,
   diagnoseError: vi.fn(),
   doctorState: { status: 'idle' } as DoctorState,
@@ -134,7 +141,9 @@ const translations: Record<string, string> = {
   'settings.doctor.actions.open_provider': 'Open provider settings',
   'settings.doctor.actions.run_network': 'Full check',
   'settings.doctor.actions.run_basic': 'Quick basic checks',
+  'settings.doctor.actions.report_problem': 'Report a problem',
   'settings.doctor.actions.rerun': 'Run checks again',
+  'settings.doctor.agent.title': 'AI consultation',
   'settings.doctor.checks.config-boot-config-valid.detail.invalid_keys':
     'Some startup settings are not recognized or valid.',
   'settings.doctor.checks.config-boot-config-valid.title': 'Startup configuration',
@@ -185,7 +194,7 @@ vi.mock('@data/CacheService', () => ({
 }))
 
 vi.mock('@data/hooks/useCache', () => ({
-  useSharedCacheValue: () => mocks.doctorState
+  useSharedCacheValue: (key: string) => (key.startsWith('doctor.agent.') ? mocks.agentState : mocks.doctorState)
 }))
 
 vi.mock('@logger', () => ({
@@ -309,6 +318,7 @@ describe('ErrorDetailContent diagnostics', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.agentState = undefined
     mocks.cacheReady = true
     mocks.doctorState = { status: 'idle' }
     mocks.diagnoseError.mockResolvedValue(aiDiagnosis)
@@ -758,6 +768,62 @@ describe('ErrorDetailContent diagnostics', () => {
     expect(description).not.toContain('private Doctor evidence')
     expect(description).not.toContain('private stack')
     expect(mocks.diagnoseError).not.toHaveBeenCalled()
+  })
+
+  it('hides the report action for configured upstream 5xx errors', () => {
+    renderErrorDetailContent({
+      diagnosticReport: { location: 'home' },
+      error: upstreamServerError,
+      onOpenDiagnosticReport: vi.fn()
+    })
+
+    expect(screen.queryByRole('button', { name: 'Report a problem' })).not.toBeInTheDocument()
+  })
+
+  it('shows neither report nor AI consultation for a 503 error without a diagnostic subject', () => {
+    renderErrorDetailContent({
+      subject: undefined,
+      diagnosticReport: { location: 'home' },
+      error: upstreamServerError,
+      onOpenDiagnosticReport: vi.fn()
+    })
+
+    expect(screen.queryByRole('button', { name: 'Report a problem' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'AI consultation' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['insufficient balance', { name: 'ProviderError', message: 'insufficient_balance', stack: null, statusCode: 402 }],
+    ['unknown', { name: 'ProviderError', message: 'something unexplained happened', stack: null }],
+    ['message-only service unavailable', { name: 'ProviderError', message: 'Service Unavailable', stack: null }]
+  ] as const)('keeps the report action for %s errors and opens review', async (_label, error) => {
+    const user = userEvent.setup()
+    const onOpenDiagnosticReport = vi.fn()
+
+    renderErrorDetailContent({
+      diagnosticReport: { location: 'home' },
+      error,
+      onOpenDiagnosticReport
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Report a problem' }))
+    expect(onOpenDiagnosticReport).toHaveBeenCalledOnce()
+    expect(onOpenDiagnosticReport.mock.calls[0][0]).toContain('Location: Home conversation')
+  })
+
+  it('keeps the report handoff when the error is missing', async () => {
+    const user = userEvent.setup()
+    const onOpenDiagnosticReport = vi.fn()
+
+    renderErrorDetailContent({
+      diagnosticReport: { location: 'home' },
+      onOpenDiagnosticReport
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Report a problem' }))
+    expect(onOpenDiagnosticReport).toHaveBeenCalledOnce()
+    expect(onOpenDiagnosticReport.mock.calls[0][0]).toContain('Location: Home conversation')
+    expect(onOpenDiagnosticReport.mock.calls[0][0]).not.toContain('Error message:')
   })
 
   it('waits for error details to finish closing before opening report review', async () => {

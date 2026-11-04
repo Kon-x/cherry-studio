@@ -2,11 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
+import { MockApplicationUtils } from '@test-mocks/main/application'
 import { MockMainCacheServiceUtils } from '@test-mocks/main/CacheService'
 import { MockMainPreferenceServiceUtils } from '@test-mocks/main/PreferenceService'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { application } from '@application'
+import { BaseService } from '@main/core/lifecycle'
 import type * as ShellEnvModule from '@main/utils/shellEnv'
 
 import { BinaryManager } from '../BinaryManager'
@@ -33,6 +35,7 @@ describeFakeMise('BinaryManager fake-mise integration', () => {
   let misePath: string
 
   beforeEach(() => {
+    BaseService.resetInstances()
     MockMainCacheServiceUtils.resetMocks()
     MockMainPreferenceServiceUtils.resetMocks()
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cherry-fake-mise-'))
@@ -47,7 +50,8 @@ describeFakeMise('BinaryManager fake-mise integration', () => {
       FAKE_MISE_ROOT: tempDir
     }
     vi.mocked(application.getPath).mockImplementation((key: string, filename?: string) => {
-      const base = key === 'feature.binary.data' ? tempDir : `/mock/${key}`
+      const base =
+        key === 'feature.binary.data' ? tempDir : key === 'cherry.bin' ? path.join(tempDir, 'bundled') : `/mock/${key}`
       return filename ? path.join(base, filename) : base
     })
 
@@ -107,6 +111,7 @@ if (command === 'use') {
   })
 
   afterEach(() => {
+    MockApplicationUtils.resetServices()
     shellEnvRef.current = {}
     fs.rmSync(tempDir, { recursive: true, force: true })
   })

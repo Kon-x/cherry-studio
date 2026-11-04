@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useCommandHandler } from '@renderer/hooks/command'
 import { useTabs } from '@renderer/hooks/tab'
+import { useLeadingWindowControlsOverlay } from '@renderer/hooks/useLeadingWindowControlsOverlay'
 import useMacTransparentWindow from '@renderer/hooks/useMacTransparentWindow'
 import { useNativeFullscreen } from '@renderer/hooks/useNativeFullscreen'
 import { ipcApi } from '@renderer/ipc'
@@ -23,6 +24,7 @@ const isCompactMinWidthRoute = (url?: string): boolean => !!url && url.startsWit
 
 export const AppShell = () => {
   const isMacTransparentWindow = useMacTransparentWindow()
+  const tabsApi = useTabs()
   const {
     tabs,
     activeTabId,
@@ -35,7 +37,7 @@ export const AppShell = () => {
     unpinTab,
     detachTab,
     openTab
-  } = useTabs()
+  } = tabsApi
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs])
   const canCycleTabs = tabs.length > 1 && !!activeTab
   const canCloseTab = !!activeTab
@@ -54,6 +56,7 @@ export const AppShell = () => {
     [activeTab, isSettingsTabActive, tabs]
   )
   const isFullscreen = useNativeFullscreen()
+  const hasLeadingWindowControls = useLeadingWindowControlsOverlay()
   const handleCloseTab = useCallback(
     (id: string) => {
       const tab = tabs.find((candidate) => candidate.id === id)
@@ -69,12 +72,9 @@ export const AppShell = () => {
   const handleDetachTab = useCallback(
     (id: string) => {
       const tab = tabs.find((candidate) => candidate.id === id)
-      detachTab(id)
-      if (isSettingsPath(tab?.url) && previousWorkspaceTabIdRef.current) {
-        setActiveTab(previousWorkspaceTabIdRef.current)
-      }
+      detachTab(id, isSettingsPath(tab?.url) ? previousWorkspaceTabIdRef.current : undefined)
     },
-    [detachTab, setActiveTab, tabs]
+    [detachTab, tabs]
   )
 
   const handleOpenGlobalSearch = useCallback(() => {
@@ -97,7 +97,8 @@ export const AppShell = () => {
   )
 
   const handleCloseActiveTab = useCallback(() => {
-    if (activeTabId) handleCloseTab(activeTabId)
+    if (!activeTabId) return
+    handleCloseTab(activeTabId)
   }, [activeTabId, handleCloseTab])
 
   useCommandHandler('app.search', handleOpenGlobalSearch)
@@ -137,13 +138,7 @@ export const AppShell = () => {
     recordRouteVisit(activeTab)
   }, [activeTab, recordRouteVisit])
 
-  // Sync internal navigation back to tab state. For route-titled tabs we also
-  // refresh the title and clear the per-entity icon (it was supplied for a
-  // specific URL, e.g. a mini-app logo on /app/mini-app/<id>, and no longer
-  // applies once the user navigates elsewhere inside the tab). Chat / agent
-  // tabs are page-titled — their HomePage/AgentPage owns title + icon (topic /
-  // session name + assistant / agent emoji), so we only sync the url and leave
-  // title/icon alone, or navigating between topics would wipe them.
+  // Chat / agent tabs are page-titled (topic / session name + emoji), so navigation keeps them.
   const handleUrlChange = (tabId: string, url: string) => {
     const isPageTitled = isPageTitledRoute(url)
     const tab = tabs.find((candidate) => candidate.id === tabId)
@@ -209,7 +204,8 @@ export const AppShell = () => {
     </div>
   )
 
-  if (!isMac) {
+  // Leading Linux WCO controls take the top-left corner like macOS traffic lights do.
+  if (!isMac && !hasLeadingWindowControls) {
     return (
       <div
         className={cn(

@@ -24,11 +24,11 @@ import { getSidebarMenuPath } from '@renderer/utils/sidebar'
 const BASE_URL = 'https://www.cherry-ai.com/'
 const LAUNCHPAD_GRID_CLASS = 'grid grid-cols-6 justify-items-center gap-2 px-2'
 const LAUNCHPAD_ITEM_CLASS = 'mx-auto w-[92px]'
-const APP_ICON_TILE_CLASS =
-  'flex size-14 items-center justify-center rounded-2xl border border-border-subtle bg-transparent'
+const APP_ICON_SURFACE_CLASS =
+  'relative flex size-14 items-center justify-center overflow-hidden rounded-2xl border border-border-subtle bg-transparent transition-[background-color] duration-[160ms] ease-in-out group-hover:bg-accent group-focus-visible:bg-accent motion-reduce:transition-none'
 const APP_ICON_FRAME_CLASS =
-  'relative flex size-[50px] shrink-0 items-center justify-center overflow-hidden rounded-xl select-none'
-const APP_ICON_CLASS = 'size-[50px] object-contain'
+  'relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl select-none'
+const APP_ICON_CLASS = 'size-11 object-contain'
 const SORTABLE_CONTENTS_STYLE = { display: 'contents' } as const
 
 const APP_ICON_SOURCES: Record<SidebarAppId, string> = {
@@ -49,8 +49,8 @@ export default function LaunchpadPage() {
   const suppressClickUntilRef = useRef(0)
   const draggedItemIdRef = useRef<string | null>(null)
 
-  const handleSortableDragStart = useCallback((event: { active: { id: string | number } }) => {
-    draggedItemIdRef.current = String(event.active.id)
+  const handleSortableDragStart = useCallback((event: { activeId: string | number }) => {
+    draggedItemIdRef.current = String(event.activeId)
     suppressClickUntilRef.current = Date.now() + 500
   }, [])
 
@@ -125,8 +125,6 @@ export default function LaunchpadPage() {
     [isPinned, pinToSidebar, t, unpinFromSidebar]
   )
 
-  // Sidebar-backed app tiles keep their existing launchpad order. The direct
-  // Harness shortcut is fixed because it is not a sidebar destination.
   const appMenuItems = useMemo(
     () =>
       orderedAppIds.flatMap((favorite) => {
@@ -165,10 +163,11 @@ export default function LaunchpadPage() {
     <CommandContextMenu key={item.id} location="webcontents.context" extraItems={item.menuItems}>
       <button
         type="button"
+        data-dnd-row-control
         onClick={() => openLaunchpadItem(item.id)}
         className={`${LAUNCHPAD_ITEM_CLASS} group flex cursor-pointer flex-col items-center gap-1 rounded-2xl px-1 py-2 text-center outline-none transition-transform duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95`}>
         <span className="relative flex size-14 items-center justify-center">
-          <span className={APP_ICON_TILE_CLASS}>
+          <span className={APP_ICON_SURFACE_CLASS}>
             <span className={APP_ICON_FRAME_CLASS}>
               <img src={item.iconSrc} alt="" className={APP_ICON_CLASS} draggable={false} />
             </span>

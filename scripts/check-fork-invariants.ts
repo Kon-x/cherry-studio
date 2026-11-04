@@ -48,6 +48,15 @@ for (const relativePath of [
   'src/main/services/OpenClawService.ts',
   'src/main/services/HermesService.ts',
   'packages/dsh-bridge',
+  'packages/agent-runtime',
+  'packages/agent-runtime-pi',
+  'packages/agent-runtime-pi-durable',
+  'src/main/features/computerUse',
+  'src/main/ai/automation',
+  'src/main/services/automation',
+  'src/main/services/ClaudeCodeBinaryService.ts',
+  'src/main/ipc/handlers/doctorAgent.ts',
+  'src/renderer/pages/settings/ComputerUseSettings.tsx',
   'packages/remote-protocol',
   'packages/remote-transport',
   'src/main/features/browser',
@@ -95,7 +104,12 @@ const removedServices = [
   'CodeCliService',
   'DeepSeekHarnessService',
   'BrowserSessionService',
-  'RemoteAccessService'
+  'RemoteAccessService',
+  'ClaudeCodeBinaryService',
+  'ComputerUseService',
+  'AutomationService',
+  'AutomationReplService',
+  'DoctorAgentService'
 ]
 const sourceFiles = listFiles('src').filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/'))
 for (const file of sourceFiles) {
@@ -126,6 +140,9 @@ for (const dependency of [
   '@earendil-works/pi-',
   '@deepseek-ai/dsh-',
   '@cherrystudio/dsh-bridge',
+  '@cherrystudio/agent-runtime',
+  '@cherrystudio/computer-use',
+  'quickjs-wasi',
   '@cherrystudio/remote-protocol',
   '@cherrystudio/remote-transport'
 ]) {

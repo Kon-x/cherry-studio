@@ -61,7 +61,7 @@ export const ComposerToolRuntimeProvider = ({ children, initialState, actions }:
 interface ComposerToolRuntimeBootstrapProps {
   scope: ComposerToolScope
   assistant?: Assistant
-  model: Model
+  model?: Model
 }
 
 type AnyToolDefinition = ToolDefinition<readonly ToolStateKey[], readonly ToolActionKey[]>
@@ -159,7 +159,7 @@ export const ComposerToolRuntimeHost = ({ scope, assistant, model }: ComposerToo
   )
 
   const availableTools = useMemo(() => {
-    return getToolsForScope(scope, { assistant, model })
+    return getToolsForScope(scope, { assistant, model }).filter((tool) => model || tool.availableWithoutModel)
   }, [assistant, model, scope])
 
   const getLauncherApiForTool = useCallback(
@@ -246,7 +246,7 @@ const buildReconcileContext = (tool: AnyToolDefinition, inputs: ReconcileContext
   return {
     scope: inputs.scope,
     assistant: inputs.assistant,
-    model: inputs.model as Model,
+    model: inputs.model,
     state,
     actions,
     launcher: NOOP_LAUNCHER,
@@ -423,10 +423,10 @@ export const ComposerToolMenu = ({ unifiedPanelControl }: ComposerToolMenuProps)
   return (
     <button
       type="button"
-      className="flex size-[30px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="flex size-[30px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground dark:text-foreground"
       aria-label={t('settings.quickPanel.title')}
       onClick={() => unifiedPanelControl.open()}>
-      <Plus size={18} />
+      <Plus size={18} className="dark:text-current!" />
     </button>
   )
 }

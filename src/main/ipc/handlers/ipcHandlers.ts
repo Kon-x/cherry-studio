@@ -21,16 +21,21 @@ import { navigationHandlers } from './navigation'
 import { notificationHandlers } from './notification'
 import { oauthHandlers } from './oauth'
 import { ovmsHandlers } from './ovms'
+import { pdfjsHandlers } from './pdfjs'
 import { printHandlers } from './print'
 import { profileHandlers } from './profile'
 import { providerHandlers } from './provider'
+import { proxyHandlers } from './proxy'
 import { quickAssistantHandlers } from './quickAssistant'
 import { screenshotHandlers } from './screenshot'
+import { screenshotChatHandlers } from './screenshotChat'
 import { selectionHandlers } from './selection'
 import { systemHandlers } from './system'
 import { tabHandlers } from './tab'
+import { toolResultHandlers } from './toolResult'
 import { translateHandlers } from './translate'
 import { trashHandlers } from './trash'
+import { voiceHandlers } from './voice'
 import { webSearchHandlers } from './webSearch'
 import { windowHandlers } from './window'
 
@@ -45,6 +50,7 @@ import { windowHandlers } from './window'
  */
 export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...aiHandlers,
+  ...voiceHandlers,
   ...appHandlers,
   ...backupHandlers,
   ...binaryHandlers,
@@ -64,15 +70,19 @@ export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...notificationHandlers,
   ...oauthHandlers,
   ...ovmsHandlers,
+  ...pdfjsHandlers,
   ...printHandlers,
   ...profileHandlers,
+  ...proxyHandlers,
   ...providerHandlers,
   ...quickAssistantHandlers,
   ...screenshotHandlers,
+  ...screenshotChatHandlers,
   ...selectionHandlers,
   ...systemHandlers,
   ...tabHandlers,
   ...translateHandlers,
+  ...toolResultHandlers,
   ...trashHandlers,
   ...webSearchHandlers,
   ...windowHandlers

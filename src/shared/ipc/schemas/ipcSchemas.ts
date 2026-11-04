@@ -19,16 +19,21 @@ import { type NavigationEventSchemas, navigationRequestSchemas } from './navigat
 import { type NotificationEventSchemas, notificationRequestSchemas } from './notification'
 import { oauthRequestSchemas } from './oauth'
 import { ovmsRequestSchemas } from './ovms'
+import { pdfjsRequestSchemas } from './pdfjs'
 import { printRequestSchemas } from './print'
 import { profileRequestSchemas } from './profile'
 import { providerRequestSchemas } from './provider'
+import { proxyRequestSchemas } from './proxy'
 import { type QuickAssistantEventSchemas, quickAssistantRequestSchemas } from './quickAssistant'
 import { type ScreenshotEventSchemas, screenshotRequestSchemas } from './screenshot'
+import { screenshotChatRequestSchemas, type ScreenshotChatEventSchemas } from './screenshotChat'
 import { type SelectionEventSchemas, selectionRequestSchemas } from './selection'
 import { type SystemEventSchemas, systemRequestSchemas } from './system'
 import { type TabEventSchemas, tabRequestSchemas } from './tab'
+import { toolResultRequestSchemas } from './toolResult'
 import { type TranslateEventSchemas, translateRequestSchemas } from './translate'
 import { trashRequestSchemas } from './trash'
+import { type VoiceEventSchemas, voiceRequestSchemas } from './voice'
 import { webSearchRequestSchemas } from './webSearch'
 import { type WindowEventSchemas, windowRequestSchemas } from './window'
 
@@ -41,6 +46,7 @@ import { type WindowEventSchemas, windowRequestSchemas } from './window'
  */
 export const ipcRequestSchemas = {
   ...aiRequestSchemas,
+  ...voiceRequestSchemas,
   ...appRequestSchemas,
   ...backupRequestSchemas,
   ...binaryRequestSchemas,
@@ -60,15 +66,19 @@ export const ipcRequestSchemas = {
   ...notificationRequestSchemas,
   ...oauthRequestSchemas,
   ...ovmsRequestSchemas,
+  ...pdfjsRequestSchemas,
   ...printRequestSchemas,
   ...profileRequestSchemas,
+  ...proxyRequestSchemas,
   ...providerRequestSchemas,
   ...quickAssistantRequestSchemas,
   ...screenshotRequestSchemas,
+  ...screenshotChatRequestSchemas,
   ...selectionRequestSchemas,
   ...systemRequestSchemas,
   ...tabRequestSchemas,
   ...translateRequestSchemas,
+  ...toolResultRequestSchemas,
   ...trashRequestSchemas,
   ...webSearchRequestSchemas,
   ...windowRequestSchemas
@@ -94,10 +104,12 @@ export type IpcEventSchemas = AiEventSchemas &
   NotificationEventSchemas &
   QuickAssistantEventSchemas &
   ScreenshotEventSchemas &
+  ScreenshotChatEventSchemas &
   SelectionEventSchemas &
   SystemEventSchemas &
   TabEventSchemas &
   TranslateEventSchemas &
+  VoiceEventSchemas &
   WindowEventSchemas
 /** Union of all declared event names. */
 export type IpcEventName = keyof IpcEventSchemas

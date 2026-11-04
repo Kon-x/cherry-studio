@@ -8,6 +8,7 @@ import { validate as isUuid } from 'uuid'
 
 import { loggerService } from '@logger'
 import { isMac, isWin } from '@main/core/platform'
+import { isOutsidePath } from '@main/utils/file'
 import { isPathInside, isSameOrInside } from '@main/utils/file'
 
 import {
@@ -201,10 +202,6 @@ async function lstatBigIntIfExists(targetPath: string): Promise<BigIntStats | un
   }
 }
 
-function isPathInsideOrEqual(childPath: string, parentPath: string): boolean {
-  return path.normalize(childPath) === path.normalize(parentPath) || isPathInside(childPath, parentPath)
-}
-
 async function realpathIfExists(targetPath: string): Promise<string | undefined> {
   try {
     return await realpath(targetPath)
@@ -278,7 +275,7 @@ export async function isManagedLegacyAgentWorkspace(
   const rootStat = await lstatIfExists(agentsDataRoot)
   if (!rootStat?.isDirectory() || rootStat.isSymbolicLink()) return false
   const [realRoot, realWorkspace] = await Promise.all([realpath(agentsDataRoot), realpath(expected)])
-  return isPathInsideOrEqual(realWorkspace, realRoot)
+  return !isOutsidePath(path.relative(realRoot, realWorkspace))
 }
 
 async function findCaseInsensitiveEntry(dir: string, name: string): Promise<string | undefined> {

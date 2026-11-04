@@ -39,8 +39,8 @@ Each upstream sync hits the same shapes:
 - Any new upstream code that calls `application.get('ApiGatewayService')` must be rerouted to a direct provider
   connection or made to reject; `pnpm fork:check` catches every call site.
 - `docs/README.md` is generated — resolve with the upstream side and re-run `pnpm docs:index`. Removing a docs
-  domain also means removing it from `REFERENCE_DOMAINS` in `scripts/verify-doc-structure.ts` and the label map in
-  `scripts/gen-doc-index.ts`.
+  domain also means removing it from `REFERENCE_DOMAINS` in `scripts/docsGovernance/verify-doc-structure.ts` and the label map in
+  `scripts/docsGovernance/gen-doc-index.ts`.
 - Locale catalogs lose the fork's own keys during the merge: run `pnpm i18n:sync`, then translate every
   `[to be translated]:` marker — `pnpm i18n:check` rejects the markers.
 - `pnpm-lock.yaml`: resolve with the upstream side, then regenerate with `pnpm install --lockfile-only`.
@@ -115,20 +115,24 @@ checks and build without publishing a release.
   upload the validated installers and checksums. Setup and portable sizes are compared with `v2.0.14-kx.1` in
   the Actions summary and `windows-x64-size-comparison-<run-id>` artifact, using release asset metadata.
 
-For local reproduction, use the pinned Node and pnpm versions and the corresponding commands:
+For local validation, use the pinned Node and pnpm versions, inspect the explicit scope, and run
+relevant tests with file filters. Full-suite and Windows package validation run in CI:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm fork:check
-pnpm lint
-pnpm test
+pnpm change:scope --base origin/main
+pnpm check --plan
+pnpm typecheck
+pnpm exec vitest run <affected-test-file>
 pnpm docs:check
-pnpm test:lint
+pnpm exec eslint <changed-code-files>
+pnpm exec oxlint --deny-warnings <changed-code-files>
+pnpm exec oxfmt --check <changed-files>
 pnpm db:migrations:check
 pnpm db:migrations:generate
 git status --short -- migrations/sqlite-drizzle
 pnpm build
-pnpm test:e2e
 ```
 
 Confirm the focused contracts: provider tombstones and manual recreation, batch deletion, web-grounded explanation,

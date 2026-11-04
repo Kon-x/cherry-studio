@@ -141,7 +141,7 @@ export function DoctorChecksPanel({ controller }: { readonly controller: DoctorC
           </DropdownMenuContent>
         </DropdownMenu>
         <Button
-          variant="emphasis"
+          variant="outline"
           loading={session.interaction.kind === 'run' && session.interaction.tier === 'live'}
           disabled={viewModel.status === 'running' || controller.isInteracting || !viewModel.report}
           onClick={() => void controller.run('live')}>

@@ -5,14 +5,12 @@ import type { FC, ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Badge, Button, CircularProgress, Divider, Scrollbar, Switch } from '@cherrystudio/ui'
+import { Badge, Button, CircularProgress, Divider, IndicatorLight, Scrollbar, Switch } from '@cherrystudio/ui'
 import { usePreference } from '@data/hooks/usePreference'
 import AppLogo from '@renderer/assets/images/logo.png'
 import { DoctorPopup } from '@renderer/components/doctor'
 import FeedbackDialog from '@renderer/components/feedback/FeedbackDialog'
 import LogoAvatar from '@renderer/components/icons/LogoAvatar'
-import IndicatorLight from '@renderer/components/IndicatorLight'
-import { ReleaseNotes } from '@renderer/components/ReleaseNotes'
 import {
   SettingGroup,
   SettingRow,
@@ -21,6 +19,7 @@ import {
   SettingTitle
 } from '@renderer/components/SettingsPrimitives'
 import UpdateDialogPopup from '@renderer/components/UpdateDialogPopup'
+import { UpgradeReleaseNotes } from '@renderer/components/UpgradeReleaseNotes'
 import { useAppUpdateState } from '@renderer/hooks/useAppUpdateState'
 import { useOpenReleaseNotes } from '@renderer/hooks/useOpenReleaseNotes'
 import { useTheme } from '@renderer/hooks/useTheme'
@@ -129,11 +128,6 @@ const AboutSettings: FC = () => {
   }
 
   const isUpdateReady = appUpdateState.available && appUpdateState.downloaded && !appUpdateState.downloading
-  const releaseNotesText =
-    typeof appUpdateState.info?.releaseNotes === 'string'
-      ? appUpdateState.info.releaseNotes.replace(/\n/g, '\n\n')
-      : (appUpdateState.info?.releaseNotes?.map((note) => note.note).join('\n') ?? '')
-
   return (
     <SettingsContentColumn theme={theme}>
       <SettingGroup theme={theme}>
@@ -233,7 +227,7 @@ const AboutSettings: FC = () => {
           </SettingRow>
           <Divider className="my-3" />
           <Scrollbar className="max-h-96 overflow-x-hidden pr-2">
-            <ReleaseNotes content={releaseNotesText} />
+            <UpgradeReleaseNotes releaseInfo={appUpdateState.info} />
           </Scrollbar>
         </SettingGroup>
       )}

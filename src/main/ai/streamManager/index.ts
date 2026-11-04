@@ -24,3 +24,4 @@ export type {
   StreamListener,
   StreamPausedResult
 } from './types'
+export type { MainDispatchRequest } from './context/dispatch'

@@ -3,11 +3,12 @@ import { Check, Globe2, Loader2, Settings2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { loggerService } from '@logger'
-import { ComposerPanelSymbol } from '@renderer/components/composer/quickPanel'
+import { ComposerPanelSymbol, prepareComposerQuickPanelSearch } from '@renderer/components/composer/quickPanel'
 import type { ComposerToolFooterAction, ComposerToolLauncher } from '@renderer/components/composer/toolLauncher'
+import { isMcpToolbarActive } from '@renderer/components/composer/tools/definitions/mcpToolbarState'
 import { defineTool, type ToolRenderContext, TopicType } from '@renderer/components/composer/tools/types'
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
-import { type QuickPanelInputAdapter, type QuickPanelListItem, useQuickPanel } from '@renderer/components/QuickPanel'
+import { type QuickPanelListItem, useQuickPanel } from '@renderer/components/QuickPanel'
 import { openResourceEditDialog } from '@renderer/components/resourceCatalog/dialogs/ResourceEditDialogEventHost'
 import { useAssistantMutationsById } from '@renderer/hooks/resourceCatalog'
 import { useMcpRuntimeStatusMap } from '@renderer/hooks/useMcpRuntimeStatus'
@@ -212,27 +213,13 @@ export function buildMcpGlobalConfigFooterItem(t: TFunction): ComposerToolFooter
   }
 }
 
-function clearMcpStatusInputQuery(
-  inputAdapter: QuickPanelInputAdapter | undefined,
-  queryAnchor: number | undefined,
-  triggerInfo: { type: 'input' | 'button' } | undefined
-) {
-  if (!inputAdapter || triggerInfo?.type !== 'input' || queryAnchor === undefined) return
-
-  const text = inputAdapter.getText()
-  const cursorOffset = inputAdapter.getCursorOffset?.() ?? text.length
-  if (cursorOffset < queryAnchor) return
-
-  inputAdapter.deleteTriggerRange({ from: queryAnchor, to: cursorOffset })
-  inputAdapter.focus()
-}
-
 export function createMcpStatusLauncher(
   items: QuickPanelListItem[],
   t: TFunction,
   mode?: McpMode,
   editable = false,
-  onOpen?: () => void
+  onOpen?: () => void,
+  active = false
 ): ComposerToolLauncher {
   const modeLabel = mode ? getMcpModeLabel(t, mode) : undefined
   const isDisabled = mode === 'disabled'
@@ -243,6 +230,7 @@ export function createMcpStatusLauncher(
     sources: ['root-panel'],
     order: 50,
     label: 'MCP',
+    active,
     // The panel stays reachable even when MCP is disabled — it surfaces the disabled state alongside
     // the "Configure MCP servers" footer, which is exactly the moment the user needs to open config.
     description:
@@ -252,15 +240,12 @@ export function createMcpStatusLauncher(
     icon: <McpLogo aria-hidden />,
     action: ({ inputAdapter, parentPanel, queryAnchor, quickPanel, triggerInfo }) => {
       onOpen?.()
-      clearMcpStatusInputQuery(inputAdapter, queryAnchor, triggerInfo)
       quickPanel.open({
         title: mode ? `MCP / ${getMcpModeLabel(t, mode)}` : 'MCP',
         list: items,
         symbol: ComposerPanelSymbol.McpStatus,
         parentPanel,
-        queryAnchor,
-        triggerInfo: { type: 'button' },
-        trackInputQuery: true,
+        ...prepareComposerQuickPanelSearch({ inputAdapter, queryAnchor, triggerInfo }),
         readOnly: !editable
       })
     }
@@ -353,9 +338,18 @@ export const McpStatusComposerRuntime = ({ context }: { context: McpStatusToolCo
     return currentAction ? [currentAction, buildMcpGlobalConfigFooterItem(t)] : [buildMcpGlobalConfigFooterItem(t)]
   }, [configTarget, t])
 
+  const toolbarActive = useMemo(
+    () =>
+      isMcpToolbarActive({
+        scope: TopicType.Chat,
+        assistant
+      }),
+    [assistant]
+  )
+
   const mcpStatusLauncher = useMemo(
-    () => createMcpStatusLauncher(items, t, mode, bindingPanelEditable, () => setDataRequested(true)),
-    [bindingPanelEditable, items, mode, t]
+    () => createMcpStatusLauncher(items, t, mode, bindingPanelEditable, () => setDataRequested(true), toolbarActive),
+    [bindingPanelEditable, items, mode, t, toolbarActive]
   )
 
   useEffect(

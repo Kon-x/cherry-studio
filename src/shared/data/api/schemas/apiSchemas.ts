@@ -22,6 +22,7 @@ import type { AssertValidSchemas } from '../types'
 import type { AiUsageRecordSchemas } from './aiUsageRecords'
 import type { ArchiveSchemas } from './archives'
 import type { AssistantSchemas } from './assistants'
+import type { DiagnosticReportSchemas } from './diagnosticReports'
 import type { FileSchemas } from './files'
 import type { GroupSchemas } from './groups'
 import type { JobSchemas } from './jobs'
@@ -72,5 +73,6 @@ export type ApiSchemas = AssertValidSchemas<
     PinSchemas &
     JobSchemas &
     SearchSchemas &
+    DiagnosticReportSchemas &
     AiUsageRecordSchemas
 >

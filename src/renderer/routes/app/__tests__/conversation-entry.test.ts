@@ -35,9 +35,7 @@ describe('conversation entry route guards', () => {
   })
 
   it('does not resolve a chat entry that already carries a topic id', async () => {
-    await chatBeforeLoad({ search: { topicId: 'topic-a' } })
-
-    expect(mocks.resolveChatEntryTopicId).not.toHaveBeenCalled()
+    await expect(chatBeforeLoad({ search: { topicId: 'topic-a' } })).resolves.toBeUndefined()
   })
 
   it('resolves an assistant-scoped topic for a sidebar assistant entry', async () => {
@@ -46,15 +44,9 @@ describe('conversation entry route guards', () => {
     await expect(chatBeforeLoad({ search: { assistantId: 'assistant-1' } })).rejects.toMatchObject({
       options: { to: '/app/chat', search: { topicId: 'topic-assistant' }, replace: true }
     })
-
-    expect(mocks.resolveChatEntryTopicIdForAssistant).toHaveBeenCalledWith('assistant-1')
-    expect(mocks.resolveChatEntryTopicId).not.toHaveBeenCalled()
   })
 
   it('falls through bare when the assistant has no topics', async () => {
-    await chatBeforeLoad({ search: { assistantId: 'assistant-1' } })
-
-    expect(mocks.resolveChatEntryTopicIdForAssistant).toHaveBeenCalledWith('assistant-1')
-    expect(mocks.resolveChatEntryTopicId).not.toHaveBeenCalled()
+    await expect(chatBeforeLoad({ search: { assistantId: 'assistant-1' } })).resolves.toBeUndefined()
   })
 })

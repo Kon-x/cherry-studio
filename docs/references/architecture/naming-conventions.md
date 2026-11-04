@@ -139,7 +139,7 @@ A `*Utils` suffix is used only when the file lives outside any `utils/` director
 |---|---|---|
 | Top-level meta docs at repo root | `UPPERCASE.md` | `README.md`, `CLAUDE.md`, `DESIGN.md`, `CONTRIBUTING.md` |
 | Per-directory README | `README.md` (always uppercase) | `src/main/core/paths/README.md` |
-| All other docs (under `docs/`, `packages/*/docs/`, etc.) | `kebab-case.md` | `database-testing.md`, `lan-transfer-protocol.md` |
+| All other docs (under `docs/`, `packages/*/docs/`, etc.) | `kebab-case.md` | `database-testing.md`, `remote-protocol.md` |
 
 ### 3.7 JSON / YAML / TOML
 
@@ -284,15 +284,14 @@ Do not pre-create a `features/<domain>/` for an anticipated module.
 `features/` holds high-cohesion domain code; the sibling type-buckets (`services/` + `utils/` in main; `components/` + `hooks/` + `services/` + `utils/` in the renderer) hold everything below that bar — single-file pieces and `services/<topic>/` capabilities.
 A large, multi-file domain left scattered across the `services/` and `utils/` buckets instead of gathered into one `features/<domain>/` is the §6.7 scattered/impure anti-pattern.
 
-**Canonical example** — `src/main/features/apiGateway/`:
+**Example** — a multi-concern domain stays together under `features/<domain>/`:
 
 ```
-features/apiGateway/
-├── ApiGatewayService.ts   # the domain service (§5.2)
-├── adapters/              # domain-specific sub-modules
-├── middleware/
+features/<domain>/
+├── <Domain>Service.ts
+├── adapters/
 ├── routes/
-└── utils/                 # domain-local utils, not the global src/main/utils/ bucket
+└── utils/
 ```
 
 For the main process, [Main Process Architecture](./main-process.md) covers `features/` vs the type-buckets (`services/` / `utils/`) and the dependency direction; for the renderer, [Renderer Architecture](./renderer.md) places `features/` within the full layering (windows → pages → features → components → packages/ui), with per-directory responsibilities and dependency rules.

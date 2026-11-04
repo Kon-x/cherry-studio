@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { ResourceItem } from '@renderer/types/resourceCatalog'
+
 import { ResourceCatalogView } from '../ResourceCatalogView'
 
 const {
@@ -102,7 +104,7 @@ vi.mock('../ResourceGrid', () => ({
   }
 }))
 
-function createController(resourceError?: Error) {
+function createController(resourceError?: Error, resources: ResourceItem[] = []) {
   return {
     resourceError,
     refetch: refetchMock,
@@ -124,7 +126,7 @@ function createController(resourceError?: Error) {
       onOpenSystemSkills: vi.fn(),
       onSearchChange: vi.fn(),
       onGroupFilter: vi.fn(),
-      resources: [],
+      resources,
       search: ''
     },
     dialogs: {

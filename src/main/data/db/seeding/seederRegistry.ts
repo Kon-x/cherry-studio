@@ -2,9 +2,11 @@ import type { ISeeder } from '../types'
 import { BuiltinMcpServerSeeder } from './seeders/builtinMcpServerSeeder'
 import { CherryAiDefaultModelSeeder } from './seeders/cherryaiDefaultModelSeeder'
 import { DefaultAssistantSeeder } from './seeders/defaultAssistantSeeder'
+import { KnowledgeBaseOrderSeeder } from './seeders/knowledgeBaseOrderSeeder'
 import { LegacyFileCleanupPolicySeeder } from './seeders/legacyFileCleanupPolicySeeder'
 import { LocalModelSeeder } from './seeders/LocalModelSeeder'
 import { LongTextPastePreferenceUpgradeSeeder } from './seeders/longTextPastePreferenceUpgradeSeeder'
+import { PoeChatEndpointUpgradeSeeder } from './seeders/PoeChatEndpointUpgradeSeeder'
 import { PreferenceSeeder } from './seeders/preferenceSeeder'
 import { PresetProviderSeeder } from './seeders/presetProviderSeeder'
 import { SidebarShortcutMigrationSeeder } from './seeders/sidebarShortcutMigrationSeeder'
@@ -22,6 +24,9 @@ import { WebSearchPreferenceUpgradeSeeder } from './seeders/WebSearchPreferenceU
  */
 export const seeders: ISeeder[] = [
   new LegacyFileCleanupPolicySeeder(),
+  new PresetProviderSeeder(),
+  new KnowledgeBaseOrderSeeder(),
+  new PoeChatEndpointUpgradeSeeder(),
   new CherryAiDefaultModelSeeder(),
   new DefaultAssistantSeeder(),
   new LongTextPastePreferenceUpgradeSeeder(),
@@ -29,7 +34,6 @@ export const seeders: ISeeder[] = [
   new SidebarShortcutMigrationSeeder(),
   new PreferenceSeeder(),
   new TranslateLanguageSeeder(),
-  new PresetProviderSeeder(),
   new LocalModelSeeder(),
   new BuiltinMcpServerSeeder()
 ]

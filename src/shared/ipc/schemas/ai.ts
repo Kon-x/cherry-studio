@@ -63,6 +63,16 @@ const aiImagePayloadSchema = z.strictObject({
    * in the renderer's `buildParamsSchema`; this is the value-type gate.
    */
   paramValues: imageParamsSchema,
+  /**
+   * Per-attempt request timeout (ms) for the provider submit call. Omitted
+   * means the transport default; bounded by the image job's 30-minute budget.
+   */
+  requestTimeoutMs: z
+    .number()
+    .int()
+    .min(10_000)
+    .max(30 * 60_000)
+    .optional(),
   /** Attached images / mask are encoded file bytes (data URLs), not form params. */
   inputImages: z.array(z.string()).optional(),
   mask: z.string().optional(),
@@ -135,7 +145,12 @@ export const aiRequestSchemas = {
       assistantId: z.string().optional(),
       throwOnError: z.boolean().optional()
     }),
-    output: z.array(ModelSchema.partial())
+    // A listing, not a bare array: a provider whose "models" are its own files
+    // (ComfyUI) holds some back, and the caller has to be able to say which.
+    output: z.object({
+      models: z.array(ModelSchema.partial()),
+      skippedModels: z.array(z.string()).optional()
+    })
   }),
   'ai.provider.model.check': defineRoute({
     input: z.strictObject({
@@ -235,6 +250,7 @@ export const aiRequestSchemas = {
  * its coalescing/liveness intact — it does not `broadcast`.
  */
 export type AiEventSchemas = {
+  'ai.agent.attachment_selections.changed': { sessionId: string }
   'ai.stream.chunk': StreamChunkPayload
   'ai.stream.done': StreamDonePayload
   'ai.stream.error': StreamErrorPayload

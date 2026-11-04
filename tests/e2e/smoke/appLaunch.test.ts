@@ -34,6 +34,7 @@ test('help actions hand their destinations to the system browser', async ({ elec
     ["What's new", 'https://github.com/Kon-x/cherry-studio/releases']
   ] as const
   for (const [label, destination] of destinations) {
+    await mainWindow.getByRole('button', { name: 'User', exact: true }).click()
     await mainWindow.getByRole('button', { name: 'Help', exact: true }).click()
     await mainWindow.getByText(label, { exact: true }).click()
     await expect

@@ -2,7 +2,7 @@
  * Central registry of legacy Electron IPC channel names. Command IPC has largely moved to
  * IpcApi (`ipcApi.request`); what remains here is the data/IpcApi transport infrastructure
  * plus channels not yet migrated — v1-only backup / nutstore / copilot, the file module,
- * LAN transfer, and a handful of micro-domains.
+ * and a handful of micro-domains.
  */
 export enum IpcChannel {
   App_Select = 'app:select',
@@ -11,7 +11,6 @@ export enum IpcChannel {
   App_IsPathInside = 'app:is-path-inside',
   Application_PreventQuit = 'application:prevent-quit',
   Application_AllowQuit = 'application:allow-quit',
-  Application_Relaunch = 'application:relaunch',
   App_LogToMain = 'app:log-to-main',
   App_QuoteToMain = 'app:quote-to-main',
 
@@ -44,7 +43,6 @@ export enum IpcChannel {
 
   //file
   File_Open = 'file:open',
-  File_OpenPath = 'file:openPath',
   File_Save = 'file:save',
   File_Select = 'file:select',
   File_ReadExternal = 'file:readExternal',
@@ -68,7 +66,6 @@ export enum IpcChannel {
   File_CheckFileName = 'file:checkFileName',
   File_ValidateNotesDirectory = 'file:validateNotesDirectory',
   File_BatchUploadMarkdown = 'file:batchUploadMarkdown',
-  File_ShowInFolder = 'file:showInFolder',
   // FileManager v2 surface (Phase 2)
   File_CreateInternalEntry = 'file:createInternalEntry',
   File_EnsureExternalEntry = 'file:ensureExternalEntry',
@@ -92,8 +89,6 @@ export enum IpcChannel {
   Backup_RestoreFromS3 = 'backup:restoreFromS3',
   Backup_ListS3Files = 'backup:listS3Files',
   Backup_DeleteS3File = 'backup:deleteS3File',
-  Backup_CreateLanTransferBackup = 'backup:createLanTransferBackup',
-  Backup_DeleteLanTransferBackup = 'backup:deleteLanTransferBackup',
 
   // zip
   Zip_Decompress = 'zip:decompress',

@@ -33,6 +33,7 @@ import { Route as SettingsMcpRouteImport } from './routes/settings/mcp'
 import { Route as SettingsModelRouteImport } from './routes/settings/model'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings/notifications'
 import { Route as SettingsOcrRouteImport } from './routes/settings/ocr'
+import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as SettingsPromptsRouteImport } from './routes/settings/prompts'
 import { Route as SettingsProviderRouteImport } from './routes/settings/provider'
 import { Route as SettingsQuickAssistantRouteImport } from './routes/settings/quick-assistant'
@@ -40,8 +41,10 @@ import { Route as SettingsScreenshotRouteImport } from './routes/settings/screen
 import { Route as SettingsSearchRouteImport } from './routes/settings/search'
 import { Route as SettingsSelectionAssistantRouteImport } from './routes/settings/selection-assistant'
 import { Route as SettingsShortcutRouteImport } from './routes/settings/shortcut'
+import { Route as SettingsSubscriptionRouteImport } from './routes/settings/subscription'
 import { Route as SettingsSystemRouteImport } from './routes/settings/system'
 import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
+import { Route as SettingsVoiceRouteImport } from './routes/settings/voice'
 import { Route as SettingsWebsearchRouteImport } from './routes/settings/websearch'
 import { Route as AppPaintingsIndexRouteImport } from './routes/app/paintings.index'
 import { Route as AppPaintingsSplatRouteImport } from './routes/app/paintings/$'
@@ -174,6 +177,11 @@ const SettingsOcrRoute = SettingsOcrRouteImport.update({
   path: '/ocr',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsPromptsRoute = SettingsPromptsRouteImport.update({
   id: '/prompts',
   path: '/prompts',
@@ -210,6 +218,11 @@ const SettingsShortcutRoute = SettingsShortcutRouteImport.update({
   path: '/shortcut',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsSubscriptionRoute = SettingsSubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsSystemRoute = SettingsSystemRouteImport.update({
   id: '/system',
   path: '/system',
@@ -218,6 +231,11 @@ const SettingsSystemRoute = SettingsSystemRouteImport.update({
 const SettingsUsageRoute = SettingsUsageRouteImport.update({
   id: '/usage',
   path: '/usage',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsVoiceRoute = SettingsVoiceRouteImport.update({
+  id: '/voice',
+  path: '/voice',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsWebsearchRoute = SettingsWebsearchRouteImport.update({
@@ -301,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/settings/model': typeof SettingsModelRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/ocr': typeof SettingsOcrRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
@@ -308,8 +327,10 @@ export interface FileRoutesByFullPath {
   '/settings/search': typeof SettingsSearchRoute
   '/settings/selection-assistant': typeof SettingsSelectionAssistantRoute
   '/settings/shortcut': typeof SettingsShortcutRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/settings/system': typeof SettingsSystemRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings/voice': typeof SettingsVoiceRoute
   '/settings/websearch': typeof SettingsWebsearchRoute
   '/settings/': typeof SettingsIndexRoute
   '/app/paintings/$': typeof AppPaintingsSplatRoute
@@ -345,6 +366,7 @@ export interface FileRoutesByTo {
   '/settings/model': typeof SettingsModelRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/ocr': typeof SettingsOcrRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
@@ -352,8 +374,10 @@ export interface FileRoutesByTo {
   '/settings/search': typeof SettingsSearchRoute
   '/settings/selection-assistant': typeof SettingsSelectionAssistantRoute
   '/settings/shortcut': typeof SettingsShortcutRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/settings/system': typeof SettingsSystemRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings/voice': typeof SettingsVoiceRoute
   '/settings/websearch': typeof SettingsWebsearchRoute
   '/settings': typeof SettingsIndexRoute
   '/app/paintings/$': typeof AppPaintingsSplatRoute
@@ -392,6 +416,7 @@ export interface FileRoutesById {
   '/settings/model': typeof SettingsModelRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/ocr': typeof SettingsOcrRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
@@ -399,8 +424,10 @@ export interface FileRoutesById {
   '/settings/search': typeof SettingsSearchRoute
   '/settings/selection-assistant': typeof SettingsSelectionAssistantRoute
   '/settings/shortcut': typeof SettingsShortcutRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
   '/settings/system': typeof SettingsSystemRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings/voice': typeof SettingsVoiceRoute
   '/settings/websearch': typeof SettingsWebsearchRoute
   '/settings/': typeof SettingsIndexRoute
   '/app/paintings/$': typeof AppPaintingsSplatRoute
@@ -440,6 +467,7 @@ export interface FileRouteTypes {
     | '/settings/model'
     | '/settings/notifications'
     | '/settings/ocr'
+    | '/settings/profile'
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
@@ -447,8 +475,10 @@ export interface FileRouteTypes {
     | '/settings/search'
     | '/settings/selection-assistant'
     | '/settings/shortcut'
+    | '/settings/subscription'
     | '/settings/system'
     | '/settings/usage'
+    | '/settings/voice'
     | '/settings/websearch'
     | '/settings/'
     | '/app/paintings/$'
@@ -484,6 +514,7 @@ export interface FileRouteTypes {
     | '/settings/model'
     | '/settings/notifications'
     | '/settings/ocr'
+    | '/settings/profile'
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
@@ -491,8 +522,10 @@ export interface FileRouteTypes {
     | '/settings/search'
     | '/settings/selection-assistant'
     | '/settings/shortcut'
+    | '/settings/subscription'
     | '/settings/system'
     | '/settings/usage'
+    | '/settings/voice'
     | '/settings/websearch'
     | '/settings'
     | '/app/paintings/$'
@@ -530,6 +563,7 @@ export interface FileRouteTypes {
     | '/settings/model'
     | '/settings/notifications'
     | '/settings/ocr'
+    | '/settings/profile'
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
@@ -537,8 +571,10 @@ export interface FileRouteTypes {
     | '/settings/search'
     | '/settings/selection-assistant'
     | '/settings/shortcut'
+    | '/settings/subscription'
     | '/settings/system'
     | '/settings/usage'
+    | '/settings/voice'
     | '/settings/websearch'
     | '/settings/'
     | '/app/paintings/$'
@@ -728,6 +764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsOcrRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/prompts': {
       id: '/settings/prompts'
       path: '/prompts'
@@ -777,6 +820,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsShortcutRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/subscription': {
+      id: '/settings/subscription'
+      path: '/subscription'
+      fullPath: '/settings/subscription'
+      preLoaderRoute: typeof SettingsSubscriptionRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/system': {
       id: '/settings/system'
       path: '/system'
@@ -789,6 +839,13 @@ declare module '@tanstack/react-router' {
       path: '/usage'
       fullPath: '/settings/usage'
       preLoaderRoute: typeof SettingsUsageRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/voice': {
+      id: '/settings/voice'
+      path: '/voice'
+      fullPath: '/settings/voice'
+      preLoaderRoute: typeof SettingsVoiceRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/websearch': {
@@ -939,6 +996,7 @@ interface SettingsRouteChildren {
   SettingsModelRoute: typeof SettingsModelRoute
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   SettingsOcrRoute: typeof SettingsOcrRoute
+  SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsPromptsRoute: typeof SettingsPromptsRoute
   SettingsProviderRoute: typeof SettingsProviderRoute
   SettingsQuickAssistantRoute: typeof SettingsQuickAssistantRoute
@@ -946,8 +1004,10 @@ interface SettingsRouteChildren {
   SettingsSearchRoute: typeof SettingsSearchRoute
   SettingsSelectionAssistantRoute: typeof SettingsSelectionAssistantRoute
   SettingsShortcutRoute: typeof SettingsShortcutRoute
+  SettingsSubscriptionRoute: typeof SettingsSubscriptionRoute
   SettingsSystemRoute: typeof SettingsSystemRoute
   SettingsUsageRoute: typeof SettingsUsageRoute
+  SettingsVoiceRoute: typeof SettingsVoiceRoute
   SettingsWebsearchRoute: typeof SettingsWebsearchRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -966,6 +1026,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsModelRoute: SettingsModelRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,
   SettingsOcrRoute: SettingsOcrRoute,
+  SettingsProfileRoute: SettingsProfileRoute,
   SettingsPromptsRoute: SettingsPromptsRoute,
   SettingsProviderRoute: SettingsProviderRoute,
   SettingsQuickAssistantRoute: SettingsQuickAssistantRoute,
@@ -973,8 +1034,10 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsSearchRoute: SettingsSearchRoute,
   SettingsSelectionAssistantRoute: SettingsSelectionAssistantRoute,
   SettingsShortcutRoute: SettingsShortcutRoute,
+  SettingsSubscriptionRoute: SettingsSubscriptionRoute,
   SettingsSystemRoute: SettingsSystemRoute,
   SettingsUsageRoute: SettingsUsageRoute,
+  SettingsVoiceRoute: SettingsVoiceRoute,
   SettingsWebsearchRoute: SettingsWebsearchRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }

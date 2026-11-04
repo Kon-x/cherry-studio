@@ -1,5 +1,6 @@
 import * as z from 'zod'
 
+import type { RemoteProviderId, WebSearchCapability as SharedWebSearchCapability } from '@cherrystudio/web-search'
 import type { BootConfigPreferenceKeys } from '@shared/data/bootConfig/bootConfigTypes'
 import type { UniqueModelId } from '@shared/data/types/model'
 import type { ShortcutBinding } from '@shared/utils/shortcut'
@@ -32,6 +33,9 @@ export type PreferenceShortcutType = {
 
 /** Global menu presentation mode: native system menus or Cherry custom menus. */
 export type MenuPresentationMode = 'native' | 'cherry'
+
+/** Side of a wide Agent file pane that holds the file tree. */
+export type AgentFilePaneTreePosition = 'left' | 'right'
 
 export type OnboardingProviderSetupStatus = 'pending' | 'completed' | 'skipped'
 
@@ -76,10 +80,12 @@ export type LanguageVarious =
   | 'en-US'
   | 'es-ES'
   | 'fr-FR'
+  | 'it-IT'
   | 'ja-JP'
   | 'pt-PT'
   | 'ro-RO'
   | 'ru-RU'
+  | 'th-TH'
   | 'tr-TR'
   | 'vi-VN'
 
@@ -234,15 +240,21 @@ export const WEB_SEARCH_PROVIDER_IDS = [
   'fetch',
   'jina',
   'firecrawl',
+  'crawl4ai',
   'parallel',
-  'serply'
-] as const
+  'serply',
+  'yuanbao',
+  'deepseek',
+  'desearch',
+  'searchapi',
+  'duckduckgo'
+] as const satisfies readonly (RemoteProviderId | 'fetch' | 'duckduckgo')[]
 
 export type WebSearchProviderId = (typeof WEB_SEARCH_PROVIDER_IDS)[number]
 
 export const WEB_SEARCH_CAPABILITIES = ['searchKeywords', 'fetchUrls'] as const
 
-export type WebSearchCapability = (typeof WEB_SEARCH_CAPABILITIES)[number]
+export type WebSearchCapability = SharedWebSearchCapability
 
 export type WebSearchProviderCapabilityOverride = {
   apiHost?: string

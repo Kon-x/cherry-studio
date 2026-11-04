@@ -50,15 +50,21 @@ export const TopicArchiveSection: FC<ArchiveDomainSectionProps> = ({
   isPermanentDeleting,
   onRequestDelete
 }) => {
-  const { pages, isLoading, isRefreshing, error, hasNext, loadNext, refresh } = useInfiniteQuery('/topics', {
-    query: ARCHIVED_ITEMS_QUERY,
+  const { pages, isLoading, isRefreshing, error, hasNext, loadNext, refresh } = useInfiniteQuery('/archives', {
+    query: { domain: 'topics' },
     limit: 50
   })
-  const topics = useInfiniteFlatItems(pages)
+  const entries = useInfiniteFlatItems(pages)
   useDataChange('/topics', () => void refresh())
   const items = useMemo<ArchiveItem[]>(
-    () => topics.map((topic) => ({ id: topic.id, name: topic.name, deletedAt: toEpochMs(topic.deletedAt) })),
-    [topics]
+    () =>
+      entries.map((entry) => ({
+        id: entry.entityId,
+        name: entry.name,
+        deletedAt: toEpochMs(entry.deletedAt),
+        parentName: entry.parentName
+      })),
+    [entries]
   )
 
   const actions = useTopicArchiveActions(refresh)
