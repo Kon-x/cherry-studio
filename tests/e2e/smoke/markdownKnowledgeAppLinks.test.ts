@@ -6,6 +6,7 @@ import type { MessageBoxOptions } from 'electron'
 import { LATEST_PRIVACY_POLICY_VERSION } from '../../../src/shared/utils/constants'
 import { selectSidebarApp } from '../regression/navigation'
 import { expect, test as base } from './fixtures/electron.fixture'
+import { uiLocator } from './utils/uiLocator'
 
 const test = base.extend({
   electronApp: async ({}, use, testInfo) => {
@@ -46,6 +47,7 @@ test('assistant markdown knowledge links retain hrefs and require confirmation b
       'app.language': await window.api.preference.get('app.language'),
       'app.onboarding.provider_setup.status': await window.api.preference.get('app.onboarding.provider_setup.status'),
       'app.privacy.policy_version': await window.api.preference.get('app.privacy.policy_version'),
+      'topic.tab.display_mode': await window.api.preference.get('topic.tab.display_mode'),
       'chat.message.style': await window.api.preference.get('chat.message.style')
     }))
   }
@@ -108,6 +110,7 @@ test('assistant markdown knowledge links retain hrefs and require confirmation b
           'app.language': 'en-US',
           'app.onboarding.provider_setup.status': 'skipped',
           'app.privacy.policy_version': policyVersion,
+          'topic.tab.display_mode': 'time',
           'chat.message.style': 'plain'
         }),
       LATEST_PRIVACY_POLICY_VERSION
@@ -149,10 +152,7 @@ test('assistant markdown knowledge links retain hrefs and require confirmation b
     )
     await page.reload()
     await selectSidebarApp(page, 'Chat')
-    const row = page.getByRole('option').filter({ hasText: topicName })
-    if (!(await row.isVisible())) {
-      await page.getByRole('listbox').getByRole('button', { name: topicName, exact: true }).click()
-    }
+    const row = uiLocator(page, 'chat.topic-list').getByTestId('topic-list-row').filter({ hasText: topicName })
     await row.click()
     const message = page.locator('[data-ui~="chat.message"]').filter({ hasText: 'Open the PDF:' })
     await expect(message.getByRole('link', { name: 'Zotero PDF', exact: true })).toHaveAttribute(

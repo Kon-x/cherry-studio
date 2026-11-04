@@ -113,8 +113,9 @@ async function draft(view: Locator) {
 }
 
 async function fillDraft(page: Page, view: Locator, text: string) {
+  await input(view).click()
+  await expect(part(view, 'composer-input').locator('[contenteditable="true"]').filter({ visible: true })).toBeVisible()
   await input(view).fill(text)
-  // A cold textarea may mount the rich editor after its first change.
   await expect.poll(() => draft(view)).toBe(text)
   await input(view).click()
   await page.keyboard.press('End')
@@ -154,10 +155,8 @@ test('discovers the labelled entry and inserts a global preset without generatin
   const { view, seeded } = await prepare(page)
   const label = part(entry(view), 'prompt-presets-label')
   await expect(label).toBeVisible()
-  const labelBox = await label.boundingBox()
-  expect(labelBox).not.toBeNull()
-  expect(labelBox!.width).toBeGreaterThan(10)
-  expect(labelBox!.height).toBeGreaterThan(8)
+  await expect.poll(async () => (await label.boundingBox())?.width ?? 0).toBeGreaterThan(10)
+  await expect.poll(async () => (await label.boundingBox())?.height ?? 0).toBeGreaterThan(8)
   await expect(label).toHaveText(en['settings.prompts.title'])
   await expect(entry(view)).toHaveAttribute('aria-haspopup', 'dialog')
   await screenshot(page, testInfo, 'entry.png')
