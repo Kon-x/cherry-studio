@@ -207,7 +207,7 @@ function SessionInspector() {
 }
 
 function BatchCloseControls() {
-  const { activeTabId, addTab, closeTabs, setActiveTab, tabs, updateTab } = useTabsContext()
+  const { activeTabId, openTab, closeTabs, setActiveTab, tabs, updateTab } = useTabsContext()
 
   return (
     <>
@@ -215,17 +215,11 @@ function BatchCloseControls() {
         type="button"
         onClick={() => {
           for (const id of ['b', 'c', 'd']) {
-            addTab(
-              {
-                id,
-                type: 'route',
-                url: `/app/chat?topicId=${id}`,
-                title: id.toUpperCase(),
-                lastAccessTime: 0,
-                isDormant: false
-              },
-              'end'
-            )
+            openTab(`/app/chat?topicId=${id}`, {
+              id,
+              title: id.toUpperCase(),
+              position: 'end'
+            })
           }
         }}>
         Seed tabs

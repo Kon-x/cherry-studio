@@ -16,9 +16,7 @@ for (const variant of ['Chat'] as const) {
     electronApp
   }, testInfo) => {
     test.setTimeout(120_000)
-    const profile = process.env.CS_DEV_PROFILE_ROOT
-    expect(profile, 'Run with an isolated CS_DEV_PROFILE_ROOT').toBeTruthy()
-    expect(path.isAbsolute(profile!), 'The isolated profile root must be absolute').toBe(true)
+    const profile = await electronApp.evaluate(({ app }) => app.getPath('userData'))
     const server = await startMockChatServer()
     const suffix = `${variant.replaceAll(' ', '-')}-${Date.now()}`
     const providerId = `queued-edit-${suffix}`
@@ -42,7 +40,6 @@ for (const variant of ['Chat'] as const) {
         }
       | undefined
     let captured = false
-    let tracing = false
     const screenshot = async (filename: string) => {
       const output = testInfo.outputPath(filename)
       await page.screenshot({ path: output })
@@ -72,8 +69,6 @@ for (const variant of ['Chat'] as const) {
       throw new Error('No request correlated to the queued-edit conversation')
     }
     try {
-      await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
-      tracing = true
       previous = await page.evaluate(async () => ({
         language: await window.api.preference.get('app.language'),
         onboarding: await window.api.preference.get('app.onboarding.provider_setup.status'),
@@ -261,11 +256,6 @@ for (const variant of ['Chat'] as const) {
             ),
             contentType: 'application/json'
           })
-          if (tracing) {
-            const trace = testInfo.outputPath('queued-edit-trace.zip')
-            await page.context().tracing.stop({ path: trace })
-            await testInfo.attach('queued-edit-trace', { path: trace, contentType: 'application/zip' })
-          }
         } finally {
           page.off('pageerror', onError)
           try {

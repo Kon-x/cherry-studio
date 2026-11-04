@@ -34,7 +34,6 @@ test('normal Chat content-sniffs unknown text attachments and rejects unknown bi
   const originalDialog = await electronApp.evaluateHandle(({ dialog }) => dialog.showOpenDialog)
 
   try {
-    expect(process.env.CS_DEV_PROFILE_ROOT, 'Run with an isolated CS_DEV_PROFILE_ROOT').toBeTruthy()
     const fixtureRoot = testInfo.outputPath('fixtures')
     await mkdir(fixtureRoot, { recursive: true })
     const fixtures = [
