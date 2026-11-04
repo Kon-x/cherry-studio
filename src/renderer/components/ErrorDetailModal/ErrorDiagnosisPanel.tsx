@@ -9,6 +9,7 @@ import { DoctorCheckAccordionItems, DoctorCheckNotices } from '@renderer/compone
 import type { DoctorController } from '@renderer/hooks/doctor'
 import { getProviderLabelKey } from '@renderer/i18n/label'
 import type { DoctorSubjectRef } from '@shared/types/doctor'
+import type { DoctorAgentIncident } from '@shared/types/doctorAgent'
 import { doctorCheckTitleKey } from '@shared/utils/doctor'
 
 import { actionRequiredRows, ErrorConnectivitySteps } from './ErrorConnectivitySteps'
@@ -16,6 +17,7 @@ import { actionRequiredRows, ErrorConnectivitySteps } from './ErrorConnectivityS
 interface ErrorDiagnosisPanelProps {
   readonly doctorController: DoctorController
   readonly subject: DoctorSubjectRef
+  readonly incident?: DoctorAgentIncident
 }
 
 function FixedSummary({ children, enabled }: { children?: ReactNode; enabled: boolean }) {
@@ -182,11 +184,9 @@ export function ErrorDiagnosisPanel({ doctorController, subject }: ErrorDiagnosi
               }}
             />
           </p>
-          {extraFindings ? (
-            <Accordion type="single" collapsible>
-              {extraFindings}
-            </Accordion>
-          ) : null}
+          <Accordion type="single" collapsible>
+            {extraFindings}
+          </Accordion>
           {doctorController.viewModel.pendingChecks.length > 0 ? (
             <div className="space-y-3 border-t border-border px-4 py-3">
               {doctorController.viewModel.pendingChecks.map((pending) => (

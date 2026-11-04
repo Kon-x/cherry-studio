@@ -99,4 +99,14 @@ describe('archive list', () => {
     await expect(archiveHandlers['/archives'].GET({ query: { limit: 0 } })).rejects.toThrow()
     await expect(archiveHandlers['/archives'].GET({ query: { limit: 201 } })).rejects.toThrow()
   })
+
+  it('attributes archived topics to their assistant and filters by domain', () => {
+    seedArchive()
+    dbh.db.update(topicTable).set({ assistantId: 'same' }).where(eq(topicTable.id, 'same')).run()
+
+    const byId = new Map(listArchives({ limit: 10 }).items.map((entry) => [entry.id, entry]))
+    expect(byId.get('topics:same')).toMatchObject({ parentName: 'Assistant' })
+
+    expect(listArchives({ domain: 'topics', limit: 10 }).items.map(({ domain }) => domain)).toEqual(['topics'])
+  })
 })

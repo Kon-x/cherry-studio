@@ -114,7 +114,9 @@ async function activateShortcut(context: TabsContextValue, providerId: string, r
 
 describe('sidebar conversation navigation', () => {
   it('does not reset an already active app detail route', async () => {
-    const tabs = tabContext([{ id: 'files', type: 'route', url: '/app/files?entryId=file-1', title: 'File' }])
+    const { context: tabs, state } = statefulTabContext([
+      { id: 'files', type: 'route', url: '/app/files?entryId=file-1', title: 'File' }
+    ])
     const wrapper = ({ children }: PropsWithChildren) => createElement(TabsContext, { value: tabs }, children)
     const { result } = renderHook(() => useSidebarShortcutActivation(), { wrapper })
     const provider = CORE_SIDEBAR_SHORTCUT_PROVIDERS.find((candidate) => candidate.id === 'core.app')!
@@ -124,8 +126,8 @@ describe('sidebar conversation navigation', () => {
         renderIcon: () => null
       })
     )
-    expect(tabs.updateTab).not.toHaveBeenCalled()
-    expect(tabs.openTab).not.toHaveBeenCalled()
+    expect(state.activeTabId).toBe('files')
+    expect(state.tabs).toEqual([{ id: 'files', type: 'route', url: '/app/files?entryId=file-1', title: 'File' }])
   })
 
   it('ignores a late ordinary activation after a newer shortcut was opened', async () => {
@@ -137,7 +139,9 @@ describe('sidebar conversation navigation', () => {
         resolveFirst = resolve
       })
     )
-    const tabs = tabContext([{ id: 'current', type: 'route', url: '/app/files', title: 'Files' }])
+    const { context: tabs, state } = statefulTabContext([
+      { id: 'current', type: 'route', url: '/app/files', title: 'Files' }
+    ])
     const wrapper = ({ children }: PropsWithChildren) => createElement(TabsContext, { value: tabs }, children)
     const { result } = renderHook(() => useSidebarShortcutActivation(), { wrapper })
     const assistant = CORE_SIDEBAR_SHORTCUT_PROVIDERS.find((candidate) => candidate.id === 'core.assistant')!
@@ -149,11 +153,9 @@ describe('sidebar conversation navigation', () => {
       resolveFirst({ topic: { id: 'late-topic' } })
       await first
     })
-    expect(tabs.updateTab).toHaveBeenCalledTimes(1)
-    expect(tabs.updateTab).toHaveBeenLastCalledWith(
-      'current',
-      expect.objectContaining({ url: '/app/knowledge?baseId=b' })
-    )
+    expect(state.activeTabId).toBe('current')
+    expect(state.tabs).toHaveLength(1)
+    expect(state.tabs[0].url).toBe('/app/knowledge?baseId=b')
     MockDataApiUtils.resetMocks()
   })
 
@@ -166,7 +168,9 @@ describe('sidebar conversation navigation', () => {
         resolveEntry = resolve
       })
     )
-    const tabs = tabContext([{ id: 'current', type: 'route', url: '/app/files', title: 'Files' }])
+    const { context: tabs, state } = statefulTabContext([
+      { id: 'current', type: 'route', url: '/app/files', title: 'Files' }
+    ])
     const wrapper = ({ children }: PropsWithChildren) => createElement(TabsContext, { value: { ...tabs } }, children)
     const { result, rerender, unmount } = renderHook(() => useSidebarShortcutActivation(), { wrapper })
     const assistant = CORE_SIDEBAR_SHORTCUT_PROVIDERS.find((candidate) => candidate.id === 'core.assistant')!
@@ -176,24 +180,29 @@ describe('sidebar conversation navigation', () => {
     })
     if (change === 'unmount') unmount()
     else {
-      tabs.activeTab = { ...tabs.activeTab!, ...(change === 'switch' ? { id: 'other' } : { url: '/app/code' }) }
+      if (change === 'switch') {
+        state.tabs = [...state.tabs, { id: 'other', type: 'route', url: '/app/code', title: 'Code' }]
+        state.activeTabId = 'other'
+      } else tabs.updateTab('current', { url: '/app/code' })
       rerender()
     }
     await act(async () => {
       resolveEntry({ topic: { id: 'late-topic' } })
       await first
     })
-    expect(tabs.updateTab).not.toHaveBeenCalled()
-    expect(tabs.openTab).not.toHaveBeenCalled()
-    expect(tabs.setActiveTab).not.toHaveBeenCalled()
+    expect(state.activeTabId).toBe(change === 'switch' ? 'other' : 'current')
+    expect(state.tabs).toHaveLength(change === 'switch' ? 2 : 1)
+    expect(state.tabs.find((tab) => tab.id === 'current')?.url).toBe(change === 'navigate' ? '/app/code' : '/app/files')
     MockDataApiUtils.resetMocks()
   })
 
-  it.each([['core.assistant', '/topics/latest', 'topic', '/app/chat?extra=1&topicId=conversation-1']] as const)(
+  it.each([
+    ['core.assistant', '/topics/latest', 'topic', '/app/chat?extra=1&topicId=conversation-1', '/app/chat']
+  ] as const)(
     'reuses an existing canonical conversation for %s, but honors an explicit new tab',
-    async (providerId, endpoint, field, url) => {
+    async (providerId, endpoint, field, url, newTabUrlPart) => {
       MockDataApiUtils.setCustomResponse(endpoint, 'GET', { [field]: { id: 'conversation-1' } })
-      const tabs = tabContext([
+      const { context: tabs, state } = statefulTabContext([
         { id: 'other', type: 'route', url: '/app/files', title: 'Files' },
         { id: 'conversation', type: 'route', url, title: 'Conversation' }
       ])
@@ -203,9 +212,10 @@ describe('sidebar conversation navigation', () => {
       const target = createSidebarShortcutTarget(providerId, 'owner-1')
 
       await act(async () => provider.activate(target, result.current))
-      expect(tabs.setActiveTab).toHaveBeenCalledWith('conversation')
-      expect(tabs.updateTab).not.toHaveBeenCalled()
-      expect(tabs.openTab).not.toHaveBeenCalled()
+      expect(state.activeTabId).toBe('conversation')
+      expect(state.tabs).toHaveLength(2)
+      expect(state.tabs[1].url).toBe(url)
+      expect(state.tabs[1].metadata).toEqual(undefined)
 
       await act(async () =>
         provider.activate(target, {
@@ -213,10 +223,10 @@ describe('sidebar conversation navigation', () => {
           openWorkspace: (destination) => result.current.openWorkspace(destination, { inNewTab: true })
         })
       )
-      expect(tabs.openTab).toHaveBeenCalledWith(
-        expect.stringContaining('conversation-1'),
-        expect.objectContaining({ forceNew: true })
-      )
+      expect(state.tabs).toHaveLength(3)
+      expect(state.activeTabId).toBe('opened-1')
+      expect(state.tabs[2].url).toContain(newTabUrlPart)
+      expect(state.tabs[2].metadata).toEqual(undefined)
       MockDataApiUtils.resetMocks()
     }
   )

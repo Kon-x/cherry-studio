@@ -25,12 +25,14 @@
  */
 import { DataApiErrorFactory } from '@shared/data/api/errors'
 
+import type { knowledgeBaseService } from './KnowledgeBaseService'
 import type { messageService } from './MessageService'
 import type { providerRegistryService } from './ProviderRegistryService'
 import type { providerService } from './ProviderService'
 import type { topicService } from './TopicService'
 
 interface DataServiceMap {
+  KnowledgeBaseService: typeof knowledgeBaseService
   MessageService: typeof messageService
   TopicService: typeof topicService
   ProviderService: typeof providerService

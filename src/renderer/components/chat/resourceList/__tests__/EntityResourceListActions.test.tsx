@@ -81,6 +81,12 @@ const tabsContextMocks = vi.hoisted(() => ({
   closeConversationTabs: vi.fn()
 }))
 
+const archiveSessionsPopupMocks = vi.hoisted(() => ({ show: vi.fn() }))
+
+vi.mock('@renderer/components/chat/archiveAgentSessionsPopup', () => ({
+  archiveAgentSessionsPopup: archiveSessionsPopupMocks
+}))
+
 const conversationOwnerPopupMocks = vi.hoisted(() => ({ show: vi.fn() }))
 
 vi.mock('@renderer/components/chat/DeleteConversationOwnerConfirmDialog', () => ({
@@ -478,6 +484,11 @@ describe('classic layout entity resource list actions', () => {
     recycleBinFeedbackMocks.showRecycleBinBatchUndo.mockClear()
     recycleBinFeedbackMocks.showRecycleBinUndo.mockClear()
     conversationOwnerPopupMocks.show.mockClear()
+    archiveSessionsPopupMocks.show.mockReset()
+    archiveSessionsPopupMocks.show.mockImplementation(async ({ action }: { action: () => Promise<void> }) => {
+      await action()
+      return true
+    })
     conversationOwnerPopupMocks.show.mockImplementation(
       async ({ action }: { action: (deleteChildren: boolean) => void | Promise<void> }) => {
         await action(false)

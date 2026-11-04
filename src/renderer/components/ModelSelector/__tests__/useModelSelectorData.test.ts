@@ -5,7 +5,6 @@ import { CHERRY_CLOUD_PROVIDER_ID, CHERRYAI_PROVIDER_ID } from '@shared/data/pre
 import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 import { type Model, MODEL_CAPABILITY } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
-import type { AppEdition } from '@shared/types/appEdition'
 
 import type { ModelSelectorModelItem } from '../types'
 import { useModelSelectorData } from '../useModelSelectorData'
@@ -13,12 +12,13 @@ import { useModelSelectorData } from '../useModelSelectorData'
 const mockUseModels = vi.fn()
 const mockUseProviders = vi.fn()
 const mockUsePins = vi.fn()
-const mockGetAppEdition = vi.fn<() => AppEdition>(() => 'global')
-
-vi.mock('@renderer/utils/appEdition', () => ({
-  getAppEdition: () => mockGetAppEdition()
+const cloudAvailability = vi.hoisted(() => {
+  const isModelHidden: (model: Model, includeAgentOnlyModels: boolean) => boolean = () => false
+  return { isModelHidden, isModelUnavailable: () => false, getModelDescription: () => undefined }
+})
+vi.mock('@renderer/hooks/useCherryCloudModelAvailability', () => ({
+  useCherryCloudModelAvailability: () => cloudAvailability
 }))
-
 vi.mock('@renderer/hooks/useModel', () => ({
   useModels: (...args: unknown[]) => mockUseModels(...args)
 }))
@@ -106,7 +106,6 @@ beforeEach(() => {
   mockUseModels.mockReset()
   mockUseProviders.mockReset()
   mockUsePins.mockReset()
-  mockGetAppEdition.mockReturnValue('global')
 })
 
 describe('useModelSelectorData', () => {

@@ -87,6 +87,7 @@ const KNOWN_NAVIGATION_ROUTES = [
   '/settings/code-execution',
   '/settings/dependencies',
   '/settings/usage',
+  '/settings/profile',
   '/settings/mcp/servers',
   '/settings/mcp/builtin',
   '/settings/mcp/marketplaces',

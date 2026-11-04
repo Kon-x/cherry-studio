@@ -340,10 +340,14 @@ vi.mock('react-i18next', async (importOriginal) => {
           'library.config.agent.field.description.hint': 'Short agent summary.',
           'library.config.agent.field.description.label': 'Description',
           'library.config.agent.field.description.placeholder': 'Describe this agent',
+          'agent.tasks.timeout.label': 'Maximum Execution Time',
+          'agent.tasks.intervalUnit': 'minutes',
           'library.config.agent.field.heartbeat_enabled.label': 'Heartbeat',
           'library.config.agent.field.heartbeat_interval.label': 'Heartbeat interval',
           'library.config.agent.field.model.hint': 'Primary agent model.',
+          'library.config.agent.field.model.hint.claude_code': 'Pins the opus alias (ANTHROPIC_MODEL).',
           'library.config.agent.field.model.label': 'Model',
+          'library.config.agent.field.model.label.claude_code': 'Model (Opus)',
           'library.config.agent.field.name.hint': 'Shown in the selector.',
           'library.config.agent.field.name.label': 'Name',
           'library.config.agent.field.name.placeholder': 'Name this agent',
@@ -369,6 +373,7 @@ vi.mock('react-i18next', async (importOriginal) => {
           'library.config.agent.section.tools.tab.tools': 'Built-in tools',
           'agent.tools.builtin.bash.description': 'Run shell commands',
           'agent.tools.builtin.bash.label': 'Run shell commands',
+          'agent.tools.builtin.codemode.label': 'Code Mode',
           'agent.tools.builtin.read.description': 'Read files',
           'agent.tools.builtin.read.label': 'Read files',
           'library.config.assistant.model_config': 'Model',
@@ -494,6 +499,11 @@ vi.mock('react-i18next', async (importOriginal) => {
           }`.trim(),
           'settings.prompts.binding.search': 'Search prompts',
           'settings.prompts.binding.tabTitle': 'Prompts',
+          'settings.prompts.binding.globalDescription':
+            'Global prompts are available in every conversation and managed in Settings.',
+          'settings.prompts.manageGlobal': 'Manage Global Prompts',
+          'settings.quickPanel.scope.currentAgent': 'Current Agent',
+          'settings.quickPanel.scope.currentAssistant': 'Current Assistant',
           'settings.prompts.contentLabel': 'Content',
           'settings.prompts.contentPlaceholder': 'Enter prompt content',
           'settings.prompts.errors.bindFailed': 'Failed to link prompt',
@@ -744,14 +754,64 @@ function mockDeferredAnimationFrames() {
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((promiseResolve) => {
+  let reject!: (reason: Error) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
     resolve = promiseResolve
+    reject = promiseReject
   })
 
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 describe('edit dialogs', () => {
+  it('persists reverted assistant custom parameters before leaving a pending save', async () => {
+    const user = userEvent.setup()
+    const firstSave = createDeferred<Assistant>()
+    const revertSave = createDeferred<Assistant>()
+    const resource = {
+      ...ASSISTANT,
+      settings: { ...ASSISTANT.settings, customParameters: [{ name: 'stop', type: 'string' as const, value: 'END' }] }
+    }
+    updateAssistantMock.mockImplementationOnce(() => firstSave.promise).mockImplementationOnce(() => revertSave.promise)
+    function Host() {
+      const [open, setOpen] = useState(true)
+      return <AssistantEditDialog open={open} resource={resource} onOpenChange={setOpen} />
+    }
+    render(<Host />)
+    await user.click(screen.getByRole('tab', { name: 'Model' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Parameter value: stop' }))
+    await user.type(screen.getByRole('textbox', { name: 'Parameter value: stop' }), 'TEMP')
+    await user.click(screen.getByRole('tab', { name: 'Prompts' }))
+    await user.click(screen.getByRole('button', { name: 'Manage Global Prompts' }))
+    await waitFor(() => expect(updateAssistantMock).toHaveBeenCalled())
+    await user.click(screen.getByRole('tab', { name: 'Model' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Parameter value: stop' }))
+    await user.type(screen.getByRole('textbox', { name: 'Parameter value: stop' }), 'END')
+    await user.click(screen.getByRole('tab', { name: 'Prompts' }))
+    const frames = mockDeferredAnimationFrames()
+    try {
+      await user.click(screen.getByRole('button', { name: 'Manage Global Prompts' }))
+      frames.flushAllFrames()
+      expect(screen.getByRole('dialog')).toBeVisible()
+      expect(openSettingsTabMock).not.toHaveBeenCalled()
+      await act(async () => firstSave.resolve(resource))
+      await waitFor(() =>
+        expect(updateAssistantMock).toHaveBeenLastCalledWith({
+          body: { settings: { customParameters: resource.settings.customParameters } }
+        })
+      )
+      frames.flushAllFrames()
+      expect(screen.getByRole('dialog')).toBeVisible()
+      expect(openSettingsTabMock).not.toHaveBeenCalled()
+      await act(async () => revertSave.resolve(resource))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      frames.flushAllFrames()
+      expect(openSettingsTabMock).toHaveBeenCalledWith('/settings/prompts')
+    } finally {
+      frames.restore()
+    }
+  })
+
   it('binds a prompt to the assistant being edited', async () => {
     render(<AssistantEditDialog open resource={ASSISTANT} onOpenChange={vi.fn()} />)
 
@@ -781,13 +841,15 @@ describe('edit dialogs', () => {
     const previousBinding = createDeferred<void>()
     const currentBinding = createDeferred<void>()
     bindPromptMock.mockReturnValueOnce(previousBinding.promise).mockReturnValueOnce(currentBinding.promise)
-    const { rerender } = render(<PromptBindingTab enabled target={{ type: 'assistant', id: 'assistant-old' }} />)
+    const { rerender } = render(
+      <PromptBindingTab onManageGlobal={vi.fn()} enabled target={{ type: 'assistant', id: 'assistant-old' }} />
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Bind prompt' }))
     fireEvent.click(await screen.findByText('Reusable prompt'))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Bind prompt' })).toBeDisabled())
 
-    rerender(<PromptBindingTab enabled target={{ type: 'assistant', id: 'assistant-new' }} />)
+    rerender(<PromptBindingTab onManageGlobal={vi.fn()} enabled target={{ type: 'assistant', id: 'assistant-new' }} />)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Bind prompt' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Bind prompt' }))
     fireEvent.click(await screen.findByText('Reusable prompt'))
@@ -851,6 +913,8 @@ describe('edit dialogs', () => {
         }
       })
     )
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add prompt' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Manage Global Prompts' })).toBeEnabled()
   })
 
   it('disables prompt visibility while a create request is pending', async () => {

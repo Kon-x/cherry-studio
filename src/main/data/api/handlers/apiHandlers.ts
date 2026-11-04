@@ -16,6 +16,7 @@ import type { ApiImplementation } from '@shared/data/api/types'
 import { aiUsageRecordHandlers } from './aiUsageRecords'
 import { archiveHandlers } from './archives'
 import { assistantHandlers } from './assistants'
+import { diagnosticReportHandlers } from './diagnosticReports'
 import { fileHandlers } from './files'
 import { groupHandlers } from './groups'
 import { jobHandlers } from './jobs'
@@ -43,6 +44,7 @@ import { translateHandlers } from './translate'
  */
 export const apiHandlers: ApiImplementation = {
   ...archiveHandlers,
+  ...diagnosticReportHandlers,
   ...assistantHandlers,
   ...topicHandlers,
   ...messageHandlers,

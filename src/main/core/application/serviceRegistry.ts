@@ -3,6 +3,7 @@ import { DataApiService } from '@data/DataApiService'
 import { DbService } from '@data/db/DbService'
 import { PreferenceService } from '@data/PreferenceService'
 import { AiService } from '@main/ai/AiService'
+import { AsrInferenceService, TtsInferenceService } from '@main/ai/localModel'
 import { EmbeddingInferenceService } from '@main/ai/localModel'
 import { LocalModelService } from '@main/ai/localModel'
 import { OcrInferenceService } from '@main/ai/localModel'
@@ -11,6 +12,8 @@ import { McpPackageService } from '@main/ai/mcp/McpPackageService'
 import { McpRuntimeService } from '@main/ai/mcp/McpRuntimeService'
 import { NodeTraceService, TraceStorageService } from '@main/ai/observability'
 import { AiStreamManager } from '@main/ai/streamManager'
+import { VoiceSessionService } from '@main/ai/voice/VoiceSessionService'
+import { RuntimeActivityService } from '@main/core/application/RuntimeActivityService'
 import { JobManager } from '@main/core/job/JobManager'
 import type { ServiceConstructor } from '@main/core/lifecycle'
 import { PowerService } from '@main/core/power/PowerService'
@@ -31,8 +34,7 @@ import { CitationPreviewService } from '@main/services/CitationPreviewService'
 import { CommandService } from '@main/services/CommandService'
 import { ConversationNavigationService } from '@main/services/ConversationNavigationService'
 import { DoctorService } from '@main/services/diagnostics'
-import { DirectoryTreeManager, FileManager } from '@main/services/file'
-import { LanTransferService } from '@main/services/lanTransfer'
+import { DirectoryTreeManager, FileManager, FileIntakeService, FileEditService } from '@main/services/file'
 import { LogRetentionService } from '@main/services/LogRetentionService'
 import { MainNetworkDevtoolsService } from '@main/services/mainNetworkDevtools'
 import { MainWindowService } from '@main/services/MainWindowService'
@@ -48,6 +50,7 @@ import { ProxyService } from '@main/services/proxy/ProxyService'
 import { PythonService } from '@main/services/PythonService'
 import { QuickAssistantService } from '@main/services/QuickAssistantService'
 import { ScreenshotOverlayService } from '@main/services/screenshot'
+import { ScreenshotChatService } from '@main/services/ScreenshotChatService'
 import { SelectionService } from '@main/services/selection/SelectionService'
 import { SentryLogService } from '@main/services/SentryLogService'
 import { ShortcutService } from '@main/services/ShortcutService'
@@ -101,11 +104,13 @@ export const services = {
   ConversationNavigationService,
   CitationPreviewService,
   CherryCloudService,
-  LanTransferService,
   FileManager,
+  FileEditService,
+  FileIntakeService,
   DirectoryTreeManager,
   FileProcessingService,
   PowerService,
+  RuntimeActivityService,
   SelectionService,
   ShortcutService,
   ThemeService,
@@ -115,6 +120,7 @@ export const services = {
   ProtocolService,
   MediaProtocolService,
   ScreenshotOverlayService,
+  ScreenshotChatService,
   ProxyService,
   NetworkService,
   StorageMonitorService,
@@ -134,7 +140,10 @@ export const services = {
   BinaryManager,
   PdfTranslationService,
   AiService,
+  VoiceSessionService,
   AiStreamManager,
+  AsrInferenceService,
+  TtsInferenceService,
   EmbeddingInferenceService,
   OcrInferenceService,
   LocalModelService,

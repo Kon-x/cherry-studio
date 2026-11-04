@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cacheService } from '@data/CacheService'
 import { usePreference } from '@data/hooks/usePreference'
 import { loggerService } from '@logger'
+import { useConversationTabTitleChangeSync } from '@renderer/hooks/tab'
 import { useCustomCss } from '@renderer/hooks/useCustomCss'
 import { useLanguageSync } from '@renderer/hooks/useLanguageSync'
 import useMacTransparentWindow from '@renderer/hooks/useMacTransparentWindow'
@@ -100,6 +101,7 @@ export function useWindowRuntime(): void {
 
   // Each BrowserWindow has its own SWR cache, so both keep their own invalidation.
   useTopicAutoRenameSync()
+  useConversationTabTitleChangeSync()
 
   // Launcher-list convergence after IPC-side writes: exactly once per window,
   // and outside every `<Activity>`.

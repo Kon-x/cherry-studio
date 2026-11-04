@@ -1,0 +1,5 @@
+# Bilingual-pair consistency record (docs/i18n/README.md).
+# After editing either side, update its counterpart and re-record with:
+#   pnpm docs:check-pairing --write .agents/notes/proposed/feature/2026-10-27-selection-agent-window.md
+2026-10-27-selection-agent-window.md: 60f3e2aae9b864e5b8cdd0682a9f68639e7d4a98
+2026-10-27-selection-agent-window.zh.md: 3d35920fcac9ff912b294b33fe5023bbbaf23d78

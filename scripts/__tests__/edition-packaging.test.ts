@@ -112,7 +112,11 @@ describe('edition packaging', () => {
       extraMetadata: {
         cherryEdition: CHINA_EDITION
       },
-      publish: { provider: 'generic', url: 'https://releases.cherry-ai.com', channel: 'latest-cn' }
+      publish: expect.objectContaining({
+        provider: 'generic',
+        url: 'https://releases.cherry-ai.com',
+        channel: 'latest-cn'
+      })
     })
   })
 

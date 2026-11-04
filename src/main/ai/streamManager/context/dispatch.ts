@@ -8,6 +8,7 @@ import { loggerService } from '@logger'
 import { topicService } from '@main/data/services/TopicService'
 import type { AiStreamOpenRequest, AiStreamOpenResponse, ApprovalDecision } from '@shared/ai/transport'
 import type { ServiceTierSelection } from '@shared/data/types/model'
+import type { WindowId } from '@shared/ipc/types'
 import type { ReasoningEffortOption } from '@shared/types/aiSdk'
 
 import type { AiStreamManager } from '../AiStreamManager'
@@ -47,7 +48,11 @@ export interface MainSteerContinuationRequest {
   fastMode: boolean
 }
 
-export type MainDispatchRequest = AiStreamOpenRequest | MainContinueConversationRequest | MainSteerContinuationRequest
+export type MainDispatchRequest = (
+  | AiStreamOpenRequest
+  | MainContinueConversationRequest
+  | MainSteerContinuationRequest
+) & { interactionWindowId?: WindowId }
 
 const logger = loggerService.withContext('chatContextDispatch')
 
@@ -89,6 +94,7 @@ export async function dispatchStreamRequest(
     })
   }
   const prepared = await provider.prepareDispatch(subscriber, req, { hasLiveStream })
+  for (const model of prepared.models) model.request.interactionWindowId = req.interactionWindowId
   // Inject-steer: a live persistent-chat submit took the `hasLiveStream` branch, which sets an
   // explicit `pendingSteerUserMessageId`. Enqueue it so the running turn yields (`hasPendingSteer`)
   // and `onExecutionDone` chains a `steer-continuation` to answer it.

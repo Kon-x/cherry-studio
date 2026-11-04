@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { dataApiService } from '@data/DataApiService'
 import { toast } from '@renderer/services/toast'
 
-import { COMPOSER_INPUT_MAX_LENGTH, serializeComposerDocument } from '../../composerDraft'
+import { serializeComposerDocument } from '../../composerDraft'
 import { COMPOSER_TOKEN_NODE_NAME } from '../../ComposerTokenNode'
 import type { ComposerSuggestionItem, ComposerSuggestionSource } from '../../quickPanel'
 import { fetchEntityReferencePromptText } from './entityReferenceContext'
@@ -18,7 +18,6 @@ const REFERENCE_RESULT_LIMIT = 50
 const REFERENCE_LIST_FETCH_LIMIT = 200
 // Below this much room left in the draft a reference block carries too little of the
 // conversation to be worth inserting.
-const REFERENCE_MIN_ROOM_CHARS = 1000
 
 const referenceTokenId = (entityType: 'topic', id: string) => `reference:${entityType}:${id}`
 
@@ -126,14 +125,6 @@ export function useEntityReferenceMentionItems({
               const draft = serializeComposerDocument(editor)
               if (draft.tokens.some((token) => token.id === tokenId)) return
 
-              // Token insertion bypasses the composer's input-length guards (they sit on the
-              // typing and paste paths), so the block is budgeted against what the draft has left.
-              const remainingChars = COMPOSER_INPUT_MAX_LENGTH - draft.text.length
-              if (remainingChars < REFERENCE_MIN_ROOM_CHARS) {
-                toast.error(t('chat.input.reference_panel.no_room'))
-                return
-              }
-
               // Insert synchronously so the chip is bound to this draft and position; the
               // transcript fills it in place later. Sending stays blocked until then, so a
               // message can never go out holding an empty reference.
@@ -154,10 +145,7 @@ export function useEntityReferenceMentionItems({
 
               void (async () => {
                 try {
-                  const promptText = await fetchEntityReferencePromptText(
-                    { entityType, id: hit.id, name: title },
-                    { maxTotalChars: remainingChars }
-                  )
+                  const promptText = await fetchEntityReferencePromptText({ entityType, id: hit.id, name: title })
                   settlePendingReferenceToken(editor, tokenId, promptText)
                 } catch {
                   settlePendingReferenceToken(editor, tokenId, null)

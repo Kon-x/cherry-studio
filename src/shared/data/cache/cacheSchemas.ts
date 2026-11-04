@@ -1,6 +1,7 @@
 import type { AiUsageRecordListSortBy, AiUsageRecordSortOrder } from '@shared/data/api/schemas/aiUsageRecords'
 import type { JobProgress, JobSnapshot } from '@shared/data/api/schemas/jobs'
 import type { LocalModelStatusSnapshots } from '@shared/data/presets/localModel'
+import type { FileProcessingTask } from '@shared/data/types/fileProcessing'
 import type { Currency } from '@shared/data/types/model'
 import type { AutoBackupEvent, AutoBackupType } from '@shared/types/backup'
 import type { AbsoluteFilePath } from '@shared/types/file'
@@ -138,6 +139,11 @@ export type UseCacheSchema = {
   'ui.window.chat.resource_pane.width': number
   'ui.window.chat.right_pane_open_override': boolean | null
 
+  // Detached Chat/Agent windows keep list-group expansion within their renderer process. These
+  // values are seeded from the matching persisted preference but never sync back to the main window.
+  'ui.window.chat.topic.expansion.time': string[]
+  'ui.window.chat.topic.expansion.assistant': string[] | null
+
   // Knowledge recall test query history (session-only)
   'knowledge.recall.search_queries': Record<string, string[]>
 
@@ -219,6 +225,8 @@ export const DefaultUseCache: UseCacheSchema = {
   'ui.window.chat.artifact_pane.width': 460,
   'ui.window.chat.resource_pane.width': 275,
   'ui.window.chat.right_pane_open_override': null,
+  'ui.window.chat.topic.expansion.time': [],
+  'ui.window.chat.topic.expansion.assistant': null,
   'knowledge.recall.search_queries': {},
   'notes.active_file_path': undefined,
 
@@ -255,10 +263,12 @@ export const DefaultUseCache: UseCacheSchema = {
  * Use shared cache schema for renderer hook
  */
 export type SharedCacheSchema = {
+  'message.context.compacting.${messageId}': boolean
   'chat.web_search.active_searches': CacheValueTypes.CacheActiveSearches
   'mcp.tools.${serverId}': CacheValueTypes.CacheMcpTool[]
   'mcp.status.${serverId}': CacheValueTypes.McpRuntimeStatus
   'doctor.state.${scope}': CacheValueTypes.CacheDoctorState
+  'doctor.agent.${scope}': CacheValueTypes.CacheDoctorAgentState
   'network.online': boolean
   'topic.stream.statuses.${topicId}': TopicStatusSnapshotEntry | null
   'topic.stream.last_seen_completion.${topicId}': number | null
@@ -286,13 +296,22 @@ export type SharedCacheSchema = {
   // Directory copy progress for a knowledge item, main -> all windows. Like
   // embedding progress, the prepare job owns this runtime-only value.
   'knowledge.item.directory_copy_progress.${itemId}': number | null
+  // File-processing progress for a knowledge item, main -> all windows. KnowledgeService
+  // mirrors the progress of the task the item waits on here when it changes, so the row can
+  // show a percentage during the 'processing' wait; absence means the conversion has not started.
+  'knowledge.item.file_processing_progress.${itemId}': number | null
+  // A file-processing task's latest state, main -> all windows. FileProcessingService rewrites it on
+  // every change and lets only a terminal state expire; after that, ask `file_processing.get_task`.
+  'file_processing.task.${taskId}': FileProcessingTask | null
 }
 
 export const DefaultSharedCache: SharedCacheSchema = {
+  'message.context.compacting.${messageId}': false,
   'chat.web_search.active_searches': {},
   'mcp.tools.${serverId}': [],
   'mcp.status.${serverId}': { state: 'disabled', lastCheckedAt: 0 },
   'doctor.state.${scope}': { status: 'idle' },
+  'doctor.agent.${scope}': { status: 'idle' },
   'network.online': true,
   'topic.stream.statuses.${topicId}': null,
   'topic.stream.last_seen_completion.${topicId}': null,
@@ -307,7 +326,9 @@ export const DefaultSharedCache: SharedCacheSchema = {
   'knowledge.item.embedding_progress.${itemId}': null,
   'storage.health': { level: 'ok', freeBytes: 0, totalBytes: 0, checkedAt: 0 },
   'backup.auto_sync.state.${type}': null,
-  'knowledge.item.directory_copy_progress.${itemId}': null
+  'knowledge.item.directory_copy_progress.${itemId}': null,
+  'knowledge.item.file_processing_progress.${itemId}': null,
+  'file_processing.task.${taskId}': null
 }
 
 /**
@@ -342,11 +363,15 @@ export type RendererPersistCacheSchema = {
   // mode never re-writes the others (avoids the whole-blob cross-mode/cross-window clobber).
   // Stores the flat list of collapsed section/group ids; empty = everything expanded.
   // Null means no user preference has been written yet, so the view may apply its default.
+  'ui.chat.file_pane.tree_width': number
+  'ui.chat.file_pane.unpinned_tree_workspaces': string[]
   'ui.topic.expansion.time': string[]
   'ui.topic.expansion.assistant': string[] | null
   // Kept separate so the assistant and agent surfaces don't bleed into each other.
   'settings.provider.last_selected_provider_id': string | null
   'settings.provider.filter_mode': 'all' | 'agent' | 'enabled' | 'disabled'
+  'settings.skills.enabled_only': boolean
+  'settings.device_connections.step': 'download' | 'connect' | 'complete'
   // Usage statistics view selections, persisted so leaving and re-entering the page restores
   // them. The heatmap drill-down date stays component-local: a stored past date would reopen
   // the page on an empty range.
@@ -384,17 +409,21 @@ export const DefaultRendererPersistCache: RendererPersistCacheSchema = {
   'ui.sidebar.docked_tabs': [],
   'ui.sidebar.width': 50, // keep in sync with SIDEBAR_ICON_WIDTH (renderer Sidebar/constants.ts)
   'ui.chat.sidebar.width': 275,
-  'ui.chat.artifact_pane.width': 460,
+  'ui.chat.artifact_pane.width': 280,
   'ui.chat.resource_pane.width': 275, // keep in sync with 'ui.chat.sidebar.width'
   'ui.composer.input_history': [],
   'ui.chat.last_used_assistant_id': null,
   'ui.chat.last_used_topic_id': null,
   'ui.chat.right_pane_open_override': null,
   'ui.assistant.entity_rail.expansion': [],
+  'ui.chat.file_pane.tree_width': 220,
+  'ui.chat.file_pane.unpinned_tree_workspaces': [],
   'ui.topic.expansion.time': [],
   'ui.topic.expansion.assistant': null,
   'settings.provider.last_selected_provider_id': null,
   'settings.provider.filter_mode': 'all',
+  'settings.skills.enabled_only': false,
+  'settings.device_connections.step': 'download',
   'settings.usage.window': '30d',
   'settings.usage.group_by': 'provider',
   'settings.usage.chart_metric': 'tokens',

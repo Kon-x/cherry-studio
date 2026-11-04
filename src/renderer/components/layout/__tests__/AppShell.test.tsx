@@ -5,7 +5,10 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryStudioUI from '@cherrystudio/ui'
 import { MIN_WINDOW_HEIGHT, SECOND_MIN_WINDOW_WIDTH } from '@shared/utils/window'
+
+vi.mock('@cherrystudio/ui', async () => vi.importActual<typeof CherryStudioUI>('@cherrystudio/ui'))
 
 const mocks = vi.hoisted(() => ({
   closeTab: vi.fn(),
@@ -38,7 +41,8 @@ vi.mock('@renderer/hooks/useMacTransparentWindow', () => ({
 vi.mock('@renderer/utils/platform', () => ({
   get isMac() {
     return mocks.platformState.isMac
-  }
+  },
+  isLinux: false
 }))
 
 vi.mock('@renderer/hooks/command', () => ({
@@ -63,22 +67,26 @@ vi.mock('@renderer/components/GlobalSearch/GlobalSearchPopup', () => ({
   }
 }))
 
-vi.mock('../../../hooks/tab', () => ({
-  useMainWindowNavigation: vi.fn(),
-  useTabs: () => ({
-    activeTabId: mocks.activeTabId,
-    closeTab: mocks.closeTab,
-    closeTabs: mocks.closeTabs,
-    detachTab: mocks.detachTab,
-    openTab: vi.fn(),
-    pinTab: vi.fn(),
-    reorderTabs: vi.fn(),
-    setActiveTab: mocks.setActiveTab,
-    tabs: mocks.tabs,
-    unpinTab: vi.fn(),
-    updateTab: vi.fn()
-  })
-}))
+vi.mock('../../../hooks/tab', async () => {
+  const actual = (await vi.importActual('../../../hooks/tab')) as Record<string, unknown>
+  return {
+    ...(actual as object),
+    useMainWindowNavigation: vi.fn(),
+    useTabs: () => ({
+      activeTabId: mocks.activeTabId,
+      closeTab: mocks.closeTab,
+      closeTabs: mocks.closeTabs,
+      detachTab: mocks.detachTab,
+      openTab: vi.fn(),
+      pinTab: vi.fn(),
+      reorderTabs: vi.fn(),
+      setActiveTab: mocks.setActiveTab,
+      tabs: mocks.tabs,
+      unpinTab: vi.fn(),
+      updateTab: vi.fn()
+    })
+  }
+})
 
 vi.mock('../../app/Sidebar', () => ({
   default: () => <aside data-testid="sidebar" />
@@ -269,8 +277,8 @@ describe('AppShell', () => {
     const detachFocusedTab = mocks.tabBarProps?.detachTab as ((id: string) => void) | undefined
     detachFocusedTab?.(settingsTab.id)
 
-    expect(mocks.detachTab).toHaveBeenCalledWith(settingsTab.id)
-    expect(mocks.setActiveTab).toHaveBeenCalledWith('first')
+    expect(mocks.detachTab).toHaveBeenCalledWith(settingsTab.id, 'first')
+    expect(mocks.setActiveTab).not.toHaveBeenCalled()
   })
 
   it('restores the most recently accessed workspace tab when Settings is restored active', () => {
@@ -305,8 +313,8 @@ describe('AppShell', () => {
 
     const detachFocusedTab = mocks.tabBarProps?.detachTab as ((id: string) => void) | undefined
     detachFocusedTab?.(settingsTab.id)
-    expect(mocks.detachTab).toHaveBeenCalledWith(settingsTab.id)
-    expect(mocks.setActiveTab).toHaveBeenCalledWith('home')
+    expect(mocks.detachTab).toHaveBeenCalledWith(settingsTab.id, 'home')
+    expect(mocks.setActiveTab).not.toHaveBeenCalled()
   })
 
   it('blocks and dismisses global search while the Settings tab is focused', () => {
@@ -502,6 +510,25 @@ describe('AppShell', () => {
     mocks.commandHandlers.get('tab.close')?.handler()
 
     expect(mocks.closeTab).toHaveBeenCalledWith('tab2')
+  })
+
+  it('closes the last tab from the shortcut instead of the window, landing on the Launchpad fallback', () => {
+    render(<AppShell />)
+    mocks.commandHandlers.get('tab.close')?.handler()
+
+    // TabsProvider turns a zero-tab close into the Launchpad fallback tab, so the
+    // shortcut must share the tab bar's close path instead of closing the window.
+    expect(mocks.closeTab).toHaveBeenCalledWith('home')
+    expect(mocks.ipcRequest).not.toHaveBeenCalledWith('window.close')
+  })
+
+  it('keeps the last-tab close via the tab bar on the empty-state fallback', () => {
+    render(<AppShell />)
+    const closeTab = mocks.tabBarProps?.closeTab as ((id: string) => void) | undefined
+    closeTab?.('home')
+
+    expect(mocks.closeTab).toHaveBeenCalledWith('home')
+    expect(mocks.ipcRequest).not.toHaveBeenCalledWith('window.close')
   })
 
   it('disables the tab-close shortcut when no tab is active', () => {

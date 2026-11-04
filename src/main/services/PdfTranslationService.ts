@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
+import { isIPv6 } from 'node:net'
 import path from 'node:path'
 import { createInterface } from 'node:readline'
 
@@ -77,6 +78,7 @@ const babeldocStreamEventSchema = z.discriminatedUnion('type', [
 const SIDECAR_ENV_KEYS = new Set([
   'ALL_PROXY',
   'COMSPEC',
+  'CURL_CA_BUNDLE',
   'HTTPS_PROXY',
   'HTTP_PROXY',
   'LANG',
@@ -84,6 +86,7 @@ const SIDECAR_ENV_KEYS = new Set([
   'NO_PROXY',
   'PATH',
   'PATHEXT',
+  'REQUESTS_CA_BUNDLE',
   'SSL_CERT_DIR',
   'SSL_CERT_FILE',
   'SYSTEMROOT',
@@ -170,12 +173,34 @@ const buildSidecarProxyEnv = (inheritedNoProxy: string | undefined, providerHost
   const hosts = bypass
     .split(',')
     .map((entry) => entry.trim())
+    .map((entry) => {
+      const address = entry.startsWith('[') && entry.endsWith(']') ? entry.slice(1, -1) : entry
+      // httpx wraps IPv6 NO_PROXY entries itself; inherited brackets break its URL parser.
+      return isIPv6(address) ? address : entry
+    })
     .filter(Boolean)
+    .filter((entry, index, entries) => !isIPv6(entry) || entries.indexOf(entry) === index)
   // `new URL('http://[::1]:1/').hostname` keeps the brackets; NO_PROXY wants the bare address.
   const host = providerHost.replace(/^\[|\]$/g, '')
   if (isLoopbackHost(host) && !hosts.includes(host)) hosts.push(host)
   const noProxy = hosts.join(',')
   return { ...proxyEnv, NO_PROXY: noProxy, no_proxy: noProxy }
+}
+
+/**
+ * Requests ignores SSL_CERT_FILE, so derive its bundle variables only when neither is set.
+ * Requests prefers REQUESTS_CA_BUNDLE over CURL_CA_BUNDLE, so a derived value could override an explicit one.
+ */
+const buildSidecarCaBundleEnv = (allowedEnv: Record<string, string>): Record<string, string> => {
+  const getNonEmptyEnv = (name: string): string | undefined =>
+    Object.entries(allowedEnv).find(([key, value]) => key.toUpperCase() === name && value.trim())?.[1]
+  const sslCertFile = getNonEmptyEnv('SSL_CERT_FILE')
+  if (!sslCertFile || getNonEmptyEnv('REQUESTS_CA_BUNDLE') || getNonEmptyEnv('CURL_CA_BUNDLE')) return {}
+
+  return {
+    REQUESTS_CA_BUNDLE: sslCertFile,
+    CURL_CA_BUNDLE: sslCertFile
+  }
 }
 
 @Injectable('PdfTranslationService')
@@ -600,6 +625,7 @@ export class PdfTranslationService extends BaseService {
     const runtimeHome = application.getPath('feature.pdf_translation.babeldoc')
     return mergeBinaryExecutionEnv({
       ...allowedEnv,
+      ...buildSidecarCaBundleEnv(allowedEnv),
       ...buildSidecarProxyEnv(allowedEnv.NO_PROXY ?? allowedEnv.no_proxy, new URL(providerBaseUrl).hostname),
       HOME: runtimeHome,
       USERPROFILE: runtimeHome,

@@ -38,6 +38,11 @@ const selectedTarget: ExternalOpenTarget = {
   kind: 'application'
 }
 
+const fileManagerTarget: ExternalOpenTarget = {
+  id: 'file_manager',
+  kind: 'file_manager'
+}
+
 describe('OpenTargetButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -57,6 +62,66 @@ describe('OpenTargetButton', () => {
 
     expect(mocks.openTarget).toHaveBeenCalledWith(selectedTarget)
   })
+
+  it('names a single-target workspace button by its visible label and describes the selected app', async () => {
+    const user = userEvent.setup()
+    render(<OpenTargetButton targetPath="/tmp/My Workspace" pathKind="directory" primaryContent="My Workspace" />)
+
+    const button = screen.getByRole('button', { name: 'My Workspace' })
+    await user.hover(button)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open in Visual Studio Code')
+    expect(button).toHaveAccessibleDescription('Open in Visual Studio Code')
+    expect(button).toHaveAccessibleName('My Workspace')
+    await user.click(button)
+
+    expect(mocks.openTarget).toHaveBeenCalledWith(selectedTarget)
+  })
+
+  it('keeps a custom workspace trigger as the primary action with a separate target menu', async () => {
+    const user = userEvent.setup()
+    mocks.usePreferredExternalOpenTarget.mockReturnValue({
+      targets: [fileManagerTarget, selectedTarget],
+      selectedTarget,
+      openTarget: mocks.openTarget
+    })
+    render(<OpenTargetButton targetPath="/tmp/My Workspace" pathKind="directory" primaryContent="My Workspace" />)
+
+    await user.click(screen.getByRole('button', { name: 'My Workspace' }))
+
+    expect(mocks.openTarget).toHaveBeenCalledWith(selectedTarget)
+
+    await user.click(screen.getByRole('button', { name: 'More' }))
+    await user.click(screen.getByRole('button', { name: /File manager/ }))
+
+    expect(mocks.openTarget).toHaveBeenLastCalledWith(fileManagerTarget)
+  })
+
+  it.each([1, 2])(
+    'describes a workspace warning without replacing the name with %i available targets',
+    async (count) => {
+      const user = userEvent.setup()
+      mocks.usePreferredExternalOpenTarget.mockReturnValue({
+        targets: [selectedTarget, fileManagerTarget].slice(0, count),
+        selectedTarget,
+        openTarget: mocks.openTarget
+      })
+      render(
+        <OpenTargetButton
+          targetPath="/tmp/My Workspace"
+          pathKind="directory"
+          primaryContent={<span>My Workspace</span>}
+          tooltip="Workspace directory is unavailable"
+        />
+      )
+
+      const button = screen.getByRole('button', { name: 'My Workspace' })
+      await user.hover(button)
+
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Workspace directory is unavailable')
+      expect(button).toHaveAccessibleDescription('Workspace directory is unavailable')
+      expect(button).toHaveAccessibleName('My Workspace')
+    }
+  )
 
   it('reports a launch failure', async () => {
     const user = userEvent.setup()

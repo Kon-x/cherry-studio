@@ -114,7 +114,7 @@ describe('PermissionRequestComposer', () => {
     })
   })
 
-  it('submits a denial decision with the default deny reason', async () => {
+  it('submits a denial decision without a reason when the box is empty', async () => {
     const onRespond = vi.fn().mockResolvedValue(undefined)
     render(<PermissionRequestComposer request={makeRequest()} onRespond={onRespond} />)
 
@@ -123,8 +123,7 @@ describe('PermissionRequestComposer', () => {
     await waitFor(() => expect(onRespond).toHaveBeenCalledTimes(1))
     expect(onRespond).toHaveBeenCalledWith({
       match: makeRequest().match,
-      approved: false,
-      reason: 'User denied permission for this tool.'
+      approved: false
     })
   })
 
@@ -207,6 +206,61 @@ describe('PermissionRequestComposer', () => {
     expect(screen.getAllByText('CustomTool')).toHaveLength(1)
   })
 
+  it('shows the reason once in the header and warnings in the risk summary', () => {
+    render(
+      <PermissionRequestComposer
+        request={makeRequest({
+          title: 'Clean up the old build output',
+          toolResponse: {
+            id: 'bash-call-1',
+            toolCallId: 'bash-call-1',
+            status: 'pending',
+            arguments: { command: 'rm -rf ./dist' },
+            tool: {
+              id: 'Bash',
+              name: 'Bash',
+              type: 'builtin'
+            }
+          }
+        })}
+        onRespond={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Clean up the old build output')).toBeInTheDocument()
+    const summary = screen.getByTestId('permission-risk-summary')
+    expect(summary).toHaveTextContent('What this does')
+    expect(summary).toHaveTextContent('Deletes or overwrites data.')
+    expect(summary).toHaveTextContent('Cannot be undone automatically.')
+    expect(summary).not.toHaveTextContent('Clean up the old build output')
+    expect(screen.getByTestId('permission-preview')).toHaveTextContent('rm -rf ./dist')
+  })
+
+  it('hides the risk summary for read-only commands and keeps the reason in the header', () => {
+    render(
+      <PermissionRequestComposer
+        request={makeRequest({
+          title: 'Run the focused tests',
+          toolResponse: {
+            id: 'bash-call-1',
+            toolCallId: 'bash-call-1',
+            status: 'pending',
+            arguments: { command: 'pnpm test' },
+            tool: {
+              id: 'Bash',
+              name: 'Bash',
+              type: 'builtin'
+            }
+          }
+        })}
+        onRespond={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByTestId('permission-risk-summary')).not.toBeInTheDocument()
+    expect(screen.getByText('Run the focused tests')).toBeInTheDocument()
+  })
+
   it('approves when Enter is pressed outside editable controls', async () => {
     const onRespond = vi.fn().mockResolvedValue(undefined)
     render(<PermissionRequestComposer request={makeRequest()} onRespond={onRespond} />)
@@ -229,8 +283,7 @@ describe('PermissionRequestComposer', () => {
     await waitFor(() => expect(onRespond).toHaveBeenCalledTimes(1))
     expect(onRespond).toHaveBeenCalledWith({
       match: makeRequest().match,
-      approved: false,
-      reason: 'User denied permission for this tool.'
+      approved: false
     })
   })
 

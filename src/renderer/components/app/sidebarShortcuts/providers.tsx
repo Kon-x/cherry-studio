@@ -1,5 +1,3 @@
-import { Database, FileText, MessagesSquare } from 'lucide-react'
-
 import { renderAssistantEntityIcon } from '@renderer/components/chat/resourceList/base'
 import { dataApiService } from '@renderer/data/DataApiService'
 import { preferenceService } from '@renderer/data/PreferenceService'
@@ -16,7 +14,7 @@ import {
 import { createSidebarShortcutId, type SidebarShortcutTarget } from '@shared/data/preference/preferenceTypes'
 import { FileEntryIdSchema } from '@shared/data/types/file'
 
-import { SIDEBAR_ICON_COMPONENTS } from '../sidebarIcons'
+import { SidebarIcon } from '../sidebarIcons'
 import type { ResolvedShortcut, SidebarShortcutProvider } from './types'
 
 const REVEAL_ACTIVATIONS = new Set<string | undefined>([undefined, 'reveal'])
@@ -111,10 +109,11 @@ const appProvider: SidebarShortcutProvider = {
     for (const target of targets) {
       const id = target.locator.resourceId
       if (!isSidebarAppId(id) || !getSidebarApp(id)) continue
-      const Icon = SIDEBAR_ICON_COMPONENTS[id]
       result.set(createSidebarShortcutId(target), {
         label: i18n.t(getSidebarIconLabelKey(id)),
-        renderIcon: ({ glyphSize }) => <Icon size={glyphSize} strokeWidth={1.6} />,
+        renderIcon: ({ glyphSize, active }) => (
+          <SidebarIcon icon={id} active={active} size={glyphSize} strokeWidth={1.6} />
+        ),
         supportsNewTab: true
       })
     }
@@ -199,7 +198,9 @@ const knowledgeBaseProvider: SidebarShortcutProvider = {
       (base) => base.id,
       (base) => ({
         label: base.name,
-        renderIcon: ({ glyphSize }) => <Database size={glyphSize} strokeWidth={1.6} />,
+        renderIcon: ({ glyphSize, active }) => (
+          <SidebarIcon icon="knowledgeBase" active={active} size={glyphSize} strokeWidth={1.6} />
+        ),
         supportsNewTab: true
       })
     ),
@@ -226,7 +227,9 @@ const topicProvider: SidebarShortcutProvider = {
       (topic) => topic.id,
       (topic) => ({
         label: topic.name.trim() || i18n.t('chat.conversation.new'),
-        renderIcon: ({ glyphSize }) => <MessagesSquare size={glyphSize} strokeWidth={1.6} />,
+        renderIcon: ({ glyphSize, active }) => (
+          <SidebarIcon icon="topic" active={active} size={glyphSize} strokeWidth={1.6} />
+        ),
         supportsNewTab: true
       })
     ),
@@ -256,7 +259,9 @@ const fileEntryProvider: SidebarShortcutProvider = {
       (entry) => entry.id,
       (entry) => ({
         label: entry.ext ? `${entry.name}.${entry.ext}` : entry.name,
-        renderIcon: ({ glyphSize }) => <FileText size={glyphSize} strokeWidth={1.6} />,
+        renderIcon: ({ glyphSize, active }) => (
+          <SidebarIcon icon="fileEntry" active={active} size={glyphSize} strokeWidth={1.6} />
+        ),
         supportsNewTab: true
       })
     ),

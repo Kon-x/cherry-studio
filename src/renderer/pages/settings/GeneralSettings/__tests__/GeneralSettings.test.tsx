@@ -1,13 +1,31 @@
-import { MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
+import { mockUsePreference, MockUsePreferenceUtils } from '@test-mocks/renderer/usePreference'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryStudioUi from '@cherrystudio/ui'
+
 import GeneralSettings from '../GeneralSettings'
+
+const defaultPreferenceImplementation = mockUsePreference.getMockImplementation()!
+const { ipcRequestMock } = vi.hoisted(() => ({ ipcRequestMock: vi.fn() }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
-  useTranslation: () => ({ t: (key: string) => key })
+  useTranslation: () => ({
+    t: (key: string, options?: { address?: string; route?: string }) => {
+      const translations: Record<string, string> = {
+        'settings.developer.cdp.title': 'Local automation (CDP)',
+        'settings.developer.cdp.description': `Local tools can connect at ${options?.address}. Requires a restart.`,
+        'settings.developer.cdp.port': 'CDP port',
+        'settings.developer.cdp.invalid_port': 'Enter a whole-number port from 1 to 65534.',
+        'settings.developer.enable_developer_mode': 'Developer mode'
+      }
+      if (key === 'settings.proxy.test.success' && options?.route === 'settings.proxy.test.route.fallback')
+        return key + ': ' + options.route
+      return translations[key] ?? key
+    }
+  })
 }))
 
 vi.mock('@renderer/hooks/useTheme', () => ({
@@ -18,8 +36,31 @@ vi.mock('@renderer/hooks/useTimer', () => ({
   useTimer: () => ({ setTimeoutTimer: vi.fn() })
 }))
 
+vi.mock('@renderer/ipc', () => ({
+  ipcApi: { request: ipcRequestMock }
+}))
+
 vi.mock('@renderer/components/Selector', () => ({
-  default: () => null
+  default: ({
+    value,
+    onChange,
+    options
+  }: {
+    value: string | null
+    onChange: (value: 'system' | 'custom' | 'none') => void
+    options: Array<{ value: 'system' | 'custom' | 'none'; label: string }>
+  }) => (
+    <select
+      aria-label="settings.proxy.mode.title"
+      value={value ?? ''}
+      onChange={(event) => onChange(event.target.value as 'system' | 'custom' | 'none')}>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  )
 }))
 
 vi.mock('@renderer/components/ModelSelector', () => ({
@@ -56,69 +97,74 @@ vi.mock('@renderer/services/toast', () => ({
   toast: { error: vi.fn() }
 }))
 
-vi.mock('@cherrystudio/ui', () => ({
-  Button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button type="button" {...props}>
-      {children}
-    </button>
-  ),
-  Flex: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
-  InfoTooltip: () => null,
-  Combobox: ({
-    options,
-    value,
-    onChange,
-    'aria-label': ariaLabel
-  }: {
-    options: { value: string; label: string }[]
-    value?: string | string[]
-    onChange?: (value: string | string[]) => void
-    'aria-label'?: string
-  }) => (
-    <select
-      aria-label={ariaLabel}
-      value={Array.isArray(value) ? (value[0] ?? '') : (value ?? '')}
-      onChange={(event) => onChange?.(event.target.value)}>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  ),
-  Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
-  InputNumber: ({
-    onBlur,
-    ...props
-  }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onBlur'> & { onBlur?: (value: number | null) => void }) => (
-    <input
-      {...props}
-      readOnly
-      onBlur={(event) => onBlur?.(event.currentTarget.value === '' ? null : Number(event.currentTarget.value))}
-    />
-  ),
-  Switch: ({
-    checked,
-    onCheckedChange,
-    ...props
-  }: ButtonHTMLAttributes<HTMLButtonElement> & {
-    checked?: boolean
-    onCheckedChange?: (checked: boolean) => void
-  }) => (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onCheckedChange?.(!checked)} {...props}>
-      switch
-    </button>
-  )
-}))
+vi.mock('@cherrystudio/ui', async (importOriginal) => {
+  const { InputNumber } = await importOriginal<typeof CherryStudioUi>()
+  return {
+    Button: ({ children, loading, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) => (
+      <button type="button" data-loading={loading || undefined} {...props}>
+        {children}
+      </button>
+    ),
+    Flex: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+    InfoTooltip: () => null,
+    Combobox: ({
+      options,
+      value,
+      onChange,
+      'aria-label': ariaLabel
+    }: {
+      options: { value: string; label: string }[]
+      value?: string | string[]
+      onChange?: (value: string | string[]) => void
+      'aria-label'?: string
+    }) => (
+      <select
+        aria-label={ariaLabel}
+        value={Array.isArray(value) ? (value[0] ?? '') : (value ?? '')}
+        onChange={(event) => onChange?.(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    ),
+    Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+    InputNumber,
+    Switch: ({
+      checked,
+      onCheckedChange,
+      ...props
+    }: ButtonHTMLAttributes<HTMLButtonElement> & {
+      checked?: boolean
+      onCheckedChange?: (checked: boolean) => void
+    }) => (
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onCheckedChange?.(!checked)} {...props}>
+        switch
+      </button>
+    )
+  }
+})
 
 describe('GeneralSettings', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    mockUsePreference.mockImplementation(defaultPreferenceImplementation)
     MockUsePreferenceUtils.resetMocks()
     MockUsePreferenceUtils.setMultiplePreferenceValues({
+      'BootConfig.app.remote_debugging.enabled': false,
+      'BootConfig.app.remote_debugging.port': 9222,
+      'app.developer_mode.enabled': false,
       'app.tray.enabled': true,
       'app.tray.on_close': true,
       'app.tray.on_launch': true,
       'feature.quick_assistant.click_tray_to_show': true
+    })
+    ipcRequestMock.mockReset()
+    ipcRequestMock.mockResolvedValue({
+      target: 'https://www.gstatic.com/generate_204',
+      route: 'proxy',
+      success: true
     })
   })
 
@@ -136,7 +182,7 @@ describe('GeneralSettings', () => {
     expect(screen.getByLabelText('settings.models.retry.backoff')).toBeInTheDocument()
     expect(screen.getByText('settings.models.retry.fallback_models_count')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('settings.models.retry.label'))
+    fireEvent.click(screen.getByLabelText('settings.general.retry.enabled'))
 
     await waitFor(() => {
       expect(MockUsePreferenceUtils.getPreferenceValue('chat.retry.enabled')).toBe(false)

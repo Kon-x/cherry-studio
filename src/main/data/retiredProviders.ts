@@ -1,4 +1,12 @@
-const RETIRED_PROVIDER_IDS = new Set(['cephalon', 'claude-code', 'github', 'tokenflux', 'yi'])
+const RETIRED_PROVIDER_IDS = new Set([
+  'cephalon',
+  'claude-code',
+  'github',
+  'hunyuan',
+  'tencent-cloud-ti',
+  'tokenflux',
+  'yi'
+])
 
 /** Providers retired from this build; their saved rows remain available to backups. */
 export function isRetiredProvider(providerId: string | null | undefined, presetProviderId?: string | null): boolean {

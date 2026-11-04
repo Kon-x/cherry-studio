@@ -31,7 +31,11 @@ const cloudMocks = vi.hoisted(() => ({
   appEdition: 'global' as 'cn' | 'global',
   ipcRequest: vi.fn(),
   statusListener: undefined as
-    | ((status: { phase: 'signed-out' | 'authorizing' | 'signed-in'; displayName: string | null }) => void)
+    | ((status: {
+        phase: 'signed-out' | 'authorizing' | 'signed-in'
+        accountId: string | null
+        displayName: string | null
+      }) => void)
     | undefined
 }))
 const dataApiMocks = vi.hoisted(() => ({
@@ -170,11 +174,16 @@ describe('OnboardingPage', () => {
     cloudMocks.appEdition = 'global'
     cloudMocks.statusListener = undefined
     cloudMocks.ipcRequest.mockImplementation(async (route: string) => {
-      if (route === 'cherry_cloud.status.get') return { phase: 'signed-out', displayName: null }
-      if (route === 'cherry_cloud.login.start') return { phase: 'authorizing', displayName: null }
-      if (route === 'cherry_cloud.login.cancel') return { phase: 'signed-out', displayName: null }
+      if (route === 'cherry_cloud.status.get') return { phase: 'signed-out', accountId: null, displayName: null }
+      if (route === 'cherry_cloud.login.start') return { phase: 'authorizing', accountId: null, displayName: null }
+      if (route === 'cherry_cloud.login.cancel') return { phase: 'signed-out', accountId: null, displayName: null }
       if (route === 'cherry_cloud.models.sync') {
-        return { entitledModelIds: [], quotaExhaustedModelIds: [] }
+        return {
+          entitledModelIds: [],
+          freeModelIds: [],
+          availableModelIds: { agent: [], general: [] },
+          quotaExhaustedModelIds: []
+        }
       }
       throw new Error(`Unexpected IPC route: ${route}`)
     })

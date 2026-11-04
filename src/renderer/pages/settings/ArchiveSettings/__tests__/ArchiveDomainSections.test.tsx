@@ -25,7 +25,8 @@ const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
   invalidate: vi.fn().mockResolvedValue(undefined),
-  ipcRequest: vi.fn()
+  ipcRequest: vi.fn(),
+  openRoute: vi.fn()
 }))
 
 vi.mock('@renderer/data/hooks/useDataApi', async () => ({
@@ -70,6 +71,11 @@ function deletedTopic(id: string, name: string) {
   return { id, name, deletedAt: '2026-08-01T00:00:00.000Z' }
 }
 
+/** `/archives` entry shape; `entityId` is what the section hands to the domain actions. */
+function archivedEntry(domain: string, id: string, name: string) {
+  return { id, entityId: id, domain, name, parentName: null, deletedAt: '2026-08-01T00:00:00.000Z' }
+}
+
 function deletedFile(id: string, name: string) {
   return {
     id,
@@ -100,10 +106,10 @@ const dataDomainCases: DataDomainCase[] = [
   {
     label: 'Topic',
     Component: TopicArchiveSection,
-    listPath: '/topics',
+    listPath: '/archives',
     deletePath: '/topics/:id',
     paginated: false,
-    makeRecord: deletedTopic
+    makeRecord: (id, name) => archivedEntry('topics', id, name)
   },
   {
     label: 'Assistant',
@@ -157,6 +163,7 @@ beforeEach(async () => {
   mocks.refresh.mockReset().mockResolvedValue(undefined)
   mocks.invalidate.mockReset().mockResolvedValue(undefined)
   mocks.ipcRequest.mockReset()
+  mocks.openRoute.mockReset()
   vi.mocked(dataApiService.get).mockReset()
 })
 
@@ -360,8 +367,13 @@ describe('Archive domain batch adapters', () => {
 
   it('reports an all-stale Topic batch in one user-visible summary', async () => {
     const user = userEvent.setup()
-    mocks.pagesByPath.set('/topics', [
-      { items: [deletedTopic('topic-stale-1', 'Stale one'), deletedTopic('topic-stale-2', 'Stale two')] }
+    mocks.pagesByPath.set('/archives', [
+      {
+        items: [
+          archivedEntry('topics', 'topic-stale-1', 'Stale one'),
+          archivedEntry('topics', 'topic-stale-2', 'Stale two')
+        ]
+      }
     ])
     mocks.mutate.mockImplementation(async (_method, _path, args) => {
       throw DataApiErrorFactory.notFound('Topic', args.params.id)
@@ -392,7 +404,7 @@ describe('Archive domain batch adapters', () => {
 
   it('treats restore NOT_FOUND as complete after refresh confirms the Topic is active', async () => {
     const user = userEvent.setup()
-    mocks.pagesByPath.set('/topics', [{ items: [deletedTopic('topic-1', 'First topic')] }])
+    mocks.pagesByPath.set('/archives', [{ items: [archivedEntry('topics', 'topic-1', 'First topic')] }])
     mocks.mutate.mockImplementation(async (method) => {
       if (method === 'POST') throw DataApiErrorFactory.notFound('Topic', 'topic-1')
     })
@@ -403,9 +415,100 @@ describe('Archive domain batch adapters', () => {
 
     await waitFor(() => expect(dataApiService.get).toHaveBeenCalledWith('/topics/topic-1'))
     expect(mocks.refresh).toHaveBeenCalled()
-    expect(toast.info).toHaveBeenCalledWith('Restored')
+    // A concurrent restore that already landed is a success, so the link must work here too.
+    const config = vi.mocked(toast.info).mock.calls.at(-1)?.[0]
+    if (!config || typeof config === 'string' || !config.action) {
+      throw new Error('expected the already-active toast to carry the conversation link')
+    }
+    expect(config.title).toBe('Restored')
+    await config.action.onClick()
+    expect(mocks.openRoute).toHaveBeenCalledWith('/app/chat', { topicId: 'topic-1' })
     expect(toast.error).not.toHaveBeenCalled()
   })
+
+  it('offers a way into the conversation it just restored', async () => {
+    // Restoring only puts the topic back in the list; the reason to restore is usually to
+    // keep reading it, so the toast must reach the chat route for that exact topic. Two rows
+    // pin the id to the restored one — a link hard-wired to the first topic would pass with one.
+    const user = userEvent.setup()
+    mocks.pagesByPath.set('/archives', [
+      { items: [archivedEntry('topics', 'topic-1', 'First topic'), archivedEntry('topics', 'topic-2', 'Second topic')] }
+    ])
+    render(
+      <TopicArchiveSection
+        retentionDays={30}
+        isBatchMode={false}
+        isPermanentDeleting={false}
+        onRequestDelete={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Restore' })[1])
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Restored', action: expect.objectContaining({ label: 'Go to conversation' }) })
+      )
+    )
+
+    const config = vi.mocked(toast.success).mock.calls.at(-1)?.[0]
+    if (!config || typeof config === 'string' || !config.action) {
+      throw new Error('expected a restore toast carrying the conversation link')
+    }
+
+    await config.action.onClick()
+
+    expect(mocks.openRoute).toHaveBeenCalledWith('/app/chat', { topicId: 'topic-2' })
+  })
+
+  it.each([
+    {
+      label: 'Painting',
+      Component: PaintingArchiveSection,
+      seed: () =>
+        mocks.pagesByPath.set('/paintings', [
+          {
+            items: [
+              { id: 'painting-1', prompt: 'Mountains', deletedAt: '2026-08-01T00:00:00.000Z', files: { output: [] } }
+            ]
+          }
+        ]),
+      mock: () => mocks.ipcRequest.mockResolvedValue(undefined)
+    },
+    {
+      label: 'Assistant',
+      Component: AssistantArchiveSection,
+      seed: () =>
+        mocks.paginatedItemsByPath.set('/assistants', [
+          { id: 'assistant-1', name: 'Assistant one', deletedAt: '2026-08-01T00:00:00.000Z' }
+        ]),
+      mock: () => {}
+    },
+    {
+      label: 'File',
+      Component: FileArchiveSection,
+      seed: () => mocks.pagesByPath.set('/files/entries', [{ items: [deletedFile('file-1', 'File one')] }]),
+      mock: () => mocks.ipcRequest.mockResolvedValue({ succeeded: ['file-1'], failed: [] })
+    }
+  ] as const)(
+    'keeps the $label restore toast plain, with no conversation to jump to',
+    async ({ Component, seed, mock }) => {
+      const user = userEvent.setup()
+      seed()
+      mock()
+
+      render(
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <Component retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
+        </SWRConfig>
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Restore' }))
+
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Restored'))
+      expect(mocks.openRoute).not.toHaveBeenCalled()
+    }
+  )
 
   it('chunks 501 File permanent deletes and classifies a missing rejected item as stale', async () => {
     const user = userEvent.setup()
@@ -651,10 +754,87 @@ describe('All archive actions', () => {
     expect(toast.warning).toHaveBeenCalledWith('Restored 1 item; 1 failed')
   })
 
+  it('offers a way into a conversation restored from the mixed All tab', async () => {
+    // All is the default tab, so this is the path most restores actually take — it reaches
+    // the topic action through the per-domain map rather than TopicArchiveSection directly.
+    mocks.pagesByPath.set('/archives', [
+      {
+        items: [
+          { id: 'topics:t1', entityId: 't1', domain: 'topics', name: 'Archived topic', deletedAt: 200 },
+          { id: 'files:f1', entityId: 'f1', domain: 'files', name: 'Archived file', deletedAt: 100 }
+        ]
+      }
+    ])
+    const user = userEvent.setup()
+    render(
+      <AllArchiveSection retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Restore' })[0])
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled())
+    const config = vi.mocked(toast.success).mock.calls.at(-1)?.[0]
+    if (!config || typeof config === 'string' || !config.action) {
+      throw new Error('expected the topic restore toast to carry the conversation link')
+    }
+    expect(config.title).toBe('Restored')
+    await config.action.onClick()
+    expect(mocks.openRoute).toHaveBeenCalledWith('/app/chat', { topicId: 't1' })
+  })
+
+  it('offers a way back into a Session restored from the mixed All tab', async () => {
+    mocks.pagesByPath.set('/archives', [
+      {
+        items: [
+          { id: 'topics:t1', entityId: 't1', domain: 'topics', name: 'Archived topic', deletedAt: 200 },
+          { id: 'sessions:s1', entityId: 's1', domain: 'sessions', name: 'Archived session', deletedAt: 200 }
+        ]
+      }
+    ])
+    mocks.ipcRequest.mockResolvedValue({ id: 's1' })
+    const user = userEvent.setup()
+    render(
+      <AllArchiveSection retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Restore' })[1])
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled())
+    const config = vi.mocked(toast.success).mock.calls.at(-1)?.[0]
+    if (!config || typeof config === 'string' || !config.action) {
+      throw new Error('expected the session restore toast to carry the conversation link')
+    }
+    await config.action.onClick()
+    expect(mocks.openRoute).toHaveBeenCalledWith('/app/agents', { sessionId: 's1' })
+  })
+
+  it('keeps the File row in the All tab free of a conversation link', async () => {
+    mocks.pagesByPath.set('/archives', [
+      {
+        items: [
+          { id: 'topics:t1', entityId: 't1', domain: 'topics', name: 'Archived topic', deletedAt: 200 },
+          { id: 'files:f1', entityId: 'f1', domain: 'files', name: 'Archived file', deletedAt: 100 }
+        ]
+      }
+    ])
+    mocks.ipcRequest.mockResolvedValue({ succeeded: ['f1'], failed: [] })
+    const user = userEvent.setup()
+    render(
+      <AllArchiveSection retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Restore' })[1])
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Restored'))
+    expect(mocks.openRoute).not.toHaveBeenCalled()
+  })
+
   it('refreshes once per external notification batch and stops listening after unmount', async () => {
     const { unmount } = render(
       <AllArchiveSection retentionDays={30} isBatchMode={false} isPermanentDeleting={false} onRequestDelete={vi.fn()} />
     )
+    await act(async () => {})
+    mocks.refresh.mockClear()
     const changes = [
       { endpoint: '/topics', kind: 'membership' },
       { endpoint: '/assistants', kind: 'membership' }
@@ -693,6 +873,8 @@ describe('All archive actions', () => {
         }}
       />
     )
+    await act(async () => {})
+    mocks.refresh.mockClear()
     await user.click(screen.getByRole('checkbox', { name: 'Select all visible items' }))
     await user.click(screen.getByRole('button', { name: 'Delete Permanently 2' }))
     expect(await runPendingRequest(pending)).toEqual({
