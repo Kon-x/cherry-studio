@@ -26,7 +26,7 @@ const countNodes = (node: JSONContent, type: string): number => {
 /** Parse markdown through the production setContent path; returns [elapsedMs, editor]. */
 const parseMarkdown = (content: string): { ms: number; editor: Editor } => {
   const editor = new Editor({
-    element: document.createElement('div'),
+    element: null,
     extensions: createRichEditorExtensions()
   })
   const t0 = performance.now()

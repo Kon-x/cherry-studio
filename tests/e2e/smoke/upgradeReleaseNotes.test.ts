@@ -32,7 +32,7 @@ async function serveHistory(app: ElectronApplication, releases: ReleaseNotesEntr
   await app.evaluate(({ net }, entries) => {
     const fetch = net.fetch.bind(net)
     net.fetch = async (input, options) => {
-      if (String(input) === 'https://releases.cherry-ai.com/release-history.json') {
+      if (String(input) === 'https://github.com/Kon-x/cherry-studio/releases/latest/download/release-history.json') {
         if (entries === null) throw new Error('History unavailable for test')
         return new Response(JSON.stringify(entries), { headers: { 'content-type': 'application/json' } })
       }

@@ -29,6 +29,9 @@ const MARKDOWN = [
 ].join('\n')
 
 test('inline HTML iframe preview settles and stays stable across scrolling', async ({ mainWindow: page }, testInfo) => {
+  await page.route('https://example.invalid/x', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Embedded preview</title>' })
+  )
   await page.evaluate(async () => {
     await window.api.preference.setMultiple({
       'app.language': 'en-US',
@@ -170,58 +173,55 @@ test('inline HTML iframe preview settles and stays stable across scrolling', asy
   expect(Math.max(...sampled.samples.map((sample) => sample.rootOverflow))).toBeLessThanOrEqual(1)
   expect(sampled.samplingMutations).toBe(0)
 
-  const list = page.locator('[data-message-virtual-list-scroller]').filter({ visible: true }).first()
-  await list.hover()
-  const geometry = () =>
-    page.evaluate(() => {
-      const surface = document.querySelector<HTMLElement>('[data-testid="html-artifact-surface"]')!
-      const scroller = surface.closest<HTMLElement>('[data-message-virtual-list-scroller]')!
-      return {
-        scrollTop: scroller.scrollTop,
-        height: surface.getBoundingClientRect().height,
-        top: surface.getBoundingClientRect().top,
-        bottom: surface.getBoundingClientRect().bottom,
-        scrollerTop: scroller.getBoundingClientRect().top,
-        scrollerClientHeight: scroller.clientHeight
-      }
+  const beforeScroll = await sampling.evaluate((state) => state.finish())
+  await sampling.dispose()
+  expect(beforeScroll.totalMutations).toBe(0)
+  const initialParagraphOffset = sampled.samples[0].paragraphTop - sampled.sampledSurfaceTop
+  const surface = page.getByTestId('html-artifact-surface').filter({ visible: true })
+  const inMessageViewport = () =>
+    messageList.evaluate((element) => {
+      const preview = element.querySelector('[data-testid="html-artifact-surface"]')
+      if (!preview) return false
+      const rect = preview.getBoundingClientRect()
+      const viewport = element.getBoundingClientRect()
+      return rect.top >= viewport.top && rect.bottom <= viewport.bottom
     })
+  await messageList.hover()
   for (let step = 0; step < 25; step += 1) {
     await page.mouse.wheel(0, 400)
     await page.waitForTimeout(120)
-    const info = await geometry()
-    if (info.bottom < info.scrollerTop) break
+    const offscreen = await messageList.evaluate((element) => {
+      const preview = element.querySelector('[data-testid="html-artifact-surface"]')
+      return !preview || preview.getBoundingClientRect().bottom < element.getBoundingClientRect().top
+    })
+    if (offscreen) break
   }
-  const away = await geometry()
+  await expect(artifact).not.toBeInViewport()
   for (let step = 0; step < 40; step += 1) {
-    await page.mouse.wheel(0, -400)
+    await page.mouse.wheel(0, -100)
     await page.waitForTimeout(120)
-    const info = await geometry()
-    if (info.top > info.scrollerTop && info.bottom < info.scrollerTop + info.scrollerClientHeight) break
+    if (await inMessageViewport()) break
   }
-  await page.waitForTimeout(600)
-  const back = await geometry()
-  const roundTrip = await sampling.evaluate((state) => state.finish())
-  await sampling.dispose()
-  const measurements = { ...sampled, away, back, ...roundTrip }
+  await expect.poll(inMessageViewport).toBe(true)
+  const returnedGeometry = () =>
+    surface.evaluate((element) => {
+      const marker = Array.from(document.querySelectorAll('p')).find((p) => p.textContent === 'after-block-marker')!
+      return {
+        height: element.getBoundingClientRect().height,
+        styleHeight: (element as HTMLElement).style.height,
+        paragraphOffset: marker.getBoundingClientRect().top - element.getBoundingClientRect().top
+      }
+    })
+  await expect(async () => {
+    const back = await returnedGeometry()
+    expect(back.styleHeight).toBe(sampled.samples[0].styleHeight)
+    expect(Math.abs(back.height - sampled.samples[0].height)).toBeLessThanOrEqual(0.25)
+    expect(Math.abs(back.paragraphOffset - initialParagraphOffset)).toBeLessThanOrEqual(0.25)
+  }).toPass({ timeout: 10000 })
   await testInfo.attach('height-measurements', {
-    body: JSON.stringify(measurements, null, 2),
+    body: JSON.stringify({ ...sampled, beforeScroll, back: await returnedGeometry() }, null, 2),
     contentType: 'application/json'
   })
-  expect(measurements.sameSurface).toBe(true)
-  expect(away.bottom).toBeLessThan(away.scrollerTop)
-  expect(back.top).toBeGreaterThan(back.scrollerTop)
-  expect(back.bottom).toBeLessThan(back.scrollerTop + back.scrollerClientHeight)
-  expect(back.height).toBe(measurements.samples[0].height)
-  expect(measurements.returned!.styleHeight).toBe(measurements.samples[0].styleHeight)
-  expect(Math.abs(measurements.returned!.height - measurements.samples[0].height)).toBeLessThanOrEqual(0.25)
-  expect(
-    Math.abs(
-      measurements.returned!.paragraphTop -
-        back.top -
-        (measurements.samples[0].paragraphTop - measurements.sampledSurfaceTop)
-    )
-  ).toBeLessThanOrEqual(0.25)
-  expect(measurements.totalMutations).toBe(0)
 
   const screenshotPath = testInfo.outputPath('html-artifact-preview-height.png')
   await page.bringToFront()

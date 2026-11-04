@@ -45,7 +45,9 @@ async function openArchive(page: Page) {
 test('All re-reads after archiving through the topic context menu inside the dedupe window', async ({
   mainWindow: page
 }, testInfo) => {
-  await page.evaluate(() => window.api.preference.set('app.language', 'zh-CN'))
+  await page.evaluate(() =>
+    window.api.preference.setMultiple({ 'app.language': 'zh-CN', 'topic.tab.display_mode': 'time' })
+  )
   await expect
     .poll(
       async () => {
@@ -86,10 +88,9 @@ test('All re-reads after archiving through the topic context menu inside the ded
       })
     )
   }, seeded)
-  const assistantButton = page.getByRole('button', { name: ASSISTANT }).first()
-  await expect(assistantButton).toBeVisible({ timeout: 30_000 })
-  await assistantButton.click()
-  const topicRow = page.getByTestId('topic-list-row').filter({ has: page.getByText(TOPIC, { exact: true }) })
+  const topicRow = page
+    .getByTestId('topic-list-row')
+    .filter({ has: page.getByText(TOPIC, { exact: true }), visible: true })
   await expect(topicRow).toBeVisible({ timeout: 30_000 })
   await expect(topicRow.getByText(TOPIC, { exact: true })).toBeVisible()
 

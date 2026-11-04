@@ -160,10 +160,7 @@ async function expectDraft(page: Page, text: string) {
 }
 
 async function parkPointer(page: Page) {
-  await expect(composer(page)).toBeVisible()
-  const box = await composer(page).boundingBox()
-  expect(box).not.toBeNull()
-  await page.mouse.move(box!.x + 4, box!.y + 4)
+  await composer(page).hover({ position: { x: 4, y: 4 } })
 }
 
 async function capture(page: Page, testInfo: TestInfo, name: string) {
@@ -196,12 +193,7 @@ async function enterChat(page: Page) {
 }
 
 async function revealTopics(page: Page) {
-  const row = topicRow(page, ALPHA)
-  if ((await row.count()) > 0) return
-  const header = page.getByRole('button', { name: 'Active tab assistant', exact: true }).filter({ visible: true })
-  await expect(header).toHaveCount(1)
-  await header.click()
-  await expect(row).toBeVisible({ timeout: 10_000 })
+  await expect(topicRow(page, ALPHA)).toBeVisible({ timeout: 10_000 })
 }
 
 async function openSecondTab(page: Page, testInfo: TestInfo) {
@@ -237,6 +229,7 @@ for (const style of ['opaque', 'transparent'] as const) {
             'app.privacy.policy_version': policyVersion,
             'app.onboarding.provider_setup.status': 'skipped',
             'app.language': 'en-US',
+            'topic.tab.display_mode': 'time',
             'menu.presentation_mode': 'cherry',
             'ui.window_style': windowStyle,
             'ui.theme_mode': themeMode

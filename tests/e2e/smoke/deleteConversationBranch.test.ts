@@ -68,6 +68,7 @@ async function ready(page: Page) {
     await window.api.preference.set('app.privacy.policy_version', policyVersion)
     await window.api.preference.set('app.onboarding.provider_setup.status', 'skipped')
     await window.api.preference.set('app.language', 'en-US')
+    await window.api.preference.set('topic.tab.display_mode', 'time')
   }, LATEST_PRIVACY_POLICY_VERSION)
   await page.reload()
   await expect(page.locator('[data-ui~="app.shell"]').first()).toBeVisible({ timeout: 60_000 })
@@ -95,17 +96,9 @@ async function openTopic(page: Page, seeded: { assistantId: string; topicId: str
       })
     )
   }, seeded)
-  // The resource list can mount the same row twice, so pin the locator to the first visible match.
   const topicRow = page
     .getByTestId('topic-list-row')
-    .filter({ has: page.getByText(TOPIC, { exact: true }) })
-    .first()
-  const assistantButton = page.getByRole('button', { name: ASSISTANT, exact: true }).first()
-  await expect(assistantButton).toBeVisible({ timeout: 30_000 })
-  for (let attempt = 0; attempt < 4 && !(await topicRow.isVisible()); attempt += 1) {
-    await assistantButton.click()
-    await page.waitForTimeout(500)
-  }
+    .filter({ has: page.getByText(TOPIC, { exact: true }), visible: true })
   await expect(topicRow).toBeVisible({ timeout: 30_000 })
   await topicRow.click()
 }
