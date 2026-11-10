@@ -55,7 +55,7 @@ test('Archive names the image-generation job blocking permanent deletion', async
       await window.api.preference.set('app.privacy.policy_version', privacyVersion)
     }, LATEST_PRIVACY_POLICY_VERSION)
     await page.reload()
-    await expect(page.locator('[data-ui~="app.content"]')).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByRole('main')).toBeVisible({ timeout: 60_000 })
 
     const result = await page.evaluate(
       async () => (await window.api.ipcApi.request('app.get_info')) as IpcResult<OutputFor<'app.get_info'>>
@@ -123,7 +123,7 @@ test('Archive names the image-generation job blocking permanent deletion', async
     await expect(row).toBeVisible()
     await row.getByRole('button', { name: 'Delete Permanently', exact: true }).click()
 
-    const dialog = page.getByRole('dialog', { name: 'Delete permanently?', exact: true })
+    const dialog = page.getByRole('dialog', { name: `Permanently delete "${name}.png"?`, exact: true })
     await expect(
       dialog.getByText(
         '1 file is still used by 1 record and will be kept. Remove that reference before deleting permanently.',

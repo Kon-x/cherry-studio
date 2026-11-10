@@ -51,7 +51,7 @@ tests/e2e/
 3. 若此前运行过 Node 单元测试，执行 `pnpm rebuild:electron` 恢复 Electron 的 SQLite 原生模块。
 
 `Build Windows x64` 在原生打包完成后运行这些测试。每个测试使用独立临时用户目录和
-`CS_DEV_USER_DATA_SUFFIX`，关闭自己创建的 Electron 实例后清理该目录。模型、嵌入与 MCP 使用本地
+`CS_DEV_PROFILE_ROOT`（并设置独立 `CS_DEV_USER_DATA_SUFFIX`），关闭自己创建的 Electron 实例后清理该目录。模型、嵌入与 MCP 使用本地
 测试服务；登录页面重定向到本地测试服务，帮助链接只记录系统浏览器交接，不使用真实账号。
 CI 上传主进程日志、失败截图和 Playwright trace，报告位于 `electron-verification-<run-id>` 产物。
 

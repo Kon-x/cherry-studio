@@ -253,7 +253,7 @@ test('normal Chat pads a thin image before provider dispatch', async ({ electron
   const providerId = `thin-image-${Date.now()}`
   const originalDialog = await electronApp.evaluateHandle(({ dialog }) => dialog.showOpenDialog)
   try {
-    expect(process.env.CS_DEV_PROFILE_ROOT).toBeTruthy()
+    expect(await electronApp.evaluate(() => process.env.CS_DEV_PROFILE_ROOT)).toBeTruthy()
     const fixturePath = testInfo.outputPath('thin.png')
     const original = await sharp({ create: { width: 1000, height: 4, channels: 3, background: '#123456' } })
       .png()

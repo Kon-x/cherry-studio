@@ -4,7 +4,6 @@ import path from 'node:path'
 
 import type { Locator } from '@playwright/test'
 
-import en from '../../../src/renderer/i18n/locales/en-us.json'
 import enUS from '../../../src/renderer/i18n/locales/en-us.json'
 import type { UnifiedPreferenceType } from '../../../src/shared/data/preference/preferenceTypes'
 import type { Message } from '../../../src/shared/data/types/message'
@@ -22,9 +21,10 @@ test.setTimeout(150_000)
 test.use({ trace: 'off' })
 
 test('provider content rejection diagnoses content while generic HTTP 400 retains settings recovery', async ({
+  electronApp,
   mainWindow: page
 }, testInfo) => {
-  const profile = process.env.CS_DEV_PROFILE_ROOT
+  const profile = await electronApp.evaluate(() => process.env.CS_DEV_PROFILE_ROOT)
   expect(profile, 'Run with an isolated CS_DEV_PROFILE_ROOT').toBeTruthy()
   expect(path.isAbsolute(profile!), 'The isolated profile root must be absolute').toBe(true)
   const phase = process.env.ISSUE_22312_PHASE ?? 'run'
@@ -179,7 +179,7 @@ test('provider content rejection diagnoses content while generic HTTP 400 retain
     }
     const ensureChatView = async () => {
       const view = page.locator('[data-ui~="chat.view"]:visible')
-      const chat = page.getByRole('button', { name: en['title.chat'], exact: true }).first()
+      const chat = page.getByRole('button', { name: enUS['title.chat'], exact: true }).first()
       await expect(chat.or(privacy).filter({ visible: true }).first()).toBeVisible()
       if (await privacy.isVisible()) {
         await privacy.click()
