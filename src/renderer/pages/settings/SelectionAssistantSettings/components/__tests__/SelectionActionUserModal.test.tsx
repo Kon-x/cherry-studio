@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
+import type { CustomSelectionAction } from '@shared/types/selection'
 
 import SelectionActionUserModal from '../SelectionActionUserModal'
 
@@ -29,11 +29,12 @@ describe('SelectionActionUserModal', () => {
   it('keeps the footer accessible when editing a long prompt', () => {
     const longPrompt = 'Keep the prompt inside the dialog.\n'.repeat(200)
     const onOk = vi.fn()
-    const editingAction: SelectionActionItem = {
+    const editingAction: CustomSelectionAction = {
       id: 'user-long-prompt',
       name: 'Long prompt',
       enabled: true,
       isBuiltIn: false,
+      runner: 'default',
       prompt: longPrompt
     }
 

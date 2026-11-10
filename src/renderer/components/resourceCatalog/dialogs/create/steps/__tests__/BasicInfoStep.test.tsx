@@ -20,8 +20,8 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@cherrystudio/ui', async (importOriginal) => await importOriginal<typeof CherryStudioUi>())
 
-vi.mock('@renderer/components/ModelSelector', () => ({
-  ModelSelector: () => null
+vi.mock('@renderer/components/cherryCloud/CherryCloudModelSelector', () => ({
+  CherryCloudModelSelector: () => null
 }))
 
 vi.mock('@renderer/hooks/useModel', () => ({

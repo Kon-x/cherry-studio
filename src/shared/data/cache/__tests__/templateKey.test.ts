@@ -92,6 +92,5 @@ describe('findMatchingSharedCacheSchemaKey', () => {
   it('returns undefined when the key matches nothing', () => {
     expect(findMatchingSharedCacheSchemaKey('unknown.key')).toBeUndefined()
     expect(findMatchingSharedCacheSchemaKey('web_search.provider.last_used_key.')).toBeUndefined()
-    expect(findMatchingSharedCacheSchemaKey('agent.session.flow_parts.session-1')).toBeUndefined()
   })
 })

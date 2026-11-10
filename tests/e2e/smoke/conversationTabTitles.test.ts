@@ -1,7 +1,7 @@
 import { _electron as electron } from '@playwright/test'
 import * as z from 'zod'
 
-import { selectSidebarApp } from '../regression/navigation'
+import { selectSidebarApp } from '../regression/helpers/navigation'
 import { expect, test as base } from './fixtures/electron.fixture'
 import { uiLocator } from './utils/uiLocator'
 

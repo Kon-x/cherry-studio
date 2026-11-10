@@ -321,9 +321,7 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       alwaysOnTop: { level: 'floating' },
       // Quick window is visible across all workspaces and over fullscreen apps.
       // `skipTransformProcessType: true` prevents TransformProcessType(UIElement)
-      // during window creation on macOS (app deactivation + Dock icon loss);
-      // MainWindowService's boot-time `app.dock?.show()` hack only masks that
-      // transform on the startup path, not on runtime re-creates.
+      // during window creation on macOS (app deactivation + Dock icon loss).
       visibleOnAllWorkspaces: { enabled: true, visibleOnFullScreen: true, skipTransformProcessType: true },
       // Quick window is a floating helper, not a primary surface — never touch the Dock.
       macShowInDock: false
@@ -564,8 +562,7 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        // Required by every window on the shared preload: that bundle is code-split, and a
-        // sandboxed preload cannot require its chunks — it dies with "module not found".
+        // Keep the trusted shared-preload environment consistent with the other application windows.
         sandbox: false,
         devTools: true,
         // Declared on WebPreferences, NOT at the constructor-options root. Off because a red

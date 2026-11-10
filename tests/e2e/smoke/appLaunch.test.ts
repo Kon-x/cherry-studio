@@ -30,7 +30,7 @@ test('help actions hand their destinations to the system browser', async ({ elec
     }
   })
   const destinations = [
-    ['User guide', 'https://docs.cherryai.com.cn/docs/en-us'],
+    ['User guide', 'https://cherryai.com/docs'],
     ["What's new", 'https://github.com/Kon-x/cherry-studio/releases']
   ] as const
   for (const [label, destination] of destinations) {
@@ -48,5 +48,5 @@ test('help actions hand their destinations to the system browser', async ({ elec
     .poll(() =>
       electronApp.evaluate(() => (globalThis as typeof globalThis & { e2eExternalUrls: string[] }).e2eExternalUrls)
     )
-    .toEqual(['https://docs.cherryai.com.cn/docs/en-us', 'https://github.com/Kon-x/cherry-studio/releases'])
+    .toEqual(['https://cherryai.com/docs', 'https://github.com/Kon-x/cherry-studio/releases'])
 })

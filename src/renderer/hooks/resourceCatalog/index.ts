@@ -1,6 +1,6 @@
 export {
   assistantAdapter,
-  useAssistantMutations,
+  useDuplicateAssistantMutation,
   useAssistantMutationsById,
   useImportAssistantMutation
 } from './assistantAdapter'

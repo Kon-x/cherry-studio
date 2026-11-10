@@ -2,6 +2,7 @@ import { ArrowLeft, Copy, FileUp } from 'lucide-react'
 import React, { memo, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ScrollArea } from '@cherrystudio/ui'
 import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@cherrystudio/ui'
 import { cn } from '@cherrystudio/ui/lib/utils'
 import CodeViewer from '@renderer/components/CodeViewer'
@@ -42,7 +43,6 @@ import type { DoctorAgentIncident } from '@shared/types/doctorAgent'
 import { parseDataUrl } from '@shared/utils/dataUrl'
 import { doctorScopeKey } from '@shared/utils/doctor'
 
-import Scrollbar from '../Scrollbar'
 import {
   buildDiagnosticReportDescription,
   type DiagnosticReportConfig,
@@ -97,8 +97,12 @@ const truncateLargeData = (
   }
 }
 
-const ErrorDetailContainer = ({ className, ...props }: React.ComponentProps<typeof Scrollbar>) => (
-  <Scrollbar className={cn('max-h-[60vh] pr-[5px]', className)} {...props} />
+const ErrorDetailContainer = ({ className, viewportProps, ...props }: React.ComponentProps<typeof ScrollArea>) => (
+  <ScrollArea
+    className={cn('max-h-[60vh]', className)}
+    viewportProps={{ ...viewportProps, className: cn('pr-[5px]', viewportProps?.className) }}
+    {...props}
+  />
 )
 
 const ErrorDetailList = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

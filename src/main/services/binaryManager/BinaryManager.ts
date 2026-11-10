@@ -234,17 +234,7 @@ type IsolatedEnvSnapshot = {
   usesDefaultChinaPipIndex: boolean
 }
 
-// Code-owned catalog of the fixed tools Cherry ships: every Dependencies preset
-// executable and every Code CLI executable mapped to its canonical mise recipe.
-// Derived from the two preset sources so their names and recipes stay the single
-// source of truth. Fixed definitions carry no requestedVersion — a version pin is
-// a per-install / runtime fact, never part of the canonical identity.
-// `mise ls --json` reports a backend's canonical key without bracketed tool
-// options (for example `pipx:hermes-agent` instead of
-// `pipx:hermes-agent[extras=web]`). Options affect installation but not the
-// installed package identity, so every comparison goes through this normalizer.
-// The normalized application fact does not prove bracketed install options such as
-// Hermes's `extras=web`; those options are not observable in the mise listing.
+// Mise omits installation options from its reported recipe identities.
 const normalizeToolIdentity = (tool: string): string =>
   (tool.startsWith('core:') ? tool.slice('core:'.length) : tool).replace(/\[[^\]]*]/g, '')
 
@@ -398,7 +388,7 @@ export class BinaryManager extends BaseService {
    *
    * Bundled tools (bun, uv, rg) ship inside the app and are extracted at boot.
    * The UI uses this to distinguish "available (bundled)" from "managed"
-   * vs "not installed" — see docs/references/binary-manager/README.md.
+   * vs "not installed" — see docs/dev/references/binary-manager/README.md.
    *
    * Returns a map of tool name → version string (from .{name}-version marker)
    * or null when the marker is missing. Absent keys mean the binary is not

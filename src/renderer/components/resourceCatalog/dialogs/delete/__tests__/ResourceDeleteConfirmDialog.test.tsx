@@ -132,12 +132,6 @@ describe('ResourceDeleteConfirmDialog', () => {
     mocks.uninstallSkill.mockResolvedValue(undefined)
   })
 
-  it('renders nothing without a selected resource', () => {
-    const { container } = render(<ResourceDeleteConfirmDialog resource={null} onClose={vi.fn()} />)
-
-    expect(container).toBeEmptyDOMElement()
-  })
-
   it('moves an Assistant without its Topics by default and offers a refreshing Undo', async () => {
     const user = userEvent.setup()
     mocks.deleteAssistant.mockResolvedValueOnce({ deleted: true, deletedTopicIds: [] })

@@ -31,6 +31,7 @@ import type { McpServerSchemas } from './mcpServers'
 import type { MessageSchemas } from './messages'
 import type { ModelSchemas } from './models'
 import type { NoteSchemas } from './notes'
+import type { NotificationSchemas } from './notifications'
 import type { PaintingsSchemas } from './paintings'
 import type { PinSchemas } from './pins'
 import type { PromptSchemas } from './prompts'
@@ -65,6 +66,7 @@ export type ApiSchemas = AssertValidSchemas<
     McpServerSchemas &
     KnowledgeSchemas &
     NoteSchemas &
+    NotificationSchemas &
     ArchiveSchemas &
     AssistantSchemas &
     TagSchemas &

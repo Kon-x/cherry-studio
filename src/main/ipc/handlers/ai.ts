@@ -7,7 +7,8 @@ import { fileEntryService } from '@data/services/FileEntryService'
 import { messageService } from '@data/services/MessageService'
 import { loggerService } from '@logger'
 import { inflateEntities, isToolOutputBlobEntry, reconstructOutput } from '@main/ai/contextBuild/toolOutputStore'
-import { AiStreamAdmissionError, type MainDispatchRequest, WebContentsListener } from '@main/ai/streamManager'
+import { AiStreamAdmissionError, type MainDispatchRequest } from '@main/ai/streamManager'
+import type { MessageProjectionUpdate } from '@shared/ai/messageProjection'
 import type { AiToolResultResponse, PersistedToolOutput, PersistedToolOutputBlobRef } from '@shared/ai/transport'
 import { blobRefsOf, isPersistedToolOutput } from '@shared/ai/transport'
 import { aiErrorCodes } from '@shared/ipc/errors/ai'
@@ -96,6 +97,17 @@ async function resolvePersistedToolOutput(output: PersistedToolOutput): Promise<
 }
 
 export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
+  'ai.projection.attach': ({ target, subscriptionId }, { senderId }) => {
+    const sender = senderWebContents(senderId)
+    if (!sender || senderId === null) throw new Error('Projection subscription requires a window')
+    const send = (update: MessageProjectionUpdate) =>
+      application.get('IpcApiService').send(senderId, 'ai.projection.changed', { subscriptionId, update })
+    return application.get('AiStreamManager').attachProjection(sender, target.topicId, subscriptionId, send)
+  },
+  'ai.projection.detach': async ({ subscriptionId }, { senderId }) => {
+    const sender = senderWebContents(senderId)
+    if (sender) application.get('AiStreamManager').detachProjection(sender, subscriptionId)
+  },
   // ── One-shot model calls — AiService owns the provider clients. ──
   // A renderer one-shot call has no topic; it is its own conversation.
   'ai.text.generate': ({ requestId, ...request }) => {
@@ -128,9 +140,8 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
     if (!senderId) throw new Error('ai.stream.open requires a managed window')
     const wc = senderWebContents(senderId)
     if (!wc) throw new Error('ai.stream.open requires a managed window')
-    const subscriber = new WebContentsListener(wc, request.topicId)
     const dispatchRequest: MainDispatchRequest = { ...request, interactionWindowId: senderId }
-    return exposeAiStreamAdmission(() => application.get('AiStreamManager').dispatch(subscriber, dispatchRequest))
+    return exposeAiStreamAdmission(() => application.get('AiStreamManager').dispatchCommand(dispatchRequest))
   },
   'ai.stream.attach': async (request, { senderId }) => {
     const wc = senderWebContents(senderId)

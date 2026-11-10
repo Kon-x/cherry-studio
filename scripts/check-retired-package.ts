@@ -4,7 +4,7 @@ import path from 'node:path'
 import { extractFile, listPackage } from '@electron/asar'
 
 const retiredPaths = [
-  /(?:^|\/)node_modules\/(?:@anthropic-ai\/claude-agent-sdk(?:-[^/]+)?|@earendil-works\/pi-[^/]+|@deepseek-ai\/(?:dsh-|node-addon-landlock-run)[^/]*|@cherrystudio\/(?:dsh-bridge|remote-protocol|remote-transport|agent-runtime(?:-[^/]+)?|computer-use(?:-[^/]+)?)|@larksuiteoapi\/node-sdk|grammy|telegram-markdown-v2)(?:\/|$)/,
+  /(?:^|\/)node_modules\/(?:@anthropic-ai\/claude-agent-sdk(?:-[^/]+)?|@earendil-works\/(?:pi-[^/]+|chord)|@deepseek-ai\/(?:dsh-|node-addon-landlock-run)[^/]*|@cherrystudio\/(?:dsh-bridge|remote-protocol|remote-transport|agent-behavior|agent-runtime(?:-[^/]+)?|computer-use(?:-[^/]+)?)|@larksuiteoapi\/node-sdk|grammy|telegram-markdown-v2)(?:\/|$)/,
   /^(?:app\.asar\.unpacked\/)?(?:resources\/)?(?:builtin-agents|builtin-mini-apps|code-cli-skills|skills|dsh-runtime)(?:\/|$)/,
   /^out\/preload\/miniApp(?:Bridge)?\.js$/,
   /^out\/main\/assets\/miniAppTheme\.css$/

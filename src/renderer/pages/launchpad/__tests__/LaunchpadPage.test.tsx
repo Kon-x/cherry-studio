@@ -1,3 +1,4 @@
+import { MockCherrystudioUI } from '@test-mocks/renderer/CherrystudioUI'
 import { mockPreferenceService } from '@test-mocks/renderer/PreferenceService'
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@cherrystudio/ui', () => ({
+  ScrollArea: MockCherrystudioUI.ScrollArea,
   Sortable: ({ items, itemKey, renderItem, ...props }: any) => {
     mocks.sortableCalls.push({ items, itemKey, renderItem, ...props })
     const getKey = typeof itemKey === 'function' ? itemKey : (item: any) => item[itemKey]
@@ -91,23 +93,6 @@ vi.mock('@renderer/services/toast', () => ({
   }
 }))
 
-vi.mock('@renderer/i18n/label', () => ({
-  getSidebarIconLabelKey: (key: SidebarAppId) =>
-    ({
-      assistants: 'Chat',
-      agents: 'Agent',
-      store: 'Library',
-      paintings: 'Paintings',
-      translate: 'Translate',
-      mini_app: 'Mini Apps',
-      knowledge: 'Knowledge',
-      files: 'Files',
-      code_tools: 'Code',
-      notes: 'Notes',
-      openclaw: 'OpenClaw'
-    })[key]
-}))
-
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate
 }))
@@ -119,6 +104,10 @@ vi.mock('react-i18next', () => ({
         {
           'agent.sidebar_title': 'Agent',
           'title.chat': 'Chat',
+          'title.work': 'Agent',
+          'title.paintings': 'Paintings',
+          'title.marketplace': 'Marketplace',
+          'settings.scheduledTasks.title': 'Scheduled Tasks',
           'assistants.presets.title': 'Library',
           'code.title': 'Code',
           'files.title': 'Files',
@@ -189,6 +178,7 @@ describe('LaunchpadPage', () => {
           'Translate',
           'Chat',
           'Agent',
+          'Scheduled Tasks',
           'Paintings',
           'Library',
           'Mini Apps',
@@ -227,14 +217,17 @@ describe('LaunchpadPage', () => {
     expect(mocks.setSidebarFavorites).not.toHaveBeenCalled()
   })
 
-  it('navigates apps inside the current launchpad tab', async () => {
+  it.each([
+    { label: 'Knowledge', path: '/app/knowledge' },
+    { label: 'Files', path: '/app/files' }
+  ])('navigates $label inside the current launchpad tab', async ({ label, path }) => {
     const user = userEvent.setup()
 
     render(<LaunchpadPage />)
 
-    await user.click(screen.getByRole('button', { name: 'Knowledge' }))
+    await user.click(screen.getByRole('button', { name: label }))
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/app/knowledge' })
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: path })
   })
 
   it('suppresses only the dragged launchpad item click', () => {

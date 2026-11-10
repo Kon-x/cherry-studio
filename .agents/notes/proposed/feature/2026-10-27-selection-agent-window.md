@@ -4,6 +4,8 @@ Status: proposed
 
 English | [中文](2026-10-27-selection-agent-window.zh.md)
 
+The upstream implementation is recorded in the [implemented note](../../implemented/feature/2026-10-27-selection-agent-window.md). This fork retains the proposal as decision history; Agent runtimes remain removed.
+
 ## Problem
 
 Selection actions can hand selected text only to an assistant. The [action window](../../../../src/renderer/windows/selection/action/ActionWindow.tsx) shows one answer from an in-memory temporary topic: there is no follow-up, no tool use, and nothing survives closing the window. Requests for agents, MCP tools, follow-up, and history recur in #11838, #9239, #6984, #22680, #10950, #12431, and their stale-closed duplicates.

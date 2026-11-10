@@ -279,6 +279,10 @@ function deleteModelsSqliteHandlers(identifier: string): SqliteErrorHandlers {
   } satisfies SqliteErrorHandlers
 }
 
+function notifyModelsDeleted(): void {
+  pinService.notifyPurged()
+}
+
 /**
  * Mapping from UpdateModelDto field → DB column for the update path.
  * Entries are either a shared key name, or [dtoKey, dbColumn] when names differ.
@@ -1194,7 +1198,7 @@ class ModelService {
       createModelsSqliteHandlers(values)
     )
 
-    if (deletedIds.length > 0) pinService.notifyPurged()
+    if (deletedIds.length > 0) notifyModelsDeleted()
     return { models: this.enrichRowsFromRegistryTx(dbService.getDb(), rows), deletedIds }
   }
 
@@ -1225,7 +1229,7 @@ class ModelService {
         }),
       deleteModelsSqliteHandlers(`${providerId}/${modelId}`)
     )
-    pinService.notifyPurged()
+    notifyModelsDeleted()
 
     logger.info('Deleted model', { providerId, modelId })
   }
@@ -1292,7 +1296,7 @@ class ModelService {
         }),
       deleteModelsSqliteHandlers(ids.length === 1 ? ids[0] : `batch(${ids.length} items)`)
     )
-    pinService.notifyPurged()
+    notifyModelsDeleted()
 
     logger.info('Bulk deleted models', {
       count: ids.length,

@@ -91,7 +91,8 @@ export interface AiChatRequest extends AiRequest {
   enableWebSearchOverride?: boolean
   /**
    * Main-internal context ownership. Omitted means Cherry-managed; caller-owned
-   * requests bypass Cherry's history truncation, pruning, and compaction.
+   * requests supply their own prompts/tools and use a single model invocation
+   * without Cherry's history shaping, tool execution, repair, or retries.
    * This field is intentionally absent from renderer IPC schemas.
    */
   contextOwner?: ContextOwner

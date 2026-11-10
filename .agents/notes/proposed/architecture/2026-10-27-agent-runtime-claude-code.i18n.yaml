@@ -1,0 +1,5 @@
+# Bilingual-pair consistency record (docs/dev/i18n/README.md).
+# After editing either side, update its counterpart and re-record with:
+#   pnpm docs:check-pairing --write .agents/notes/proposed/architecture/2026-10-27-agent-runtime-claude-code.md
+2026-10-27-agent-runtime-claude-code.md: 518e1b9fb85ae4d1ddb04c979c6d91aeee382a4e
+2026-10-27-agent-runtime-claude-code.zh.md: 808493a91dc6d8d06befdaa20b16311df61c67fb

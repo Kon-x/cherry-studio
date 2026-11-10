@@ -6,9 +6,15 @@ export { TraceFlushListener } from './listeners/TraceFlushListener'
 export { WebContentsListener } from './listeners/WebContentsListener'
 export type { MessageRuntimeTimingSink } from './MessageRuntimeTimingCollector'
 export type { PersistAssistantInput, PersistedAssistant, PersistenceBackend } from './persistence/PersistenceBackend'
-export { finalizeInterruptedParts } from './persistence/PersistenceBackend'
+export {
+  dropEmptyContentParts,
+  finalizeInterruptedParts,
+  stripTransientStatusParts
+} from './persistence/PersistenceBackend'
 export type {
   ActiveStream,
+  AiStreamSource,
+  MessageStreamEvent,
   AiStreamAttachRequest,
   AiStreamAttachResponse,
   AiStreamDetachRequest,
@@ -16,6 +22,7 @@ export type {
   AiStreamOpenRequest,
   CherryUIMessage,
   ConversationCompletedEvent,
+  ConversationUnsuccessfulEvent,
   StreamChunkPayload,
   StreamDonePayload,
   StreamDoneResult,

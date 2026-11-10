@@ -48,6 +48,7 @@ const HOME_TAB: Tab = {
 // i18n.language dependency in the tabs useMemo.
 let pinnedTabsValue: Tab[] = [PINNED_FILES_TAB]
 const setPinnedTabsMock = vi.fn()
+const readPinnedTabsMock = () => pinnedTabsValue
 
 // Restore-session keys (normal tabs + active id). Default to empty (fresh launch); individual
 // restore tests set them before render. Kept separate from the pinned tuple so the mock returns the
@@ -68,6 +69,7 @@ vi.mock('@logger', () => ({
 }))
 
 vi.mock('@renderer/data/hooks/useCache', () => ({
+  usePersistCacheReader: () => readPinnedTabsMock,
   usePersistCache: (key: string) => {
     if (key === 'ui.tab.normal_tabs') return [normalTabsValue, setNormalTabsMock]
     if (key === 'ui.tab.active_tab_id') return [activeTabIdValue, setActiveTabIdMock]
@@ -127,11 +129,6 @@ function TabTitleWriter() {
 function PinnedRouteTitle() {
   const { tabs } = useTabsContext()
   return <div data-testid="files-title">{tabs.find((tab) => tab.id === 'files')?.title}</div>
-}
-
-function TabIds() {
-  const { tabs } = useTabsContext()
-  return <div data-testid="tab-ids">{tabs.map((tab) => tab.id).join(',')}</div>
 }
 
 const conversationTabActionRender = vi.fn()
@@ -590,12 +587,35 @@ describe('TabsProvider', () => {
 
     render(
       <TabsProvider initialDefaultTab={HOME_TAB}>
-        <TabIds />
+        <TabSnapshot />
       </TabsProvider>
     )
 
     expect(screen.getByTestId('tab-ids')).toHaveTextContent('files,home')
-    await waitFor(() => expect(setPinnedTabsMock).toHaveBeenCalledWith([{ ...PINNED_FILES_TAB, isDormant: false }]))
+    const persisted = setPinnedTabsMock.mock.calls.reduce<Tab[]>(
+      (current, [action]) => (typeof action === 'function' ? action(current) : action),
+      pinnedTabsValue
+    )
+    expect(screen.getByTestId('active-tab-id')).toHaveTextContent('files')
+    expect(persisted).toEqual([{ ...PINNED_FILES_TAB, isDormant: false }])
+  })
+
+  it('drops a persisted OpenClaw pinned tab on restore', async () => {
+    pinnedTabsValue = [{ ...PINNED_FILES_TAB, id: 'openclaw', url: '/app/openclaw' }, PINNED_FILES_TAB]
+
+    render(
+      <TabsProvider initialDefaultTab={HOME_TAB}>
+        <TabSnapshot />
+      </TabsProvider>
+    )
+
+    expect(screen.getByTestId('tab-urls')).toHaveTextContent('/app/files,/app/chat')
+    const persisted = setPinnedTabsMock.mock.calls.reduce<Tab[]>(
+      (current, [action]) => (typeof action === 'function' ? action(current) : action),
+      pinnedTabsValue
+    )
+    expect(screen.getByTestId('active-tab-id')).toHaveTextContent('files')
+    expect(persisted).toEqual([{ ...PINNED_FILES_TAB, isDormant: false }])
   })
 
   it('closes active and adjacent tabs atomically when closing a batch', async () => {

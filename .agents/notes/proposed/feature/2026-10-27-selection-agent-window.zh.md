@@ -4,6 +4,8 @@ Status: proposed
 
 [English](2026-10-27-selection-agent-window.md) | 中文
 
+上游实现记录在[已实现说明](../../implemented/feature/2026-10-27-selection-agent-window.md)中。本 fork 保留此提案作为决策历史，Agent 运行时仍已移除。
+
 ## 问题
 
 划词动作只能把选中文本交给助手。[动作窗口](../../../../src/renderer/windows/selection/action/ActionWindow.tsx)用内存里的临时话题给出一个答案：不能追问，不能调用工具，关窗后什么都不留。想用智能体、MCP 工具、追问和历史记录的诉求在 #11838、#9239、#6984、#22680、#10950、#12431 以及它们被 stale 关闭的重复 issue 里反复出现。

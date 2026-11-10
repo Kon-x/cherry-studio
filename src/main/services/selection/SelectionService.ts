@@ -17,11 +17,11 @@ import { type Activatable, BaseService, Injectable, Phase, ServicePhase } from '
 import { isDev, isLinux, isMac, isWin } from '@main/core/platform'
 import { WindowType } from '@main/core/window/types'
 import { getApplicationId } from '@main/utils/appEdition'
-import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
 import { SelectionTriggerMode } from '@shared/data/preference/preferenceTypes'
-import type { SelectionActionSession } from '@shared/types/selection'
+import { type SelectionAction, type SelectionActionSession } from '@shared/types/selection'
 
 import { SELECTION_FINETUNED_LIST, SELECTION_PREDEFINED_BLACKLIST } from './selectionConfig'
+import { getSelectionToolbarSize, type SelectionToolbarSize } from './selectionToolbarSize'
 
 const logger = loggerService.withContext('SelectionService')
 
@@ -122,8 +122,6 @@ export class SelectionService extends BaseService implements Activatable {
   private isLinuxXWaylandMode: boolean = false
   private hasLinuxInputDeviceAccess: boolean = false
   private isLinuxCompositorCompatible: boolean = false
-
-  private zoomFactor: number = 1
 
   private TOOLBAR_WIDTH = 350
   private TOOLBAR_HEIGHT = 43
@@ -247,8 +245,6 @@ export class SelectionService extends BaseService implements Activatable {
   }
 
   protected async onInit(): Promise<void> {
-    this.initZoomFactor()
-
     const wm = application.get('WindowManager')
 
     const actionWindowListeners = new Map<string, () => void>()
@@ -394,25 +390,6 @@ export class SelectionService extends BaseService implements Activatable {
       hasLinuxInputDeviceAccess: this.hasLinuxInputDeviceAccess,
       isLinuxCompositorCompatible: this.isLinuxCompositorCompatible
     }
-  }
-
-  private initZoomFactor(): void {
-    const preferenceService = application.get('PreferenceService')
-    const zoomFactor = preferenceService.get('app.zoom_factor')
-
-    if (zoomFactor) {
-      this.setZoomFactor(zoomFactor)
-    }
-
-    this.registerDisposable({
-      dispose: preferenceService.subscribeChange('app.zoom_factor', (zoomFactor: number) => {
-        this.setZoomFactor(zoomFactor)
-      })
-    })
-  }
-
-  public setZoomFactor = (zoomFactor: number) => {
-    this.zoomFactor = zoomFactor
   }
 
   private initConfig(): void {
@@ -622,9 +599,10 @@ export class SelectionService extends BaseService implements Activatable {
       return
     }
 
-    const { x: posX, y: posY } = this.calculateToolbarPosition(point, orientation)
+    const size = this.getToolbarRealSize()
+    const { x: posX, y: posY } = this.calculateToolbarPosition(point, orientation, size)
 
-    const { toolbarWidth, toolbarHeight } = this.getToolbarRealSize()
+    const { toolbarWidth, toolbarHeight } = size
     this.toolbarWindow!.setPosition(posX, posY, false)
     // Prevent window resize
     this.toolbarWindow!.setBounds({
@@ -734,11 +712,10 @@ export class SelectionService extends BaseService implements Activatable {
    * Get actual toolbar dimensions accounting for zoom factor
    * @returns Object containing toolbar width and height
    */
-  private getToolbarRealSize(): { toolbarWidth: number; toolbarHeight: number } {
-    return {
-      toolbarWidth: this.TOOLBAR_WIDTH * this.zoomFactor,
-      toolbarHeight: this.TOOLBAR_HEIGHT * this.zoomFactor
-    }
+  private getToolbarRealSize(): SelectionToolbarSize {
+    const webContents = this.isToolbarAlive() ? this.toolbarWindow?.webContents : undefined
+    const zoomFactor = webContents && !webContents.isDestroyed() ? webContents.getZoomFactor() : 1
+    return getSelectionToolbarSize(this.TOOLBAR_WIDTH, this.TOOLBAR_HEIGHT, zoomFactor)
   }
 
   /**
@@ -748,11 +725,15 @@ export class SelectionService extends BaseService implements Activatable {
    * @param orientation Preferred position relative to reference point
    * @returns Calculated screen coordinates for toolbar, INTEGER
    */
-  private calculateToolbarPosition(refPoint: Point, orientation: RelativeOrientation): Point {
+  private calculateToolbarPosition(
+    refPoint: Point,
+    orientation: RelativeOrientation,
+    size: SelectionToolbarSize
+  ): Point {
     // Calculate initial position based on the specified anchor
     const posPoint: Point = { x: 0, y: 0 }
 
-    const { toolbarWidth, toolbarHeight } = this.getToolbarRealSize()
+    const { toolbarWidth, toolbarHeight } = size
 
     switch (orientation) {
       case 'topLeft':
@@ -1289,7 +1270,7 @@ export class SelectionService extends BaseService implements Activatable {
    * @param actionItem Action item to process
    * @param isFullScreen [macOS] only macOS has the available isFullscreen mode
    */
-  public processAction(actionItem: SelectionActionItem, isFullScreen: boolean = false): void {
+  public processAction(actionItem: SelectionAction, isFullScreen: boolean = false): void {
     const wm = application.get('WindowManager')
 
     // open({ initData }) atomically stores the action payload and, for the

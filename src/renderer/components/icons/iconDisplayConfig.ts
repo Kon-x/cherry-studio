@@ -3,6 +3,7 @@ import { getProviderIconAssetMetrics } from '@cherrystudio/ui/icons'
 export interface IconDisplayConfig {
   scale: number
   borderRadius?: number
+  viewBox?: string
 }
 
 export type IconDisplayContext = 'provider-list'
@@ -15,8 +16,11 @@ export function getIconDisplayConfig(
   iconId: string | undefined
 ): IconDisplayConfig | undefined {
   if (!iconId) return undefined
+  const normalizedIconId = iconId.toLowerCase()
   if (context === 'provider-list') {
-    return getProviderIconAssetMetrics({ kind: 'provider', iconId }).kind === 'tile'
+    return normalizedIconId === 'litellm' ||
+      normalizedIconId === 'radeon-cloud' ||
+      getProviderIconAssetMetrics({ kind: 'provider', iconId }).kind === 'tile'
       ? providerListContainedIcon
       : defaultIcon
   }

@@ -1,26 +1,18 @@
+import { mockCacheService } from '@test-mocks/renderer/CacheService'
+import { mockDataApiService } from '@test-mocks/renderer/DataApiService'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { resolveChatEntryTopicId, resolveChatEntryTopicIdForAssistant } from '@renderer/utils/conversationEntry'
 import { DataApiError, ErrorCode } from '@shared/data/api/errors'
 
-const mocks = vi.hoisted(() => ({
-  getPersist: vi.fn(),
-  get: vi.fn()
-}))
-
-vi.mock('@data/CacheService', () => ({
-  cacheService: { getPersist: mocks.getPersist }
-}))
-
-vi.mock('@data/DataApiService', () => ({
-  dataApiService: { get: mocks.get }
-}))
-
-import { resolveChatEntryTopicId, resolveChatEntryTopicIdForAssistant } from '@renderer/utils/conversationEntry'
+const mocks = { getPersist: mockCacheService.getPersist, get: mockDataApiService.get }
 
 const notFoundError = () => new DataApiError(ErrorCode.NOT_FOUND, 'not found', 404)
 
 afterEach(() => {
   vi.clearAllMocks()
+  mocks.get.mockReset()
+  mocks.getPersist.mockReset()
 })
 
 describe('resolveChatEntryTopicId', () => {

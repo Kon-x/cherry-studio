@@ -10,10 +10,8 @@ export function findConversationTab(tabs: readonly Tab[], target: ConversationNa
   const app = getConversationSidebarApp()
   if (!app?.conversationRoute) return undefined
 
-  return tabs.find(
-    (tab) =>
-      tab.type === 'route' &&
-      tabBelongsToApp(app, tab.url) &&
-      app.conversationRoute?.keyFromUrl(tab.url) === target.conversationId
-  )
+  return tabs.find((tab) => {
+    if (tab.type !== 'route') return false
+    return tabBelongsToApp(app, tab.url) && app.conversationRoute?.keyFromUrl(tab.url) === target.conversationId
+  })
 }

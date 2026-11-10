@@ -63,6 +63,17 @@ describe('packaged retired features', () => {
   })
 
   it.each([
+    '@cherrystudio/agent-behavior',
+    '@cherrystudio/agent-runtime-claude-code',
+    '@earendil-works/chord',
+    '@earendil-works/pi-codemode'
+  ])('rejects newly split Agent packages such as %s', async (name) => {
+    const resources = await pack({ [`node_modules/consumer/node_modules/${name}/package.json`]: '{}' })
+
+    expect(() => checkRetiredPackage(resources)).toThrow(name)
+  })
+
+  it.each([
     'DshRuntimeDriver',
     'AgentBrowserRegistry',
     'RemoteAccessService',

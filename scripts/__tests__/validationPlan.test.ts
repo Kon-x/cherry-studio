@@ -14,9 +14,13 @@ afterEach(() => {
 
 describe('validation selection', () => {
   it.each([
-    'docs/contrib/development.md',
+    'docs/dev/contrib/development.md',
     'src/main/core/README.md',
     'packages/ui/README.md',
+    'docs/website/content/pre-basic/settings/README.md',
+    'docs/website/content/assets/screenshot.webp',
+    'docs/website/locales.json',
+    '.github/website-docs-sync-plan.json',
     '.agents/notes/proposed/process/plan.zh.md'
   ])('keeps ordinary documentation out of code tests: %s', (file) => {
     const plan = createPlan([file])
@@ -27,10 +31,33 @@ describe('validation selection', () => {
     const runtime = createPlan(['resources/skills/tool/SKILL.md'])
     expect(runtime.projects).toContain('scripts')
     expect(runtime.projects).toContain('main')
-    const mixed = createPlan(['docs/README.md', 'src/renderer/components/Thing.tsx'])
+    const mixed = createPlan(['docs/dev/README.md', 'src/renderer/components/Thing.tsx'])
     expect(mixed.projects).toContain('renderer')
     expect(mixed.tasks).toContain('types-web')
     expect(mixed.projects).not.toContain('main')
+  })
+  it.each([
+    'src/renderer/pages/translate/components/TranslateOutputPane.tsx',
+    'src/renderer/pages/translate/components/__tests__/TranslateOutputPane.image.test.tsx',
+    'src/renderer/utils/theme.ts',
+    'src/renderer/assets/styles/tailwind.css'
+  ])('runs UI theme contracts when their renderer input changes: %s', (file) => {
+    const plan = createPlan([file])
+    expect(plan.tasks).toContain('theme')
+    expect(plan.projects).toEqual(['renderer'])
+    expect(selectedGroups(plan).packages).toBe(false)
+    expect(selectedGroups(plan).repository).toBe(true)
+  })
+  it.each([
+    'src/renderer/i18n/locales/en-us.json',
+    'tests/renderer.setup.ts',
+    'tests/__mocks__/renderer/api.ts',
+    'src/renderer/pages/translate/README.md'
+  ])('does not add theme checks or UI tests for non-scanner inputs: %s', (file) => {
+    const plan = createPlan([file])
+    expect(plan.tasks).not.toContain('theme')
+    expect(plan.projects).not.toContain('ui')
+    expect(selectedGroups(plan).packages).toBe(false)
   })
   it('keeps a complete translation pair out of code tests', () => {
     const plan = createPlan(['CONTRIBUTING.md', 'CONTRIBUTING.zh.md', 'CONTRIBUTING.i18n.yaml'])
@@ -39,7 +66,7 @@ describe('validation selection', () => {
   })
   it.each([
     ['packages/ai-sdk-provider/src/model.ts', ['ai-sdk-provider', 'aiCore', 'main', 'renderer']],
-    ['packages/system-speech/src/SystemSpeechNativeClient.ts', ['system-speech', 'main', 'preload']],
+    ['native/system-speech/src/SystemSpeechNativeClient.ts', ['system-speech', 'main', 'preload']],
     ['packages/ui/src/button.tsx', ['ui', 'file-preview', 'renderer']],
     ['packages/file-preview/src/Preview.tsx', ['file-preview', 'renderer']],
     ['packages/web-search/src/providers/tavily.ts', ['web-search', 'shared', 'main', 'preload', 'renderer']],
@@ -55,7 +82,7 @@ describe('validation selection', () => {
     expect(selectedGroups(plan).packages).toBe(true)
   })
   it('typechecks system speech and its Main consumers without selecting unrelated Renderer tests', () => {
-    const plan = createPlan(['packages/system-speech/src/SystemSpeechNativeClient.ts'])
+    const plan = createPlan(['native/system-speech/src/SystemSpeechNativeClient.ts'])
     expect(plan.tasks).toContain('types-system-speech')
     expect(plan.tasks).toContain('types-node')
     expect(plan.projects).not.toContain('renderer')
@@ -84,6 +111,7 @@ describe('validation selection', () => {
     expect(createPlan([file]).projects).toContain('main')
     expect(createPlan([file]).projects).toContain('renderer')
     expect(createPlan([file]).tasks).toContain('types-e2e')
+    expect(createPlan([file]).tasks).toContain('theme')
   })
   it.each([
     'backport-release-fixes',
@@ -208,6 +236,36 @@ describe('working tree changes', () => {
 
 // A docs-only plan must never start compilers, native rebuilds, lint fixes, or tests.
 describe('validation execution', () => {
+  it.each([0, 7])('runs the theme check in the repository group and propagates exit %s', (exitCode) => {
+    const cwd = mkdtempSync(join(tmpdir(), 'cherry-validation-theme-'))
+    directories.push(cwd)
+    const log = join(cwd, 'commands.jsonl')
+    const pnpm = join(cwd, 'pnpm.cjs')
+    writeFileSync(
+      pnpm,
+      `require('node:fs').appendFileSync(process.env.COMMAND_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
+       if (process.argv.includes('theme:check')) process.exit(Number(process.env.THEME_EXIT))`
+    )
+    const result = spawnSync(process.execPath, ['scripts/validation/run.mjs', '--group', 'repository'], {
+      env: {
+        ...process.env,
+        npm_execpath: pnpm,
+        COMMAND_LOG: log,
+        THEME_EXIT: String(exitCode),
+        VALIDATION_PLAN: JSON.stringify(createPlan(['src/renderer/components/Thing.tsx']))
+      },
+      encoding: 'utf8'
+    })
+    expect(result.status, result.stderr).toBe(exitCode)
+    const commands: string[][] = readFileSync(log, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    expect(commands).toContainEqual(['--filter', '@cherrystudio/ui', 'theme:check'])
+    expect(commands).not.toContainEqual(['run', 'postinstall'])
+    expect(commands.some((command) => command.includes('vitest'))).toBe(false)
+  })
+
   it.each(['types', 'packages', 'platform'])(
     'builds workspace exports before system speech validation in the %s group',
     (group) => {
@@ -224,7 +282,7 @@ describe('validation execution', () => {
           ...process.env,
           npm_execpath: pnpm,
           COMMAND_LOG: log,
-          VALIDATION_PLAN: JSON.stringify(createPlan(['packages/system-speech/src/SystemSpeechNativeClient.ts']))
+          VALIDATION_PLAN: JSON.stringify(createPlan(['native/system-speech/src/SystemSpeechNativeClient.ts']))
         },
         encoding: 'utf8'
       })
@@ -239,8 +297,7 @@ describe('validation execution', () => {
       } else {
         const test = commands.find((command) => command[0] === 'exec' && command[1] === 'vitest')!
         expect(test).toContain('system-speech')
-        if (group === 'platform')
-          expect(test).toContain('packages/system-speech/tests/SystemSpeechNativeClient.test.ts')
+        if (group === 'platform') expect(test).toContain('native/system-speech/tests/SystemSpeechNativeClient.test.ts')
       }
     }
   )
@@ -258,7 +315,7 @@ describe('validation execution', () => {
       ...process.env,
       npm_execpath: pnpm,
       COMMAND_LOG: log,
-      VALIDATION_PLAN: JSON.stringify(createPlan(['docs/contrib/development.md']))
+      VALIDATION_PLAN: JSON.stringify(createPlan(['docs/dev/contrib/development.md']))
     }
     const invoke = (...args: string[]) =>
       spawnSync(process.execPath, ['scripts/validation/run.mjs', ...args], { env, encoding: 'utf8' })

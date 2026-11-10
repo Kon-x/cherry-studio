@@ -119,14 +119,6 @@ export function buildPathRegistry() {
     // Plaintext fallback (0600) used only when no OS key store is available
     'feature.remote_access.plain_identity_file': path.join(appUserDataRuntime, 'remote-identity.key'),
 
-    'feature.computer_use.runtime': app.isPackaged
-      ? path.join(
-          appExtraResources,
-          'computer-use',
-          isMac ? 'Cherry Computer Use.app' : isWin ? 'open-computer-use.exe' : 'open-computer-use'
-        )
-      : path.join(app.getAppPath(), '.context', isWin ? 'computer-use-runtime.exe' : 'computer-use-runtime'),
-
     // Provider registry data (models.json, providers.json, etc.)
     'feature.provider_registry.data': app.isPackaged
       ? path.join(appExtraResources, 'provider-registry')
@@ -136,12 +128,8 @@ export function buildPathRegistry() {
     // bundled data when present (see ProviderRegistryUpdaterService). Writable.
     'feature.provider_registry.override': appUserDataProviderRegistryOverride,
 
-    // Isolated preload for site `<webview>` guests. Local mini apps keep their capability bridge.
-
     // Local embedding model cache (transformers.js HF cache root, downloaded on first use)
     'feature.embedding.models': path.join(appUserDataRuntime, 'models', 'qwen3-embedding'),
-
-    'feature.claude_code.binary': path.join(appUserDataToolchain, 'claude-agent-sdk'),
 
     // onnxruntime-node native binary (napi addon + shared lib), downloaded on first
     // use of local embedding or local OCR — see ai/localModel's shared artifacts.
@@ -160,8 +148,12 @@ export function buildPathRegistry() {
     // BabelDOC runtime cache (layout model, fonts, CMap/tiktoken assets)
     'feature.pdf_translation.babeldoc': path.join(appUserDataRuntime, 'models', 'babeldoc'),
 
-    'feature.pdfjs.cmaps': path.join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'cmaps'),
-    'feature.pdfjs.standard_fonts': path.join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'standard_fonts'),
+    'feature.pdfjs.cmaps': app.isPackaged
+      ? path.join(appExtraResources, 'pdfjs', 'cmaps')
+      : path.join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'cmaps'),
+    'feature.pdfjs.standard_fonts': app.isPackaged
+      ? path.join(appExtraResources, 'pdfjs', 'standard_fonts')
+      : path.join(app.getAppPath(), 'node_modules', 'pdfjs-dist', 'standard_fonts'),
 
     // BinaryManager (tool manager)
     'feature.binary.data': appUserDataToolchainMise,
@@ -169,6 +161,13 @@ export function buildPathRegistry() {
     // naming a Python runtime there is what makes mise fetch its own from
     // GitHub releases (see binaryManager/pythonRuntime.ts).
     'feature.binary.data.uv_python': path.join(appUserDataToolchainMise, 'uv-python'),
+    // Outside feature.binary.data: install XDG_CACHE_HOME inherits macOS userData's space, as do uv's sdist build dirs.
+    'feature.binary.data.uv_cache': path.join(
+      CHERRY_HOME,
+      'cache',
+      'uv',
+      createHash('sha256').update(path.resolve(appUserData)).digest('hex')
+    ),
     // Windows-only: %LOCALAPPDATA%/%APPDATA% relocated into the isolated install
     // home so mise's aqua signature verification resolves its cache/config dirs
     // without reading the user's real values (see getBinaryIsolatedHomeEnv).
@@ -259,7 +258,7 @@ export function buildPathRegistry() {
         : path.join(appExtraResources, 'system-speech', voiceHelperFilename)
       : path.join(
           app.getAppPath(),
-          'packages',
+          'native',
           'system-speech',
           'dist',
           'native',
@@ -320,6 +319,7 @@ const NO_ENSURE = [
   'app.exe_file',
   'app.extra_resources',
   'feature.voice.helper_file',
+  'feature.binary.data.uv_cache',
   'feature.external_app.native_file',
   'app.root.resources',
   'app.root.resources.scripts',

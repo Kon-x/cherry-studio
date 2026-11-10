@@ -10,7 +10,6 @@ const ROOT = path.resolve(__dirname, '../..')
 
 const SECTION_TITLES: Record<string, string> = {
   ai: 'AI',
-  'api-gateway': 'API Gateway',
   i18n: 'i18n',
   ipc: 'IPC'
 }
@@ -57,7 +56,7 @@ const domainOrder = (domainDir: string, files: string[]): string[] => {
 }
 
 export const generateIndex = (repoRoot: string): string => {
-  const docsDir = path.join(repoRoot, 'docs')
+  const docsDir = path.join(repoRoot, 'docs/dev')
   const lines: string[] = [
     '# Cherry Studio Documentation',
     '',
@@ -67,7 +66,7 @@ export const generateIndex = (repoRoot: string): string => {
     '',
     '| Document | Description |',
     '|----------|-------------|',
-    '| [Contributing](../CONTRIBUTING.md) | How to contribute code |',
+    '| [Contributing](../../CONTRIBUTING.md) | How to contribute code |',
     ...tableRows(docsDir, englishDocs(path.join(docsDir, 'contrib'))),
     '',
     '## Documentation Governance',
@@ -96,7 +95,7 @@ export const generateIndex = (repoRoot: string): string => {
 }
 
 export const generateSourcesIndex = (repoRoot: string): string => {
-  const docsDir = path.join(repoRoot, 'docs')
+  const docsDir = path.join(repoRoot, 'docs/dev')
   const files = [
     ...englishDocs(path.join(docsDir, 'contrib')),
     ...englishDocs(path.join(docsDir, 'i18n')),
@@ -132,7 +131,7 @@ export const generateSourcesIndex = (repoRoot: string): string => {
 }
 
 export const writeGeneratedIndexes = (repoRoot: string): void => {
-  const docsDir = path.join(repoRoot, 'docs')
+  const docsDir = path.join(repoRoot, 'docs/dev')
   const outputs = [
     { path: path.join(docsDir, 'README.md'), content: generateIndex(repoRoot) },
     { path: path.join(docsDir, 'sources-index.json'), content: generateSourcesIndex(repoRoot) }
@@ -167,8 +166,8 @@ export const writeGeneratedIndexes = (repoRoot: string): void => {
 }
 
 const main = () => {
-  const indexPath = path.join(ROOT, 'docs/README.md')
-  const sourcesPath = path.join(ROOT, 'docs/sources-index.json')
+  const indexPath = path.join(ROOT, 'docs/dev/README.md')
+  const sourcesPath = path.join(ROOT, 'docs/dev/sources-index.json')
 
   if (process.argv.includes('--check')) {
     const generatedIndex = generateIndex(ROOT)
@@ -184,7 +183,7 @@ const main = () => {
   }
 
   writeGeneratedIndexes(ROOT)
-  console.log('Wrote docs/README.md and docs/sources-index.json.')
+  console.log('Wrote docs/dev/README.md and docs/dev/sources-index.json.')
 }
 
 if (require.main === module) main()

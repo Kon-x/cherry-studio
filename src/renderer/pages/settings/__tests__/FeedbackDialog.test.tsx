@@ -66,6 +66,10 @@ describe('FeedbackDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.ipcRequest.mockResolvedValue({ sessionId: 'feedback-session' })
+    Object.defineProperty(window.electron, 'process', {
+      configurable: true,
+      value: { platform: 'darwin' }
+    })
   })
 
   it('opens the one-step diagnostic upload dialog', async () => {

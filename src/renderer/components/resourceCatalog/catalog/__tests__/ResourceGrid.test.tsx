@@ -1,3 +1,4 @@
+import { MockCherrystudioUI } from '@test-mocks/renderer/CherrystudioUI'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type * as ReactModule from 'react'
@@ -37,6 +38,7 @@ vi.mock('react-i18next', () => ({
           'common.save': '保存',
           'chat.add.assistant.title': '添加助手',
           'assistants.presets.import.action': '导入助手',
+          'assistants.presets.export.action': '导出',
           'library.assistant_catalog.add': '添加',
           'library.assistant_catalog.title': '助手库',
           'library.assistant_catalog.go_to_chat': '去对话',
@@ -50,6 +52,7 @@ vi.mock('react-i18next', () => ({
           'library.toolbar.group_button': '分组',
           'library.type.assistant': '助手',
           'library.type.skill': '技能',
+          'settings.skills.globalEnabled': '全局启用',
           'settings.skills.globalToggle': '全局启用技能',
           'settings.skills.source.local': '本地',
           'settings.skills.tryNow': '立即试用',
@@ -340,11 +343,7 @@ vi.mock('@cherrystudio/ui', async (importOriginal) => {
     },
     Tooltip: ({ children }: { children?: ReactNode }) => <>{children}</>,
     Separator: () => <div />,
-    Scrollbar: ({ children, ...props }: ComponentProps<'div'>) => (
-      <div data-testid="shared-scrollbar" {...props}>
-        {children}
-      </div>
-    ),
+    ScrollArea: MockCherrystudioUI.ScrollArea,
     Skeleton: (props: ComponentProps<'div'>) => <div data-testid="skeleton" {...props} />,
     Switch: actual.Switch,
     Tabs: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
@@ -440,6 +439,7 @@ function renderResourceGrid(props: Partial<ComponentProps<typeof ResourceGrid>> 
       onExport={vi.fn()}
       onCreate={vi.fn()}
       onImportAssistant={vi.fn()}
+      onExportAssistants={vi.fn()}
       groups={[]}
       activeGroupId={null}
       onGroupFilter={vi.fn()}
@@ -552,6 +552,19 @@ describe('ResourceGrid empty state copy', () => {
 })
 
 describe('ResourceGrid assistant add actions', () => {
+  it('offers batch Export only for assistants and keeps it distinct from per-card export', async () => {
+    const user = userEvent.setup()
+    const onExportAssistants = vi.fn()
+    const onExport = vi.fn()
+    const view = renderResourceGrid({ onExportAssistants, onExport })
+    await user.click(screen.getByRole('button', { name: '导出' }))
+    expect(onExportAssistants).toHaveBeenCalledExactlyOnceWith(expect.anything())
+    expect(onExport).not.toHaveBeenCalled()
+    view.unmount()
+    renderResourceGrid({ activeResourceType: 'prompt' })
+    expect(screen.queryByRole('button', { name: '导出' })).not.toBeInTheDocument()
+  })
+
   it('renders assistant actions inline and dispatches the selected action', async () => {
     const user = userEvent.setup()
     const onCreate = vi.fn()

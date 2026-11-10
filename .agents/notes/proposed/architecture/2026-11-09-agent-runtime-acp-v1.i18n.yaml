@@ -1,0 +1,5 @@
+# Bilingual-pair consistency record (docs/dev/i18n/README.md).
+# After editing either side, update its counterpart and re-record with:
+#   pnpm docs:check-pairing --write .agents/notes/proposed/architecture/2026-11-09-agent-runtime-acp-v1.md
+2026-11-09-agent-runtime-acp-v1.md: 8dc58025c748082ccee3690469a188a81115384e
+2026-11-09-agent-runtime-acp-v1.zh.md: 33400ca882567dd64c8d02beaacb439172dcab46

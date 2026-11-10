@@ -158,6 +158,19 @@ export function classifyError(error?: SerializedError, providerId?: string): Err
     status: numStatus,
     finishReason: String(errorBag.finishReason ?? '')
   })
+  if (
+    isSerializedAiSdkRetryError(error) &&
+    readStructuredStatus(error) === undefined &&
+    classifyErrorCategory({ finishReason: String(errorBag.finishReason ?? '') }) === 'unknown'
+  ) {
+    const terminal = error.lastError
+    const terminalCategory =
+      terminal && typeof terminal === 'object' && !Array.isArray(terminal) && 'providerErrorCategory' in terminal
+        ? terminal.providerErrorCategory
+        : undefined
+    // A retry wrapper's copied prose cannot override its terminal attempt's normalized identity.
+    if (isErrorCategory(terminalCategory) && terminalCategory !== 'unknown') return classify(terminalCategory)
+  }
   if (category !== 'unknown' && category !== 'bad_request') return classify(category)
 
   // Prefer a specific diagnosis over a generic request failure in another attempt.
@@ -170,6 +183,10 @@ export function classifyError(error?: SerializedError, providerId?: string): Err
     if (!nestedRecovery && nestedClassification.navTarget) nestedRecovery = nestedClassification
   }
   if (nestedRecovery) return nestedRecovery
+
+  if (category === 'unknown' && error.streamStage === 'response-stream' && !error.i18nKey) {
+    return classify('stream')
+  }
 
   return classify(category)
 }

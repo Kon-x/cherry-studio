@@ -34,7 +34,7 @@ import { toolResultRequestSchemas } from './toolResult'
 import { type TranslateEventSchemas, translateRequestSchemas } from './translate'
 import { trashRequestSchemas } from './trash'
 import { type VoiceEventSchemas, voiceRequestSchemas } from './voice'
-import { webSearchRequestSchemas } from './webSearch'
+import { type WebSearchEventSchemas, webSearchRequestSchemas } from './webSearch'
 import { type WindowEventSchemas, windowRequestSchemas } from './window'
 
 /**
@@ -110,6 +110,7 @@ export type IpcEventSchemas = AiEventSchemas &
   TabEventSchemas &
   TranslateEventSchemas &
   VoiceEventSchemas &
+  WebSearchEventSchemas &
   WindowEventSchemas
 /** Union of all declared event names. */
 export type IpcEventName = keyof IpcEventSchemas

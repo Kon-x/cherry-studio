@@ -6,7 +6,7 @@ import type { Locator } from '@playwright/test'
 import type { UnifiedPreferenceType } from '../../../src/shared/data/preference/preferenceTypes'
 import { createUniqueModelId } from '../../../src/shared/data/types/model'
 import { type MockChatRequest, startMockChatServer } from '../../helpers/http/mockChatServer'
-import { selectSidebarApp } from '../regression/navigation'
+import { selectSidebarApp } from '../regression/helpers/navigation'
 import { expect, test } from './fixtures/electron.fixture'
 import { uiLocator } from './utils/uiLocator'
 

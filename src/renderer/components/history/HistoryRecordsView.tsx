@@ -35,6 +35,7 @@ interface HistoryRecordsViewBaseProps {
 type HistoryRecordsViewProps = HistoryRecordsViewBaseProps & {
   mode: 'assistant'
   onRecordSelect?: (topic: RendererTopic) => void
+  onLocalPermanentDeletePendingChange?: (id: string | null) => void
 }
 
 const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
@@ -49,6 +50,7 @@ const HistoryRecordsView = (props: HistoryRecordsViewProps) => {
             onClose={props.onClose}
             onRecordSelect={props.onRecordSelect}
             onActiveRecordChange={props.onActiveRecordChange}
+            onLocalPermanentDeletePendingChange={props.onLocalPermanentDeletePendingChange}
             toolbarLeading={props.toolbarLeading}
           />
         }
