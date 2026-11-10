@@ -954,7 +954,7 @@ describe.each([
     const open = deferred<{ mode: 'blocked'; message: string }>()
     streamOpen.mockImplementationOnce(() => open.promise)
     const request = invoke()
-    const rejection = expect(request).rejects.toThrow('blocked')
+    const rejection = expect(request).rejects.toThrow('正在恢复备份；完成前已暂停发送新消息。')
     await vi.waitFor(() => expect(streamOpen).toHaveBeenCalledOnce())
     expect(scrollToBottom).not.toHaveBeenCalled()
 

@@ -18,7 +18,8 @@ export const COMMAND_DEFINITIONS = [
     scope: 'renderer',
     keybinding: {
       defaultBinding: ['Escape'],
-      editable: false
+      editable: false,
+      enableToggle: true
     }
   }),
   defineCommand({

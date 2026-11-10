@@ -197,11 +197,12 @@ afterEach(() => {
 })
 
 describe('userDataRelocation execution', () => {
-  it('retargets owned skill exports during a copy without changing user-owned entries', async () => {
+  it('copies historical skills while preserving external links and user-owned entries', async () => {
     const fixture = prepareSkillExports()
     const userSkill = path.join(fixture.root, 'user-skill')
     const userLink = path.join(fixture.exports, 'user-link')
     const userDirectory = path.join(fixture.exports, 'user-directory')
+    const originalLink = fs.readlinkSync(fixture.exported)
     fs.mkdirSync(userSkill)
     fs.writeFileSync(path.join(userSkill, 'SKILL.md'), '# user')
     fs.symlinkSync(userSkill, userLink, process.platform === 'win32' ? 'junction' : 'dir')
@@ -213,13 +214,15 @@ describe('userDataRelocation execution', () => {
 
     expectCommitted(fixture.target)
     fs.writeFileSync(path.join(fixture.sourceSkill, 'SKILL.md'), '# retained old profile')
-    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.targetSkill))
-    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
+    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# retained old profile')
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# original')
     expect(fs.realpathSync(userLink)).toBe(fs.realpathSync(userSkill))
     expect(fs.readFileSync(path.join(userDirectory, 'SKILL.md'), 'utf8')).toBe('# user directory')
   })
 
-  it('restores skill exports to the retained source if committing the new profile fails', async () => {
+  it('preserves the source and external skill links if committing the new profile fails', async () => {
     const fixture = prepareSkillExports()
     bootConfigPersistMock.mockImplementationOnce(() => {
       throw new Error('commit failed')
@@ -234,74 +237,60 @@ describe('userDataRelocation execution', () => {
     expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
   })
 
-  it('restores an export when creating its relocated link fails', async () => {
+  it('copies the profile even when external link mutations are denied', async () => {
     const fixture = prepareSkillExports()
-    fsPromisesMocks.symlink.mockRejectedValueOnce(new Error('export denied'))
+    const originalLink = fs.readlinkSync(fixture.exported)
+    fsPromisesMocks.symlink.mockRejectedValue(new Error('external links are read-only'))
+    fsPromisesMocks.unlink.mockRejectedValue(new Error('external links are read-only'))
     const { runUserDataRelocation } = await loadDomain()
 
     await runUserDataRelocation()
 
-    expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed', error: 'export denied' })
-    expect(fs.existsSync(fixture.target)).toBe(false)
+    expectCommitted(fixture.target)
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
     expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# original')
   })
 
-  it('preserves a partially retargeted profile until export restoration can succeed', async () => {
+  it('recovers a failed promoted profile without rewriting external skill links', async () => {
     const fixture = prepareSkillExports()
     const secondSource = path.join(path.dirname(fixture.sourceSkill), 'second')
     const secondExport = path.join(fixture.exports, 'second')
     fs.mkdirSync(secondSource)
     fs.writeFileSync(path.join(secondSource, 'SKILL.md'), '# second')
     fs.symlinkSync(secondSource, secondExport, process.platform === 'win32' ? 'junction' : 'dir')
-    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
-    const permissionError = Object.assign(new Error('export directory is unwritable'), { code: 'EACCES' })
-    let denied = false
-    let relocatedExport: string | undefined
-    fsPromisesMocks.symlink.mockImplementation(async (target, entry, type) => {
-      await actual.symlink(target, entry, type)
-      if (String(target).startsWith(fixture.target + path.sep)) {
-        relocatedExport = String(entry)
-        denied = true
-      }
-    })
-    fsPromisesMocks.unlink.mockImplementation(async (entry) => {
-      if (denied) throw permissionError
-      await actual.unlink(entry)
-    })
+    const originalLinks = [fixture.exported, secondExport].map((entry) => fs.readlinkSync(entry))
+    fs.mkdirSync(fixture.targetSkill, { recursive: true })
+    fs.writeFileSync(path.join(fixture.targetSkill, 'SKILL.md'), '# interrupted')
+    fs.writeFileSync(
+      path.join(fixture.target, '.cherry-relocation-owner.json'),
+      JSON.stringify({ kind: 'cherry-studio-user-data-relocation', taskId: TASK_ID })
+    )
+    relocationState['temp.user_data_relocation'] = {
+      ...pending(fixture.source, fixture.target),
+      status: 'failed',
+      error: 'interrupted after promotion'
+    }
     const { runUserDataRelocation } = await loadDomain()
 
     await runUserDataRelocation()
 
     expectNotCommitted()
-    expect(relocationState['temp.user_data_relocation']).toMatchObject({
-      status: 'failed',
-      taskId: TASK_ID,
-      from: fixture.source,
-      to: fixture.target,
-      copy: true
-    })
-    expect(fs.existsSync(fixture.target)).toBe(true)
-    expect(fs.existsSync(path.join(fixture.target, '.cherry-relocation-owner.json'))).toBe(true)
-    expect(relocatedExport).toBeDefined()
-    expect(fs.readFileSync(path.join(relocatedExport!, 'SKILL.md'), 'utf8')).toMatch(/^# (original|second)$/)
-
-    await restartFromWindow?.()
-    expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed', taskId: TASK_ID })
-    expect(fs.existsSync(fixture.target)).toBe(true)
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# interrupted')
     expect(relaunchMock).not.toHaveBeenCalled()
-
-    await runUserDataRelocation()
-    denied = false
-    await restartFromWindow?.()
+    await expect(restartFromWindow?.()).resolves.toBe(true)
 
     expect(relocationState['temp.user_data_relocation']).toBeNull()
     expect(fs.existsSync(fixture.target)).toBe(false)
-    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
-    expect(fs.realpathSync(secondExport)).toBe(fs.realpathSync(secondSource))
+    expect([fixture.exported, secondExport].map((entry) => fs.readlinkSync(entry))).toEqual(originalLinks)
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.readFileSync(path.join(secondExport, 'SKILL.md'), 'utf8')).toBe('# second')
+    expectNotCommitted()
     expect(relaunchMock).toHaveBeenCalledOnce()
   })
 
-  it('restores exports from an interrupted promotion even when the next copy fails', async () => {
+  it('preserves external link destinations when cleaning an interrupted promotion and the retry fails', async () => {
     const fixture = prepareSkillExports()
     fs.mkdirSync(fixture.targetSkill, { recursive: true })
     fs.writeFileSync(path.join(fixture.targetSkill, 'SKILL.md'), '# interrupted')
@@ -314,6 +303,7 @@ describe('userDataRelocation execution', () => {
     )
     fs.unlinkSync(fixture.exported)
     fs.symlinkSync(fixture.targetSkill, fixture.exported, process.platform === 'win32' ? 'junction' : 'dir')
+    const originalLink = fs.readlinkSync(fixture.exported)
     fsPromisesMocks.cp.mockRejectedValueOnce(new Error('retry copy failed'))
     const { runUserDataRelocation } = await loadDomain()
 
@@ -321,8 +311,10 @@ describe('userDataRelocation execution', () => {
 
     expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed', error: 'retry copy failed' })
     expect(fs.existsSync(fixture.target)).toBe(false)
-    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
-    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.lstatSync(fixture.exported).isSymbolicLink()).toBe(true)
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
+    expect(fs.readFileSync(path.join(fixture.sourceSkill, 'SKILL.md'), 'utf8')).toBe('# original')
+    expectNotCommitted()
   })
 
   it('prepares a fresh temporary sessionData directory for a pending copy', async () => {

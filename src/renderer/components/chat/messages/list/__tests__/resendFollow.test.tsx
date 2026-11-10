@@ -345,7 +345,7 @@ describe.each([
       streamOpen.mockResolvedValueOnce({ mode: 'blocked', message: 'blocked' })
 
       await act(async () => {
-        await expect(fixture.invoke()).rejects.toThrow('blocked')
+        await expect(fixture.invoke()).rejects.toThrow('正在恢复备份；完成前已暂停发送新消息。')
       })
 
       expect(fixture.seedReservedMessages).toHaveBeenCalledTimes(firstSeeds)

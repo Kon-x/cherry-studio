@@ -98,7 +98,24 @@ vi.mock('../AllArchiveSection', async () => {
         React.Fragment,
         null,
         React.createElement(TopicArchiveSection, props),
-        React.createElement(PaintingArchiveSection, props)
+        React.createElement(PaintingArchiveSection, props),
+        mocks.allItems.length > 0 &&
+          React.createElement(
+            'button',
+            {
+              type: 'button',
+              onClick: () =>
+                props.onRequestDelete({
+                  items: mocks.allItems,
+                  domains: ['topics', 'files'],
+                  fileEntryIds: mocks.allItems
+                    .filter((item) => item.id.startsWith('files:'))
+                    .map((item) => item.id.slice(6)),
+                  run: mocks.runDelete
+                })
+            },
+            'Open all permanent delete'
+          )
       )
   }
 })
@@ -291,7 +308,6 @@ describe('ArchiveSettings', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Everything in the Archive will be permanently deleted.')
     expect(dialog).toHaveTextContent('Files still in use are kept.')
-    expect(dialog).toHaveTextContent('Their conversations are kept and move to Unlinked Agent.')
     expect(dialog).toHaveTextContent('Their topics are kept and move to Unlinked Assistant.')
     await user.click(within(dialog).getByRole('button', { name: 'Empty Archive' }))
 

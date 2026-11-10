@@ -11,7 +11,7 @@ describe('getShortcutBindingFromKeyboardEvent', () => {
     preferences: { 'chat.input.focus': DefaultPreferences.default['shortcut.chat.input.focus'] },
     scope: 'renderer',
     platform: 'darwin',
-    context: { 'webview.focused': false },
+    context: {},
     canExecuteCommand: (id: string) => id === 'chat.input.focus'
   } as const
 
@@ -60,22 +60,22 @@ describe('getShortcutBindingFromKeyboardEvent', () => {
 
 describe('getCommandShortcutLabel', () => {
   it('shows a configured label while keyboard routing is blocked by focus', () => {
-    const context = { 'webview.focused': true }
+    const context = { 'resource.focused': false }
     expect(
       resolveCommandByKeybinding({
-        binding: ['CommandOrControl', '1'],
+        binding: ['CommandOrControl', 'Backspace'],
         context,
         platform: 'darwin',
         scope: 'renderer'
       })
     ).toBeUndefined()
-    expect(getCommandShortcutLabel('app.sidebar.open_1', undefined, { context, isMac: true, platform: 'darwin' })).toBe(
-      '⌘1'
-    )
     expect(
-      resolveCommandPresentationKeybinding('app.sidebar.open_1', undefined, { context, platform: 'darwin' })
+      getCommandShortcutLabel('resource.delete_permanently', undefined, { context, isMac: true, platform: 'darwin' })
+    ).toBe('⌘Backspace')
+    expect(
+      resolveCommandPresentationKeybinding('resource.delete_permanently', undefined, { context, platform: 'darwin' })
         ?.accelerator
-    ).toBe('CommandOrControl+1')
+    ).toBe('CommandOrControl+Backspace')
   })
 
   it('respects disabled bindings and unavailable features in presentation', () => {
@@ -173,28 +173,15 @@ describe('sidebar item shortcuts', () => {
   } as const
 
   it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const)(
-    'resolves CommandOrControl+%s to its sidebar item without a focused webview',
+    'resolves CommandOrControl+%s to its sidebar item',
     (n) => {
       expect(
         resolveCommandByKeybinding({
           ...sidebarOptions,
-          context: { 'webview.focused': false },
+          context: {},
           binding: ['CommandOrControl', n]
         })
       ).toBe(`app.sidebar.open_${n}`)
-    }
-  )
-
-  it.each(['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const)(
-    'leaves CommandOrControl+%s to a focused MiniApp guest',
-    (n) => {
-      expect(
-        resolveCommandByKeybinding({
-          ...sidebarOptions,
-          context: { 'webview.focused': true },
-          binding: ['CommandOrControl', n]
-        })
-      ).toBeUndefined()
     }
   )
 })

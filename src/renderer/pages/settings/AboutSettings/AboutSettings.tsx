@@ -15,8 +15,7 @@ import {
   SettingGroup,
   SettingRow,
   SettingRowTitle,
-  SettingsContentColumn,
-  SettingTitle
+  SettingsContentColumn
 } from '@renderer/components/SettingsPrimitives'
 import { UpgradeReleaseNotes } from '@renderer/components/UpgradeReleaseNotes'
 import { useAppUpdateState } from '@renderer/hooks/useAppUpdateState'
@@ -99,19 +98,6 @@ const AboutSettings: FC = () => {
   return (
     <SettingsContentColumn theme={theme}>
       <SettingGroup theme={theme}>
-        <SettingTitle className="gap-2">
-          <span className="text-[15px] font-semibold">{t('settings.about.title')}</span>
-          <button
-            type="button"
-            aria-label={t('settings.about.repository')}
-            onClick={() => onOpenWebsite('https://github.com/Kon-x/cherry-studio')}
-            className="inline-flex items-center justify-center rounded-md p-1 text-foreground transition-colors hover:bg-muted">
-            <Github aria-hidden="true" className="size-5" />
-          </button>
-        </SettingTitle>
-
-        <Divider className="my-1.5" />
-
         <div className="flex flex-wrap items-center justify-between gap-3 py-1">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
@@ -233,7 +219,7 @@ const AboutSettings: FC = () => {
               {t('settings.about.repository.button')}
             </>
           }
-          onAction={() => onOpenWebsite('https://github.com/CherryHQ/cherry-studio')}
+          onAction={() => onOpenWebsite('https://github.com/Kon-x/cherry-studio')}
         />
         <Divider className="my-3" />
         <AboutActionRow
