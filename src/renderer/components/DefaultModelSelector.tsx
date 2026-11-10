@@ -3,7 +3,8 @@ import type { ComponentProps, FC } from 'react'
 
 import { Avatar, AvatarFallback, Button } from '@cherrystudio/ui'
 import { useIcon } from '@cherrystudio/ui/icons'
-import { getProviderDisplayName, ModelSelector, type ModelSelectorFilter } from '@renderer/components/ModelSelector'
+import { CherryCloudModelSelector as ModelSelector } from '@renderer/components/cherryCloud/CherryCloudModelSelector'
+import { getProviderDisplayName, type ModelSelectorFilter } from '@renderer/components/ModelSelector'
 import { getModelLogoRef } from '@renderer/utils/model'
 import { cn } from '@renderer/utils/style'
 import { type Model } from '@shared/data/types/model'
@@ -19,6 +20,7 @@ export interface ModelSelectorTriggerProps extends Omit<ComponentProps<typeof Bu
 export interface DefaultModelSelectorProps extends ModelSelectorTriggerProps {
   filter: ModelSelectorFilter
   isModelDisabled?: ModelSelectorFilter
+  showSubscriptionOffers?: boolean
   noneOptionLabel?: string
   onSelect: (model: Model | undefined) => void
 }
@@ -72,6 +74,7 @@ export const DefaultModelSelector: FC<DefaultModelSelectorProps> = ({
   filter,
   isModelDisabled,
   noneOptionLabel,
+  showSubscriptionOffers,
   onSelect
 }) => (
   <ModelSelector
@@ -81,6 +84,7 @@ export const DefaultModelSelector: FC<DefaultModelSelectorProps> = ({
     filter={filter}
     isModelDisabled={isModelDisabled}
     noneOptionLabel={noneOptionLabel}
+    showSubscriptionOffers={showSubscriptionOffers}
     trigger={
       <ModelSelectorTriggerButton model={model} providers={providers} placeholder={placeholder} compact={compact} />
     }

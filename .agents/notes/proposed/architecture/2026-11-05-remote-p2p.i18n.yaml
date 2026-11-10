@@ -1,0 +1,5 @@
+# Bilingual-pair consistency record (docs/dev/i18n/README.md).
+# After editing either side, update its counterpart and re-record with:
+#   pnpm docs:check-pairing --write .agents/notes/proposed/architecture/2026-11-05-remote-p2p.md
+2026-11-05-remote-p2p.md: 208457b5f159e69ecb037bf1fe842183dc8f8d64
+2026-11-05-remote-p2p.zh.md: 387494abbf6b663ad6c4ba8fdbd449f65985122c

@@ -4,8 +4,7 @@ export { TRACER_NAME } from './constants'
 export type { AiTurnTraceHandle, AiTurnTraceMeta } from './core/AiTurnTrace'
 export {
   deriveRootSpanId,
-  endAgentRuntimeSpan,
-  startAgentRuntimeChildSpan,
+  type AgentRuntimeTraceContext,
   startAiChildTurnSpan,
   startAiTurnTrace
 } from './core/AiTurnTrace'

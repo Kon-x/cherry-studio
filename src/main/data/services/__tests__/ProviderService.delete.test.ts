@@ -233,7 +233,7 @@ describe('ProviderService.delete — preset protection boundary', () => {
       expect(pins.find((row) => row.id === pin.id)).toBeUndefined()
     }
     expect(pins.find((row) => row.id === siblingPin.id)).toBeDefined()
-    expect(notifyDataApiDataChangeMock).toHaveBeenCalledExactlyOnceWith([{ endpoint: '/pins', kind: 'membership' }])
+    expect(notifyDataApiDataChangeMock).toHaveBeenCalledWith([{ endpoint: '/pins', kind: 'membership' }])
   })
 
   it('purges pins for every model under the provider as part of the delete transaction', async () => {

@@ -21,7 +21,7 @@ import { parseReleaseHistory, validateCurrentReleaseHistory } from './src/shared
 import { getSentryBuildContext } from './src/shared/utils/sentry'
 
 const { buildSelectionPanel, sourcePath: selectionPanelSource } = createRequire(import.meta.url)(
-  './native/darwin/build'
+  './native/selection-panel/build'
 )
 
 const { buildExternalApp, sourceFiles: externalAppSources } = createRequire(import.meta.url)(
@@ -217,13 +217,15 @@ export default defineConfig({
       }
     },
     build: {
+      externalizeDeps: false,
+      isolatedEntries: true,
       sourcemap: sentrySourceMap,
       rolldownOptions: {
         // Unlike renderer which auto-discovers entries from HTML files,
         // preload requires explicit entry point configuration for multiple scripts
         input: {
           preload: resolve(__dirname, 'src/preload/preload.ts'),
-          simplest: resolve(__dirname, 'src/preload/simplest.ts') // Local mini app guests (`window.cherry`)
+          simplest: resolve(__dirname, 'src/preload/simplest.ts')
         },
         external: ['electron'],
         output: {

@@ -20,6 +20,7 @@ export const checkTasks = {
   docs: { group: 'repository', args: ['docs:check'] },
   skills: { group: 'repository', args: ['skills:check'] },
   migrations: { group: 'repository', args: ['db:migrations:check'] },
+  theme: { group: 'repository', args: ['--filter', '@cherrystudio/ui', 'theme:check'] },
   lint: { group: 'lint', args: ['test:lint'] },
   'types-node': { group: 'types', args: ['typecheck:node'] },
   'types-web': { group: 'types', args: ['typecheck:web'] },
@@ -50,6 +51,8 @@ const consumers = {
 
 function scopeFor(file) {
   if (file.startsWith('resources/')) return 'all'
+  if (file.startsWith('docs/website/')) return 'docs'
+  if (file === '.github/website-docs-sync-plan.json') return 'docs'
   if (
     file === 'CONTRIBUTING.i18n.yaml' ||
     ((file.startsWith('docs/') || file.startsWith('.agents/notes/')) && file.endsWith('.i18n.yaml'))
@@ -86,6 +89,7 @@ function scopeFor(file) {
   if (file.startsWith('scripts/')) return 'scripts'
   const process = /^src\/(main|renderer|shared)\//.exec(file)?.[1]
   if (process) return process
+  if (file.startsWith('native/system-speech/')) return 'system-speech'
   const pkg = /^packages\/([^/]+)\//.exec(file)?.[1]
   return pkg && consumers[pkg] ? pkg : 'all'
 }
@@ -120,6 +124,7 @@ export function createPlan(files, fullReason) {
       add('types-e2e', file)
       continue
     }
+    if (file.startsWith('src/renderer/') && /\.(?:tsx?|css)$/.test(file)) add('theme', file)
     const affected = scope === 'preload' ? ['main', 'preload', 'renderer'] : consumers[scope]
     for (const project of affected) projects.add(project)
     if (affected.some((project) => ['main', 'shared', 'scripts', 'provider-registry'].includes(project)))

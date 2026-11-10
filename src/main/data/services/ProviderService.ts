@@ -1062,7 +1062,9 @@ class ProviderService {
       return models.length
     })
 
-    if (deletedModelCount > 0) pinService.notifyPurged()
+    if (deletedModelCount > 0) {
+      pinService.notifyPurged()
+    }
 
     logger.info('Deleted provider', { providerId })
   }

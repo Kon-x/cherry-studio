@@ -29,10 +29,12 @@ import { AppService } from '@main/services/AppService'
 import { AppUpdaterService } from '@main/services/AppUpdaterService'
 import { AutoBackupService } from '@main/services/AutoBackupService'
 import { BinaryManager } from '@main/services/binaryManager'
+import { CherryCloudNotificationService } from '@main/services/cherryCloud/CherryCloudNotificationService'
 import { CherryCloudService } from '@main/services/cherryCloud/CherryCloudService'
 import { CitationPreviewService } from '@main/services/CitationPreviewService'
 import { CommandService } from '@main/services/CommandService'
 import { ConversationNavigationService } from '@main/services/ConversationNavigationService'
+import { ConversationNotificationService } from '@main/services/ConversationNotificationService'
 import { DoctorService } from '@main/services/diagnostics'
 import { DirectoryTreeManager, FileManager, FileIntakeService, FileEditService } from '@main/services/file'
 import { LogRetentionService } from '@main/services/LogRetentionService'
@@ -42,6 +44,7 @@ import { MediaProtocolService } from '@main/services/mediaProtocol'
 import { NetworkService } from '@main/services/network'
 import { NotificationService } from '@main/services/NotificationService'
 import { OAuthRuntimeService } from '@main/services/oauth/runtime/OAuthRuntimeService'
+import { OfficialAnnouncementService } from '@main/services/OfficialAnnouncementService'
 import { OvmsManager } from '@main/services/OvmsManager'
 import { PdfTranslationService } from '@main/services/PdfTranslationService'
 import { ProtocolService } from '@main/services/protocol/ProtocolService'
@@ -59,6 +62,7 @@ import { SubWindowService } from '@main/services/SubWindowService'
 import { ThemeService } from '@main/services/ThemeService'
 import { TrashService } from '@main/services/trash'
 import { TrayService } from '@main/services/TrayService'
+import { UsageBudgetNotificationService } from '@main/services/UsageBudgetNotificationService'
 import { WebSearchService } from '@main/services/webSearch'
 import { WebviewService } from '@main/services/WebviewService'
 
@@ -104,6 +108,7 @@ export const services = {
   ConversationNavigationService,
   CitationPreviewService,
   CherryCloudService,
+  CherryCloudNotificationService,
   FileManager,
   FileEditService,
   FileIntakeService,
@@ -133,6 +138,9 @@ export const services = {
   OAuthRuntimeService,
   MainWindowService,
   NotificationService,
+  ConversationNotificationService,
+  UsageBudgetNotificationService,
+  OfficialAnnouncementService,
   QuickAssistantService,
   McpPackageService,
   McpRuntimeService,

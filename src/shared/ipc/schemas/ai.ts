@@ -2,10 +2,12 @@ import type { EmbeddingModelUsage, LanguageModelUsage, ModelMessage } from 'ai'
 import * as z from 'zod'
 
 import { imageParamsSchema } from '@cherrystudio/provider-registry'
+import type { MessageProjectionUpdate, MessageProjectionView } from '@shared/ai/messageProjection'
 import type {
   AiStreamAttachResponse,
   AiStreamOpenResponse,
   AiToolApprovalRespondRequest,
+  AiToolApprovalRespondResponse,
   AiToolResultRequest,
   AiToolResultResponse,
   StreamChunkPayload,
@@ -103,7 +105,17 @@ const mentionedModelIdsSchema = z
   })
   .optional()
 
+const projectionTargetSchema = z.strictObject({ kind: z.literal('topic'), topicId: z.string().min(1) })
+
 export const aiRequestSchemas = {
+  'ai.projection.attach': defineRoute({
+    input: z.strictObject({ target: projectionTargetSchema, subscriptionId: z.uuid() }),
+    output: z.custom<MessageProjectionView | null>()
+  }),
+  'ai.projection.detach': defineRoute({
+    input: z.strictObject({ target: projectionTargetSchema, subscriptionId: z.uuid() }),
+    output: z.void()
+  }),
   // ── One-shot model calls, grouped by output modality (AiService) ──
   'ai.text.generate': defineRoute({
     input: z.strictObject({
@@ -239,7 +251,10 @@ export const aiRequestSchemas = {
       topicId: z.string().optional(),
       anchorId: z.string().optional()
     }) satisfies z.ZodType<AiToolApprovalRespondRequest>,
-    output: z.object({ ok: z.boolean() })
+    output: z.discriminatedUnion('ok', [
+      z.object({ ok: z.literal(true) }),
+      z.object({ ok: z.literal(false), reason: z.enum(['undelivered', 'rejected']) })
+    ]) satisfies z.ZodType<AiToolApprovalRespondResponse>
   })
 }
 
@@ -250,7 +265,7 @@ export const aiRequestSchemas = {
  * its coalescing/liveness intact — it does not `broadcast`.
  */
 export type AiEventSchemas = {
-  'ai.agent.attachment_selections.changed': { sessionId: string }
+  'ai.projection.changed': { subscriptionId: string; update: MessageProjectionUpdate }
   'ai.stream.chunk': StreamChunkPayload
   'ai.stream.done': StreamDonePayload
   'ai.stream.error': StreamErrorPayload

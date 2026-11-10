@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
     },
     { id: 'quote', name: 'Quote', enabled: true, isBuiltIn: true },
     { id: 'summary', name: 'Summary', enabled: true, isBuiltIn: true },
-    { id: 'disabled', name: 'Disabled', enabled: false, isBuiltIn: false }
+    { id: 'disabled', name: 'Disabled', enabled: false, isBuiltIn: false, runner: 'default' }
   ] as SelectionActionItem[],
   clearTimeoutTimer: vi.fn(),
   handlers: new Map<string, (payload: unknown) => void>(),
@@ -43,19 +43,29 @@ vi.mock('@logger', () => ({
 vi.mock('@renderer/components/selection/SelectionToolbarView', () => ({
   default: ({
     actionItems,
-    handleAction
+    handleAction,
+    unavailableReasons
   }: {
     actionItems: SelectionActionItem[]
     handleAction: (action: SelectionActionItem) => void
+    unavailableReasons?: Partial<Record<string, string>>
   }) => (
     <div>
       {actionItems.map((action) => (
-        <button key={action.id} type="button" onClick={() => handleAction(action)}>
+        <button
+          key={action.id}
+          type="button"
+          aria-description={unavailableReasons?.[action.id]}
+          onClick={() => handleAction(action)}>
           {action.name}
         </button>
       ))}
     </div>
   )
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key })
 }))
 
 vi.mock('@renderer/hooks/useTimer', () => ({
@@ -72,15 +82,18 @@ vi.mock('@renderer/ipc', () => ({
   }
 }))
 
-function pushSelection(text: string, isFullscreen = false) {
+function pushSelection(text: string, isFullscreen = false, programName = '') {
   act(() => {
-    mocks.handlers.get('selection.text_selected')?.({ text, isFullscreen })
+    mocks.handlers.get('selection.text_selected')?.({ text, isFullscreen, programName })
   })
 }
+
+const ACTION_ITEMS = mocks.actionItems
 
 describe('SelectionToolbar actions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.actionItems = ACTION_ITEMS
     mocks.handlers.clear()
     mocks.ipcRequest.mockResolvedValue(true)
     Object.assign(window, {
@@ -94,12 +107,16 @@ describe('SelectionToolbar actions', () => {
   it('forwards fresh selection data and fullscreen state to default actions', () => {
     render(<SelectionToolbar />)
     mocks.ipcRequest.mockClear()
-    pushSelection('selected text', true)
+    pushSelection('selected text', true, 'com.google.Chrome')
 
     fireEvent.click(screen.getByRole('button', { name: 'Summary' }))
 
     expect(mocks.ipcRequest).toHaveBeenCalledWith('selection.process_action', {
-      actionItem: expect.objectContaining({ id: 'summary', selectedText: 'selected text' }),
+      actionItem: expect.objectContaining({
+        id: 'summary',
+        selectedText: 'selected text',
+        programName: 'com.google.Chrome'
+      }),
       isFullScreen: true
     })
     expect(mocks.ipcRequest).toHaveBeenCalledWith('selection.hide_toolbar')

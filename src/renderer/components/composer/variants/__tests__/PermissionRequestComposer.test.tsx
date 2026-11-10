@@ -174,7 +174,7 @@ describe('PermissionRequestComposer', () => {
     expect(screen.getByRole('heading', { name: 'Bringing in an extension' })).toBeInTheDocument()
     expect(screen.getByText('Search project documentation.')).toBeInTheDocument()
     expect(screen.getByTestId('permission-preview')).not.toHaveClass('overflow-y-auto')
-    expect(screen.getByTestId('permission-mcp-args-scroll')).toHaveClass('max-h-60', 'overflow-y-auto')
+    expect(screen.getByTestId('permission-mcp-args-scroll').closest('[data-slot=scroll-area]')).toHaveClass('max-h-60')
     expect(screen.queryByText('Docs : lookup_docs')).not.toBeInTheDocument()
     expect(screen.getByText('query')).toBeInTheDocument()
     expect(screen.getByText('composer')).toBeInTheDocument()

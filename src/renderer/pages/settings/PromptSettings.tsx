@@ -15,7 +15,7 @@ import {
   EmojiIcon,
   EmptyState,
   ReorderableList,
-  Scrollbar,
+  ScrollArea,
   Skeleton,
   type SortableDragHandleProps
 } from '@cherrystudio/ui'
@@ -268,7 +268,7 @@ export function PromptSettings() {
             className="py-14"
           />
         ) : (
-          <Scrollbar className="min-h-0 flex-1 pb-3">
+          <ScrollArea viewportProps={{ className: 'pb-3' }} className="min-h-0 flex-1">
             <ReorderableList
               items={prompts}
               visibleItems={visiblePrompts}
@@ -295,7 +295,7 @@ export function PromptSettings() {
                 />
               )}
             />
-          </Scrollbar>
+          </ScrollArea>
         )}
       </div>
 
@@ -438,7 +438,11 @@ function PromptRow({
       ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`${t('common.more')} ${prompt.title}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${t('common.more')} ${prompt.title}`}
+            className="text-muted-foreground">
             <MoreHorizontal size={13} />
           </Button>
         </DropdownMenuTrigger>

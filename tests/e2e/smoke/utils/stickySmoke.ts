@@ -35,21 +35,14 @@ export async function prepareStickyShell(page: Page) {
 
 export async function waitForStickyShell(page: Page) {
   await expect(
-    page
-      .locator(
-        '[data-ui~="chat.view"], [data-ui~="agent.view"], [data-ui~="notes.view"], [data-onboarding-language-select]'
-      )
-      .first()
+    page.locator('[data-ui~="chat.view"], [data-ui~="notes.view"], [data-onboarding-language-select]').first()
   ).toBeVisible({ timeout: 60_000 })
   await expect
     .poll(
       async () => {
         const skip = page.getByRole('button', { name: /Set up later|稍后设置/ })
         if (await skip.isVisible()) await skip.evaluate((el: HTMLElement) => el.click())
-        return await page
-          .locator('[data-ui~="chat.view"], [data-ui~="agent.view"], [data-ui~="notes.view"]')
-          .first()
-          .isVisible()
+        return await page.locator('[data-ui~="chat.view"], [data-ui~="notes.view"]').first().isVisible()
       },
       { timeout: 30_000 }
     )

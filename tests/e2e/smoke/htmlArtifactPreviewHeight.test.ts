@@ -1,22 +1,4 @@
-import { rm } from 'node:fs/promises'
-
-import { _electron as electron } from '@playwright/test'
-
-import { expect, test as base } from './fixtures/electron.fixture'
-
-const test = base.extend({
-  electronApp: async ({}, runTest, testInfo) => {
-    const profileRoot = testInfo.outputPath('profile')
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: { ...process.env, NODE_ENV: 'development', CS_DEV_PROFILE_ROOT: profileRoot },
-      timeout: 60000
-    })
-    await runTest(electronApp)
-    await electronApp.close()
-    await rm(profileRoot, { recursive: true, force: true, maxRetries: 3 })
-  }
-})
+import { expect, test } from './fixtures/electron.fixture'
 
 const MARKDOWN = [
   'before-block-marker',
@@ -86,11 +68,16 @@ test('inline HTML iframe preview settles and stays stable across scrolling', asy
   await artifact.waitFor({ state: 'attached' })
   await artifact.scrollIntoViewIfNeeded()
   await expect(artifact).toBeVisible()
+  await expect(artifact.getByTestId('html-artifact-surface').locator('iframe')).toBeAttached()
+  await expect(page.getByText('after-block-marker', { exact: true })).toBeVisible()
   const sampling = await page.evaluateHandle(async () => {
     const surface = document.querySelector<HTMLElement>('[data-testid="html-artifact-surface"]')
     const marker = Array.from(document.querySelectorAll('p')).find((p) => p.textContent === 'after-block-marker')
     const frame = surface?.querySelector('iframe')
-    if (!surface || !marker || !frame) throw new Error('Expected artifact surface, frame and following paragraph')
+    if (!surface || !marker || !frame)
+      throw new Error(
+        `Expected preview nodes: ${JSON.stringify({ surface: !!surface, marker: !!marker, frame: !!frame })}`
+      )
     const scroller = surface.closest<HTMLElement>('[data-message-virtual-list-scroller]')
     if (!scroller) throw new Error('Expected message-list scroller')
     let styleMutations = 0
@@ -128,7 +115,19 @@ test('inline HTML iframe preview settles and stays stable across scrolling', asy
           break
         }
       }
-      if (!ready) throw new Error('Intended loaded document did not remain unchanged for 500 ms within 10 s')
+      if (!ready) {
+        throw new Error(
+          `Preview did not settle: ${JSON.stringify({
+            connected: frame.isConnected,
+            url: frame.contentDocument?.URL,
+            readyState: frame.contentDocument?.readyState,
+            fonts: frame.contentDocument?.fonts.status,
+            hasEmbeddedFrame: Boolean(frame.contentDocument?.querySelector('iframe[src="https://example.invalid/x"]')),
+            geometry: frame.contentDocument ? read() : null,
+            styleMutations
+          })}`
+        )
+      }
       const effectiveCap = 0.72 * scroller.clientHeight
       const settledSurfaceHeight = surface.getBoundingClientRect().height
       if (effectiveCap <= settledSurfaceHeight + 8) {

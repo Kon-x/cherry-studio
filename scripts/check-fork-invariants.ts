@@ -33,7 +33,7 @@ function listFiles(relativePath: string): string[] {
 }
 
 for (const relativePath of [
-  'docs/references/api-gateway',
+  'docs/dev/references/api-gateway',
   'src/main/features/apiGateway',
   'src/main/ai/channels',
   'src/main/ai/agentSession',
@@ -51,6 +51,8 @@ for (const relativePath of [
   'packages/agent-runtime',
   'packages/agent-runtime-pi',
   'packages/agent-runtime-pi-durable',
+  'packages/agent-runtime-claude-code',
+  'packages/agent-behavior',
   'src/main/features/computerUse',
   'src/main/ai/automation',
   'src/main/services/automation',
@@ -78,7 +80,7 @@ for (const relativePath of [
   'src/renderer/routes/app/mini-app',
   'src/renderer/routes/settings/skills.tsx',
   'src/renderer/routes/settings/scheduled-tasks.tsx',
-  'docs/references/mini-app',
+  'docs/dev/references/mini-app',
   'src/main/ipc/handlers/apiGateway.ts',
   'src/shared/ipc/schemas/apiGateway.ts',
   'src/shared/types/apiGateway.ts',
@@ -138,9 +140,11 @@ for (const dependency of [
   'telegram-markdown-v2',
   '@anthropic-ai/claude-agent-sdk',
   '@earendil-works/pi-',
+  '@earendil-works/chord',
   '@deepseek-ai/dsh-',
   '@cherrystudio/dsh-bridge',
   '@cherrystudio/agent-runtime',
+  '@cherrystudio/agent-behavior',
   '@cherrystudio/computer-use',
   'quickjs-wasi',
   '@cherrystudio/remote-protocol',

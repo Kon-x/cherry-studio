@@ -41,6 +41,7 @@ export type {
   ResourceListViewGroup,
   ResourceListViewSection
 } from './ResourceList'
+export type { ResourceListPermanentDeleteProps } from './ResourceList'
 export {
   ResourceList,
   useResourceList,
@@ -49,29 +50,11 @@ export {
   useResourceListGroupState,
   useResourceListItemAccessors,
   useResourceListMeta,
+  useResourceListPermanentDelete,
   useResourceListRowState,
   useResourceListView
 } from './ResourceList'
 export { remapResourceListCollapsedGroupIds } from './resourceListExpansion'
-export type { ResourceListGroupResolver, ResourceListTimeBucket } from './resourceListGrouping'
-export {
-  compareResourceRecency,
-  composeResourceListGroupResolvers,
-  createPinnedFirstSorter,
-  createPinnedGroupResolver,
-  createTimeGroupResolver,
-  getResourceTimeBucket,
-  sortByResourceGroupRank,
-  sortRankedResourceItems
-} from './resourceListGrouping'
-export type { ResourceListOrderAnchor } from './resourceListReorder'
-export {
-  buildResourceListGroupDropAnchor,
-  buildResourceListItemDropAnchor,
-  compareResourceOrderKey,
-  moveResourceListStringGroupAfterDrop,
-  withResourceListGroupIdPrefix
-} from './resourceListReorder'
 export { TopicListOptionsMenu } from './TopicListOptionsMenu'
 export type { UseResourceListPinnedStateOptions, UseResourceListPinnedStateResult } from './useResourceListPinnedState'
 export { useResourceListPinnedState } from './useResourceListPinnedState'

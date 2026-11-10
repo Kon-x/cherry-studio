@@ -1,0 +1,5 @@
+# Bilingual-pair consistency record (docs/dev/i18n/README.md).
+# After editing either side, update its counterpart and re-record with:
+#   pnpm docs:check-pairing --write .agents/notes/proposed/architecture/2026-11-08-agent-history-operation-boundaries.md
+2026-11-08-agent-history-operation-boundaries.md: 0f75904080e994434f44c39b032f6c3e8be7aa31
+2026-11-08-agent-history-operation-boundaries.zh.md: 0f819c35347b92256fc000879e08b668365defec

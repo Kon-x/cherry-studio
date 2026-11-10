@@ -5,7 +5,7 @@
   </a>
 </h1>
 
-<p align="center">English | <a href="https://cherry-ai.com">Official Site</a> | <a href="https://docs.cherry-ai.com/docs/en-us">Documents</a> | <a href="./docs/contrib/development.md">Development</a> | <a href="https://github.com/CherryHQ/cherry-studio/issues">Feedback</a><br></p>
+<p align="center">English | <a href="https://cherryai.com">Official Site</a> | <a href="https://cherryai.com/docs/en/">Documentation</a> | <a href="./docs/dev/contrib/development.md">Development</a> | <a href="https://github.com/CherryHQ/cherry-studio/issues">Feedback</a><br></p>
 
 <div align="center">
 
@@ -35,14 +35,14 @@
 
 This Kon-x fork follows official stable upstream releases and publishes Windows x64 builds.
 [Download the latest fork release](https://github.com/Kon-x/cherry-studio/releases/latest) or read the
-[fork feature and release guide](docs/contrib/fork-release.md). Chat, Paintings, Translate, Knowledge, Files,
+[fork feature and release guide](docs/dev/contrib/fork-release.md). Chat, Paintings, Translate, Knowledge, Files,
 Notes, custom assistants, and MCP remain available; Work/Agents, Mini Apps, Code Mate, and their runtimes are removed.
 
 Cherry Studio is a desktop client that supports multiple LLM providers, available on Windows, Mac and Linux.
 
 👏 Join [Telegram Group](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQ Group(575014769)](https://qm.qq.com/q/lo0D4qVZKi)
 
-❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
+❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/dev/sponsor.md) to support the development!
 
 # 🌠 Screenshot
 
@@ -147,52 +147,15 @@ We welcome contributions to Cherry Studio! Here are some ways you can contribute
 6. **Community Engagement**: Join discussions and help users.
 7. **Promote Usage**: Spread the word about Cherry Studio.
 
-Refer to the [Branching Strategy](docs/contrib/branching-strategy.md) for contribution guidelines
+Refer to the [Branching Strategy](docs/dev/contrib/branching-strategy.md) for contribution guidelines
 
 ## Getting Started
 
-1. **Fork the Repository**: Fork and clone it to your local machine.
-2. **Create a Branch**: For your changes.
-3. **Submit Changes**: Commit and push your changes.
-4. **Open a Pull Request**: Describe your changes and reasons.
+1. Read the [Contributing Guide](CONTRIBUTING.md) and [Development Guide](docs/dev/contrib/development.md).
+2. Fork the repository and create a focused branch from `main`.
+3. Validate your changes, sign and sign off your commits, and open a pull request targeting `main` using the repository template.
 
-For more detailed guidelines, please refer to our [Contributing Guide](CONTRIBUTING.md).
-
-Thank you for your support and contributions!
-
-# 🔧 Developer Co-creation Program
-
-We are launching the Cherry Studio Developer Co-creation Program to foster a healthy and positive-feedback loop within the open-source ecosystem. We believe that great software is built collaboratively, and every merged pull request breathes new life into the project.
-
-We sincerely invite you to join our ranks of contributors and shape the future of Cherry Studio with us.
-
-## Contributor Rewards Program
-
-To give back to our core contributors and create a virtuous cycle, we have established the following long-term incentive plan.
-
-**The inaugural tracking period for this program will be Q3 2025 (July, August, September). Rewards for this cycle will be distributed on October 1st.**
-
-Within any tracking period (e.g., July 1st to September 30th for the first cycle), any developer who contributes more than **30 meaningful commits** to any of Cherry Studio's open-source projects on GitHub will be eligible for the following benefits:
-
-- **Cursor Subscription Sponsorship**: Receive a **$70 USD** credit or reimbursement for your [Cursor](https://cursor.sh/) subscription, making AI your most efficient coding partner.
-- **Unlimited Model Access**: Get **unlimited** API calls for the **DeepSeek** and **Qwen** models.
-- **Cutting-Edge Tech Access**: Enjoy occasional perks, including API access to models like **Claude**, **Gemini**, and **OpenAI**, keeping you at the forefront of technology.
-
-## Growing Together & Future Plans
-
-A vibrant community is the driving force behind any sustainable open-source project. As Cherry Studio grows, so will our rewards program. We are committed to continuously aligning our benefits with the best-in-class tools and resources in the industry. This ensures our core contributors receive meaningful support, creating a positive cycle where developers, the community, and the project grow together.
-
-**Moving forward, the project will also embrace an increasingly open stance to give back to the entire open-source community.**
-
-## How to Get Started?
-
-We look forward to your first Pull Request!
-
-You can start by exploring our repositories, picking up a `good first issue`, or proposing your own enhancements. Every commit is a testament to the spirit of open source.
-
-Thank you for your interest and contributions.
-
-Let's build together.
+See the [Branching Strategy](docs/dev/contrib/branching-strategy.md) for branch and release conventions.
 
 # 🏢 Enterprise Edition
 
@@ -292,4 +255,4 @@ Should you require a commercial license that provides an exemption from the AGPL
 [commercial-shield]: https://img.shields.io/badge/License-Contact-white.svg?logoColor=white&logo=telegram&color=blue
 [commercial-link]: mailto:license@cherry-ai.com?subject=Commercial%20License%20Inquiry
 [sponsor-shield]: https://img.shields.io/badge/Sponsor-FF6699.svg?logo=githubsponsors&logoColor=white
-[sponsor-link]: https://github.com/CherryHQ/cherry-studio/blob/main/docs/sponsor.md
+[sponsor-link]: https://github.com/CherryHQ/cherry-studio/blob/main/docs/dev/sponsor.md

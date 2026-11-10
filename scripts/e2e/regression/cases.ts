@@ -1,142 +1,689 @@
+import type { Platform } from './types'
+
 export const REGRESSION_CASES = [
-  { id: 'S-01', capabilities: [], phase: '01-startup', title: 'Application startup smoke test', task: 'startup-smoke' },
-  { id: 'N-01', capabilities: [], phase: '02-basic-features', title: 'Create and save a note', task: 'notes' },
+  {
+    id: 'S-01',
+    capabilities: [],
+    phase: 'startup',
+    title: 'Application startup smoke test',
+    tasks: ['startup-smoke']
+  },
+  {
+    id: 'N-01',
+    capabilities: [],
+    phase: 'basicFeatures',
+    title: 'Create and save a note',
+    tasks: ['notes', 'notes-smoke']
+  },
   {
     id: 'M-02',
     capabilities: [],
-    phase: '03-models-and-assistants',
+    phase: 'modelsAndAssistants',
     title: 'Configure a custom chat provider and send a message',
-    task: 'custom-provider-chat'
+    tasks: ['settings', 'custom-provider-chat']
   },
   {
     id: 'M-03',
     capabilities: [],
-    phase: '03-models-and-assistants',
+    phase: 'modelsAndAssistants',
     title: 'Scroll provider models from outside the list without sticky groups',
-    task: 'provider-model-scroll'
+    tasks: ['settings', 'provider-model-scroll']
   },
   {
     id: 'C-01',
     capabilities: [],
-    phase: '03-models-and-assistants',
+    phase: 'modelsAndAssistants',
     title: 'Create a custom assistant and chat',
-    task: 'custom-assistant'
+    tasks: ['assistants', 'custom-assistant']
   },
   {
     id: 'C-03',
     capabilities: [],
-    phase: '03-models-and-assistants',
+    phase: 'modelsAndAssistants',
     title: 'Preserve a partial chat response after disconnect and restart',
-    task: 'chat-stream-failure'
+    tasks: ['error-recovery', 'chat-stream-failure']
   },
   {
-    id: 'SET-05',
+    id: 'MP-42',
     capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'About page shows the running version',
-    task: 'about'
+    phase: 'modelsAndAssistants',
+    title: 'Clear chat messages',
+    tasks: ['chat-core', 'clear-chat-messages']
   },
   {
-    id: 'TOPIC-01',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Multiple conversations keep their own messages after restart',
-    task: 'custom-provider-chat'
+    id: 'MP-17',
+    title: 'Error messages and one-click recovery',
+    tasks: ['error-recovery', 'chat-error-recovery'],
+    phase: 'modelsAndAssistants',
+    capabilities: []
   },
   {
-    id: 'TOPIC-02',
+    id: 'T-01',
     capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Rename a conversation and keep the new name after restart',
-    task: 'custom-provider-chat'
+    phase: 'translationSmoke',
+    title: 'Translate text',
+    tasks: ['translation', 'translation-smoke']
   },
-  {
-    id: 'CHAT-01',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Composer keeps a multi-line draft and clears it after sending',
-    task: 'custom-provider-chat'
-  },
-  {
-    id: 'CHAT-02',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Message actions are offered on a reply and Delete removes it',
-    task: 'custom-provider-chat'
-  },
-  {
-    id: 'SET-01',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Settings navigation opens each section and settings search finds them',
-    task: 'about'
-  },
-  {
-    id: 'SET-02',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Changing a setting persists after restart',
-    task: 'settings'
-  },
-  {
-    id: 'SET-03',
-    capabilities: [],
-    phase: '03-models-and-assistants',
-    title: 'Changing the newline shortcut persists after restart',
-    task: 'settings'
-  },
-  { id: 'T-01', capabilities: [], phase: '04-translation', title: 'Translate text', task: 'translation' },
   {
     id: 'T-02',
     capabilities: ['desktopAutomation'],
-    phase: '04-translation',
+    phase: 'translationSmoke',
     title: 'Translate a PDF file',
-    task: 'translation'
+    tasks: ['translation', 'translation-smoke']
   },
   {
     id: 'C-02',
     capabilities: ['desktopAutomation'],
-    phase: '05-desktop-assistants',
+    phase: 'desktopAssistants',
     title: 'Ask a question using Quick Assistant',
-    task: 'quick-assistant'
+    tasks: ['system-integration', 'quick-assistant']
   },
   {
     id: 'K-01',
     capabilities: ['desktopAutomation'],
-    phase: '06-knowledge',
+    phase: 'knowledge',
     title: 'Create a knowledge base, verify persistence, and answer with citations',
-    task: 'knowledge'
+    tasks: ['knowledge', 'knowledge-smoke']
+  },
+  {
+    id: 'MP-59',
+    title: 'Create a knowledge base (name, embedding model, group)',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: []
+  },
+  {
+    id: 'MP-60',
+    capabilities: ['desktopAutomation'],
+    phase: 'knowledge',
+    title: 'Process file sources until ready',
+    tasks: ['knowledge']
+  },
+  {
+    id: 'MP-61',
+    title: 'Import directory sources',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: ['desktopAutomation']
+  },
+  { id: 'MP-62', title: 'Fetch link sources', tasks: ['knowledge'], phase: 'knowledge', capabilities: [] },
+  {
+    id: 'MP-63',
+    title: 'Note sources',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: []
+  },
+  {
+    id: 'MP-64',
+    title: 'Resolve duplicate source names',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-65',
+    title: 'Source actions (preview, chunks, reindex, delete)',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: []
+  },
+  {
+    id: 'MP-66',
+    title: 'Retrieval settings and recall verification',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: []
+  },
+  {
+    id: 'MP-67',
+    title: 'Rename, move, and delete knowledge bases',
+    tasks: ['knowledge'],
+    phase: 'knowledge',
+    capabilities: []
   },
   {
     id: 'MCP-01',
     capabilities: ['npx'],
-    phase: '07-integrations',
+    phase: 'integrations',
     title: 'Create and use Everything MCP',
-    task: 'everything-mcp'
+    tasks: ['mcp', 'everything-mcp']
+  },
+  {
+    id: 'MP-139',
+    title: 'Tool settings (web search, file processing)',
+    tasks: ['mcp', 'tool-settings'],
+    phase: 'integrations',
+    capabilities: []
   },
   {
     id: 'M-01',
     capabilities: [],
-    phase: '09-cherryin-and-images',
+    phase: 'cherryIn',
     title: 'Sign in to CherryIN and chat',
-    task: 'cherryin-chat'
+    tasks: ['chat-core', 'cherryin-chat']
   },
   {
     id: 'P-01',
     capabilities: ['desktopAutomation'],
-    phase: '09-cherryin-and-images',
+    phase: 'cherryIn',
     title: 'Generate an image using an image model',
-    task: 'image-generation'
+    tasks: ['paintings', 'image-generation']
+  },
+  {
+    id: 'MP-90',
+    title: 'Enlarge, preview, and save images',
+    tasks: ['paintings'],
+    phase: 'images',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-91',
+    title: 'Prompt templates and enhancement',
+    tasks: ['paintings'],
+    phase: 'images',
+    capabilities: []
+  },
+  {
+    id: 'MP-92',
+    title: 'Image generation errors and quota alerts',
+    tasks: ['paintings'],
+    phase: 'images',
+    capabilities: []
+  },
+  {
+    id: 'MP-05',
+    title: 'Multiple topics and history persistence',
+    tasks: ['topics'],
+    phase: 'topics',
+    capabilities: []
+  },
+  {
+    id: 'MP-43',
+    title: 'Rename topics and generate names automatically',
+    tasks: ['topics'],
+    phase: 'topics',
+    capabilities: []
+  },
+  {
+    id: 'MP-44',
+    title: 'Pin topics and reorder by dragging',
+    tasks: ['topics'],
+    phase: 'topics',
+    capabilities: []
+  },
+  { id: 'MP-45', title: 'Topic group display modes', tasks: ['topics'], phase: 'topics', capabilities: [] },
+  { id: 'MP-46', title: 'Bulk delete and move topics', tasks: ['topics'], phase: 'topics', capabilities: [] },
+  {
+    id: 'MP-47',
+    title: 'Export topics as Markdown, Word, or images',
+    tasks: ['topics'],
+    phase: 'topics',
+    capabilities: ['desktopAutomation']
+  },
+  { id: 'MP-48', title: 'Save and restore chat drafts', tasks: ['topics'], phase: 'topics', capabilities: [] },
+  {
+    id: 'MP-09',
+    title: 'Attach files and images',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: ['desktopAutomation', 'screenCapture']
+  },
+  { id: 'MP-10', title: 'Web search', tasks: ['chat-core'], phase: 'chatCore', capabilities: [] },
+  {
+    id: 'MP-149',
+    title: 'Copy and quote popover for selected message text',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-16',
+    title: 'Polish prompts',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-18',
+    title: 'Chat shortcuts (message queue, hover cards, attachment context menu, image preview)',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-27',
+    capabilities: [],
+    phase: 'chatCore',
+    title: 'Input interactions (newlines, topic references, slash commands, height)',
+    tasks: ['chat-core']
+  },
+  {
+    id: 'MP-28',
+    title: 'Message actions (copy, quote, edit and resend, regenerate, delete, read aloud)',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-29',
+    title: 'Branch messages and copy to a new chat',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-30',
+    title: 'Manage context (/context, /compact, /clear)',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-31',
+    title: 'Upload and parse document attachments',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: ['systemFilePicker']
+  },
+  {
+    id: 'MP-32',
+    title: 'Image attachments and multimodal understanding',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-33',
+    title: 'Drag uploads, paste long text, and handle unsupported types',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-34',
+    title: 'Mutual exclusion of knowledge references and attachments',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: ['desktopAutomation']
+  },
+  { id: 'MP-35', title: 'Web search and URL fetching', tasks: ['chat-core'], phase: 'chatCore', capabilities: [] },
+  {
+    id: 'MP-36',
+    title: 'Reference MCP prompts and resources',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  { id: 'MP-37', title: 'Generate images in chat', tasks: ['chat-core'], phase: 'chatCore', capabilities: [] },
+  { id: 'MP-38', title: 'Search messages in chat', tasks: ['chat-core'], phase: 'chatCore', capabilities: [] },
+  {
+    id: 'MP-39',
+    title: 'Message token and timing details',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-40',
+    title: 'Code block toolbar',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-41',
+    title: 'Preview HTML Artifacts',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  {
+    id: 'MP-02',
+    title: 'Streaming, stop, continue, and restart persistence',
+    tasks: ['chat-core'],
+    phase: 'chatCore',
+    capabilities: []
+  },
+  { id: 'MP-11', title: 'Notes and export', tasks: ['notes'], phase: 'notes', capabilities: ['desktopAutomation'] },
+  {
+    id: 'MP-74',
+    title: 'Markdown editing, autosave, and conflicts',
+    tasks: ['notes'],
+    phase: 'notes',
+    capabilities: []
+  },
+  {
+    id: 'MP-75',
+    title: 'Drag to import Markdown files or folders',
+    tasks: ['notes'],
+    phase: 'notes',
+    capabilities: []
+  },
+  { id: 'MP-76', title: 'Search notes by name and content', tasks: ['notes'], phase: 'notes', capabilities: [] },
+  {
+    id: 'MP-77',
+    title: 'Export notes to PDF or Word and print',
+    tasks: ['notes'],
+    phase: 'notes',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-78',
+    title: 'Star and sort notes',
+    tasks: ['notes'],
+    phase: 'notes',
+    capabilities: []
+  },
+  { id: 'MP-79', title: 'Export notes to a knowledge base', tasks: ['notes'], phase: 'notes', capabilities: [] },
+  {
+    id: 'MP-81',
+    title: 'Translation history (favorite, reuse, delete, clear)',
+    tasks: ['translation'],
+    phase: 'translation',
+    capabilities: []
+  },
+  {
+    id: 'MP-82',
+    title: 'Translate files by dragging documents',
+    tasks: ['translation'],
+    phase: 'translation',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-83',
+    title: 'Translate images with OCR',
+    tasks: ['translation'],
+    phase: 'translation',
+    capabilities: []
+  },
+  {
+    id: 'MP-85',
+    title: 'Custom languages',
+    tasks: ['translation'],
+    phase: 'translation',
+    capabilities: []
+  },
+  {
+    id: 'MP-86',
+    title: 'Translation settings (model, auto-copy, detection method)',
+    tasks: ['translation', 'translation-settings'],
+    phase: 'translation',
+    capabilities: []
+  },
+  {
+    id: 'MP-06',
+    title: 'Change settings and preserve them after restart',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  {
+    id: 'MP-104',
+    capabilities: [],
+    phase: 'settings',
+    title: 'Open, search, and navigate settings sections',
+    tasks: ['settings']
+  },
+  {
+    id: 'MP-105',
+    title: 'Theme, appearance, and window style',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: [],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-106',
+    title: 'Fonts, font size, and zoom',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  {
+    id: 'MP-107',
+    title: 'Message and input settings',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  { id: 'MP-108', title: 'Assign default models', tasks: ['settings'], phase: 'settings', capabilities: [] },
+  {
+    id: 'MP-109',
+    title: 'Customize shortcuts and detect conflicts',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  {
+    id: 'MP-110',
+    title: 'Notification settings',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-111',
+    capabilities: ['desktopAutomation'],
+    phase: 'settings',
+    title: 'Startup and tray behavior',
+    tasks: ['settings'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-112',
+    title: 'Network proxy settings',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: ['lanInterface']
+  },
+  {
+    id: 'MP-113',
+    title: 'Privacy settings and error reporting toggle',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  {
+    id: 'MP-114',
+    title: 'About page, update checks, and diagnostic export',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-147',
+    title: 'Expand long user messages by default',
+    tasks: ['settings'],
+    phase: 'settings',
+    capabilities: []
+  },
+  {
+    id: 'MP-20',
+    title: 'Create a chat from the home page and send a message',
+    tasks: ['assistants'],
+    phase: 'assistants',
+    capabilities: []
+  },
+  {
+    id: 'MP-22',
+    title: 'Edit, sort, pin, and delete assistants',
+    tasks: ['assistants'],
+    phase: 'assistants',
+    capabilities: []
+  },
+  {
+    id: 'MP-23',
+    title: 'Export and import assistants',
+    tasks: ['assistants'],
+    phase: 'assistants',
+    capabilities: ['desktopAutomation']
+  },
+  { id: 'MP-24', title: 'Manage assistant groups', tasks: ['assistants'], phase: 'assistants', capabilities: [] },
+  {
+    id: 'MP-25',
+    title: 'Move chats to other assistants',
+    tasks: ['assistants'],
+    phase: 'assistants',
+    capabilities: []
+  },
+  {
+    id: 'MP-26',
+    title: 'Switch models in chat',
+    tasks: ['assistants'],
+    phase: 'assistants',
+    capabilities: []
+  },
+  {
+    id: 'MP-150',
+    title: 'Preview RTF in Files and preserve Chat attachments',
+    tasks: ['files'],
+    phase: 'files',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-68',
+    title: 'Upload files to the library',
+    tasks: ['files'],
+    phase: 'files',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
+  },
+  { id: 'MP-69', title: 'Filter files by category and search', tasks: ['files'], phase: 'files', capabilities: [] },
+  {
+    id: 'MP-70',
+    title: 'Preview files and open their location',
+    tasks: ['files'],
+    phase: 'files',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-71',
+    title: 'Rename, delete, and remove files',
+    tasks: ['files'],
+    phase: 'files',
+    capabilities: []
+  },
+  {
+    id: 'MP-72',
+    title: 'Reference library files in chat',
+    tasks: ['files'],
+    phase: 'files',
+    capabilities: [],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-115',
+    title: 'Local backups and backup file management',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: []
+  },
+  {
+    id: 'MP-116',
+    title: 'Restore from a local backup',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-117',
+    title: 'Automatic backups and retention count',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: []
+  },
+  { id: 'MP-118', title: 'Clear cache by category', tasks: ['data-backup'], phase: 'dataManagement', capabilities: [] },
+  {
+    id: 'MP-119',
+    title: 'Migrate the application data directory',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-120',
+    title: 'Import ChatGPT or Claude data',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: ['desktopAutomation']
+  },
+  {
+    id: 'MP-121',
+    title: 'Reset application data (run last)',
+    tasks: ['data-backup'],
+    phase: 'dataManagement',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-127',
+    capabilities: ['desktopAutomation', 'externalSelection', 'globalShortcut'],
+    phase: 'system',
+    title: 'Selection Assistant (capture, explain, translate, copy)',
+    tasks: ['system-integration'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-128',
+    title: 'Screenshot tool (region, annotate, copy, OCR, add to chat)',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: ['desktopAutomation', 'screenCapture']
+  },
+  {
+    id: 'MP-129',
+    title: 'Global search across types and jump to messages',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: []
+  },
+  {
+    id: 'MP-130',
+    title: 'Pin and open launchpad items',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: []
+  },
+  {
+    id: 'MP-131',
+    title: 'Multiple tabs and windows',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: []
+  },
+  {
+    id: 'MP-132',
+    title: 'System tray menu',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
+  },
+  {
+    id: 'MP-133',
+    title: 'Deep links, single instance, and relaunch',
+    tasks: ['system-integration'],
+    phase: 'system',
+    capabilities: ['desktopAutomation'],
+    platforms: ['macos']
   }
 ] as const
 
 export type RegressionCase = (typeof REGRESSION_CASES)[number]
 export type CaseId = RegressionCase['id']
-export type TaskId = RegressionCase['task']
+export type TaskId = RegressionCase['tasks'][number]
 export type PhaseId = RegressionCase['phase']
 export type TaskSelection = 'all' | TaskId
 
-export const TASK_IDS = [...new Set(REGRESSION_CASES.map(({ task }) => task))]
+export const TASK_IDS = [
+  ...new Set([
+    ...REGRESSION_CASES.map(({ tasks }) => tasks[0]),
+    ...REGRESSION_CASES.flatMap(({ tasks }) => tasks.slice(1))
+  ])
+]
 export const TASK_SELECTIONS = ['all', ...TASK_IDS] as const
 export const PHASE_IDS = [...new Set(REGRESSION_CASES.map(({ phase }) => phase))]
 
@@ -148,7 +695,8 @@ export function getCase(id: string): RegressionCase {
 
 export function selectCases(task: TaskSelection, phase?: PhaseId): RegressionCase[] {
   return REGRESSION_CASES.filter(
-    (testCase) => (task === 'all' || testCase.task === task) && (!phase || testCase.phase === phase)
+    (testCase) =>
+      (task === 'all' || testCase.tasks.some((candidate) => candidate === task)) && (!phase || testCase.phase === phase)
   )
 }
 
@@ -156,10 +704,23 @@ export function caseDefinition(id: CaseId) {
   const testCase = getCase(id)
   return [
     `[${id}] ${testCase.title}`,
-    { tag: `@${testCase.task}`, annotation: { type: 'regression-case', description: id } }
+    { tag: testCase.tasks.map((task) => `@${task}`), annotation: { type: 'regression-case', description: id } }
   ] as const
 }
 
 export function missingCapabilities(id: CaseId, capabilities: Record<string, { available: boolean }>): string[] {
   return getCase(id).capabilities.filter((name) => !capabilities[name]?.available)
+}
+
+/**
+ * A case may be implemented for a subset of the platforms the regression
+ * workflow runs on — native notification automation, System Events driven
+ * tray and single-instance checks, and Terminal permission flows only exist on
+ * macOS. Such cases declare `platforms`; runs on the other platform record
+ * them as not applicable instead of executing a macOS-only implementation and
+ * reporting an application failure.
+ */
+export function supportsPlatform(id: CaseId, platform: Platform): boolean {
+  const { platforms } = getCase(id) as { platforms?: readonly Platform[] }
+  return !platforms || platforms.includes(platform)
 }

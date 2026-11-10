@@ -70,7 +70,7 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   {
     id: 'moonshot',
     name: 'Kimi',
-    url: 'https://kimi.moonshot.cn/',
+    url: 'https://www.kimi.com/',
     logo: 'Moonshot',
     supportedRegions: ['CN', 'Global']
   },
@@ -87,14 +87,14 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
     name: 'Qwen',
     nameKey: 'miniApps.qwen',
     url: 'https://www.qianwen.com',
-    logo: 'qwen',
+    logo: 'qianwen',
     supportedRegions: ['CN']
   },
   {
     id: 'stepfun',
-    name: 'Stepfun',
+    name: 'StepFun AI',
     nameKey: 'miniApps.stepfun',
-    url: 'https://stepfun.com',
+    url: 'https://chat.stepfun.com/',
     logo: 'step',
     bordered: true,
     supportedRegions: ['CN']
@@ -109,7 +109,7 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   },
   {
     id: 'cici',
-    name: 'Cici',
+    name: 'Dola',
     url: 'https://www.cici.com/chat/',
     logo: 'bytedance',
     supportedRegions: ['Global']
@@ -125,16 +125,16 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   },
   {
     id: 'minimax-agent',
-    name: 'Minimax Agent',
+    name: 'MiniMax Code',
     nameKey: 'miniApps.minimax-agent',
     url: 'https://agent.minimaxi.com/',
-    logo: 'minimax',
+    logo: 'minimax-agent-cn',
     bordered: true,
     supportedRegions: ['CN']
   },
   {
     id: 'minimax-agent-global',
-    name: 'Minimax Agent',
+    name: 'MiniMax Code',
     nameKey: 'miniApps.minimax-global',
     url: 'https://agent.minimax.io/',
     logo: 'minimax',
@@ -184,18 +184,6 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
     supportedRegions: ['CN', 'Global']
   },
   {
-    id: 'baidu-ai-search',
-    name: 'Baidu AI Search',
-    nameKey: 'miniApps.baidu-ai-search',
-    logo: 'baidu',
-    url: 'https://chat.baidu.com/',
-    bordered: true,
-    style: {
-      padding: 5
-    },
-    supportedRegions: ['CN']
-  },
-  {
     id: 'tencent-yuanbao',
     name: 'Tencent Yuanbao',
     nameKey: 'miniApps.tencent-yuanbao',
@@ -215,7 +203,8 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   },
   {
     id: 'spark-desk',
-    name: 'SparkDesk',
+    nameKey: 'miniApps.spark-desk',
+    name: 'iFlytek Spark',
     logo: 'xinghuo',
     url: 'https://xinghuo.xfyun.cn/desk',
     supportedRegions: ['CN']
@@ -372,7 +361,7 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   },
   {
     id: 'notebooklm',
-    name: 'NotebookLM',
+    name: 'Gemini Notebook',
     logo: 'notebooklm',
     url: 'https://notebooklm.google.com/',
     supportedRegions: ['Global']
@@ -407,7 +396,7 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
   },
   {
     id: 'lechat',
-    name: 'LeChat',
+    name: 'Mistral AI',
     logo: 'mistral',
     url: 'https://chat.mistral.ai/chat',
     bordered: true,
@@ -425,7 +414,7 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
     id: 'lambdachat',
     name: 'Lambda Chat',
     logo: 'lambda',
-    url: 'https://lambda.chat/',
+    url: 'https://lambda.ai/',
     bordered: true,
     supportedRegions: ['Global']
   },
@@ -510,6 +499,108 @@ export const LEGACY_MINI_APPS: MiniAppPreset[] = [
     style: {
       padding: 6
     },
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'jimeng',
+    name: 'Jimeng AI',
+    nameKey: 'miniApps.jimeng',
+    url: 'https://jimeng.jianying.com/',
+    logo: 'jimeng',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'kling',
+    name: 'Kling AI',
+    nameKey: 'miniApps.kling',
+    url: 'https://klingai.kuaishou.com/',
+    logo: 'kling',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'coze-cn',
+    name: 'Coze (China)',
+    nameKey: 'miniApps.coze-cn',
+    url: 'https://www.coze.cn/',
+    logo: 'coze-cn',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'miaoda',
+    name: 'Miaoda',
+    nameKey: 'miniApps.miaoda',
+    url: 'https://www.miaoda.cn/',
+    logo: 'miaoda',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'tingwu',
+    name: 'Tongyi Tingwu',
+    nameKey: 'miniApps.tingwu',
+    url: 'https://tingwu.aliyun.com/',
+    logo: 'tingwu',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'ant-afu',
+    name: 'Ant Afu',
+    nameKey: 'miniApps.ant-afu',
+    url: 'https://chat.antafu.com/',
+    logo: 'ant-afu',
+    bordered: true,
+    supportedRegions: ['CN']
+  },
+  {
+    id: 'gamma',
+    name: 'Gamma',
+    url: 'https://gamma.app/',
+    logo: 'gamma',
+    bordered: true,
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'canva',
+    name: 'Canva',
+    url: 'https://www.canva.com/',
+    logo: 'canva',
+    bordered: true,
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'suno',
+    name: 'Suno',
+    url: 'https://suno.com/',
+    logo: 'suno',
+    bordered: true,
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'napkin',
+    name: 'Napkin AI',
+    url: 'https://app.napkin.ai/',
+    logo: 'napkin',
+    bordered: true,
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'lovable',
+    name: 'Lovable',
+    url: 'https://lovable.dev/',
+    logo: 'lovable',
+    bordered: true,
+    supportedRegions: ['Global']
+  },
+  {
+    id: 'v0',
+    name: 'v0',
+    url: 'https://v0.app/',
+    logo: 'v0',
+    bordered: true,
     supportedRegions: ['Global']
   }
 ]

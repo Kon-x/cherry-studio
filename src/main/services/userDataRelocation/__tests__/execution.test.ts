@@ -34,7 +34,7 @@ const {
 }))
 
 let relocationState: Record<string, unknown>
-let restartFromWindow: (() => void) | undefined
+let restartFromWindow: (() => Promise<boolean>) | undefined
 const TASK_ID = '11111111-1111-4111-8111-111111111111'
 
 vi.mock('@application', () => ({
@@ -80,10 +80,31 @@ vi.mock('electron', () => ({
 
 const roots: string[] = []
 
+function prepareSkillExports() {
+  const root = makeRoot()
+  const source = path.join(root, 'source')
+  const target = path.join(root, 'target')
+  const relative = path.join('Data', 'Agents', '.claude', 'skills')
+  const sourceSkill = path.join(source, relative, 'owned')
+  const targetSkill = path.join(target, relative, 'owned')
+  const exports = path.join(root, 'home', '.agents', 'skills')
+  const exported = path.join(exports, 'owned')
+  fs.mkdirSync(sourceSkill, { recursive: true })
+  fs.writeFileSync(path.join(sourceSkill, 'SKILL.md'), '# original')
+  fs.mkdirSync(exports, { recursive: true })
+  fs.symlinkSync(sourceSkill, exported, process.platform === 'win32' ? 'junction' : 'dir')
+  relocationState['app.userdata'] = source
+  relocationState['feature.agents.claude.skills'] = path.join(source, relative)
+  relocationState['external.agents.skills'] = exports
+  relocationState['temp.user_data_relocation'] = pending(source, target)
+  return { root, source, target, sourceSkill, targetSkill, exports, exported }
+}
+
 const fsPromisesMocks = vi.hoisted(() => ({
   cp: vi.fn<typeof FsPromises.cp>(),
   statfs: vi.fn<typeof FsPromises.statfs>(),
-  symlink: vi.fn<typeof FsPromises.symlink>()
+  symlink: vi.fn<typeof FsPromises.symlink>(),
+  unlink: vi.fn<typeof FsPromises.unlink>()
 }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -91,7 +112,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const overrides = {
     cp: fsPromisesMocks.cp,
     statfs: fsPromisesMocks.statfs,
-    symlink: fsPromisesMocks.symlink
+    symlink: fsPromisesMocks.symlink,
+    unlink: fsPromisesMocks.unlink
   }
   return { ...actual, ...overrides, default: { ...actual, ...overrides } }
 })
@@ -121,6 +143,7 @@ type FsPromisesOverrides = Partial<{
   cp: typeof FsPromises.cp
   statfs: typeof FsPromises.statfs
   symlink: typeof FsPromises.symlink
+  unlink: typeof FsPromises.unlink
 }>
 
 async function usePromises(overrides: FsPromisesOverrides = {}) {
@@ -128,6 +151,7 @@ async function usePromises(overrides: FsPromisesOverrides = {}) {
   fsPromisesMocks.cp.mockReset().mockImplementation(overrides.cp ?? actual.cp)
   fsPromisesMocks.statfs.mockReset().mockImplementation(overrides.statfs ?? actual.statfs)
   fsPromisesMocks.symlink.mockReset().mockImplementation(overrides.symlink ?? actual.symlink)
+  fsPromisesMocks.unlink.mockReset().mockImplementation(overrides.unlink ?? actual.unlink)
 }
 
 async function loadDomain() {
@@ -155,7 +179,7 @@ beforeEach(async () => {
   })
   windowHasWindowMock.mockReturnValue(true)
   windowIsUnavailableMock.mockReturnValue(false)
-  windowOpenMock.mockImplementation((options: { onRestart(): void }) => {
+  windowOpenMock.mockImplementation((options: { onRestart(): Promise<boolean> }) => {
     restartFromWindow = options.onRestart
     return {
       waitForReady: () => Promise.resolve(),
@@ -173,6 +197,126 @@ afterEach(() => {
 })
 
 describe('userDataRelocation execution', () => {
+  it('copies historical skills while preserving external links and user-owned entries', async () => {
+    const fixture = prepareSkillExports()
+    const userSkill = path.join(fixture.root, 'user-skill')
+    const userLink = path.join(fixture.exports, 'user-link')
+    const userDirectory = path.join(fixture.exports, 'user-directory')
+    const originalLink = fs.readlinkSync(fixture.exported)
+    fs.mkdirSync(userSkill)
+    fs.writeFileSync(path.join(userSkill, 'SKILL.md'), '# user')
+    fs.symlinkSync(userSkill, userLink, process.platform === 'win32' ? 'junction' : 'dir')
+    fs.mkdirSync(userDirectory)
+    fs.writeFileSync(path.join(userDirectory, 'SKILL.md'), '# user directory')
+    const { runUserDataRelocation } = await loadDomain()
+
+    await runUserDataRelocation()
+
+    expectCommitted(fixture.target)
+    fs.writeFileSync(path.join(fixture.sourceSkill, 'SKILL.md'), '# retained old profile')
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
+    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# retained old profile')
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.realpathSync(userLink)).toBe(fs.realpathSync(userSkill))
+    expect(fs.readFileSync(path.join(userDirectory, 'SKILL.md'), 'utf8')).toBe('# user directory')
+  })
+
+  it('preserves the source and external skill links if committing the new profile fails', async () => {
+    const fixture = prepareSkillExports()
+    bootConfigPersistMock.mockImplementationOnce(() => {
+      throw new Error('commit failed')
+    })
+    const { runUserDataRelocation } = await loadDomain()
+
+    await runUserDataRelocation()
+
+    expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed', error: 'commit failed' })
+    expect(fs.existsSync(fixture.target)).toBe(false)
+    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+  })
+
+  it('copies the profile even when external link mutations are denied', async () => {
+    const fixture = prepareSkillExports()
+    const originalLink = fs.readlinkSync(fixture.exported)
+    fsPromisesMocks.symlink.mockRejectedValue(new Error('external links are read-only'))
+    fsPromisesMocks.unlink.mockRejectedValue(new Error('external links are read-only'))
+    const { runUserDataRelocation } = await loadDomain()
+
+    await runUserDataRelocation()
+
+    expectCommitted(fixture.target)
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
+    expect(fs.realpathSync(fixture.exported)).toBe(fs.realpathSync(fixture.sourceSkill))
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# original')
+  })
+
+  it('recovers a failed promoted profile without rewriting external skill links', async () => {
+    const fixture = prepareSkillExports()
+    const secondSource = path.join(path.dirname(fixture.sourceSkill), 'second')
+    const secondExport = path.join(fixture.exports, 'second')
+    fs.mkdirSync(secondSource)
+    fs.writeFileSync(path.join(secondSource, 'SKILL.md'), '# second')
+    fs.symlinkSync(secondSource, secondExport, process.platform === 'win32' ? 'junction' : 'dir')
+    const originalLinks = [fixture.exported, secondExport].map((entry) => fs.readlinkSync(entry))
+    fs.mkdirSync(fixture.targetSkill, { recursive: true })
+    fs.writeFileSync(path.join(fixture.targetSkill, 'SKILL.md'), '# interrupted')
+    fs.writeFileSync(
+      path.join(fixture.target, '.cherry-relocation-owner.json'),
+      JSON.stringify({ kind: 'cherry-studio-user-data-relocation', taskId: TASK_ID })
+    )
+    relocationState['temp.user_data_relocation'] = {
+      ...pending(fixture.source, fixture.target),
+      status: 'failed',
+      error: 'interrupted after promotion'
+    }
+    const { runUserDataRelocation } = await loadDomain()
+
+    await runUserDataRelocation()
+
+    expectNotCommitted()
+    expect(fs.readFileSync(path.join(fixture.targetSkill, 'SKILL.md'), 'utf8')).toBe('# interrupted')
+    expect(relaunchMock).not.toHaveBeenCalled()
+    await expect(restartFromWindow?.()).resolves.toBe(true)
+
+    expect(relocationState['temp.user_data_relocation']).toBeNull()
+    expect(fs.existsSync(fixture.target)).toBe(false)
+    expect([fixture.exported, secondExport].map((entry) => fs.readlinkSync(entry))).toEqual(originalLinks)
+    expect(fs.readFileSync(path.join(fixture.exported, 'SKILL.md'), 'utf8')).toBe('# original')
+    expect(fs.readFileSync(path.join(secondExport, 'SKILL.md'), 'utf8')).toBe('# second')
+    expectNotCommitted()
+    expect(relaunchMock).toHaveBeenCalledOnce()
+  })
+
+  it('preserves external link destinations when cleaning an interrupted promotion and the retry fails', async () => {
+    const fixture = prepareSkillExports()
+    fs.mkdirSync(fixture.targetSkill, { recursive: true })
+    fs.writeFileSync(path.join(fixture.targetSkill, 'SKILL.md'), '# interrupted')
+    fs.writeFileSync(
+      path.join(fixture.target, '.cherry-relocation-owner.json'),
+      JSON.stringify({
+        kind: 'cherry-studio-user-data-relocation',
+        taskId: TASK_ID
+      })
+    )
+    fs.unlinkSync(fixture.exported)
+    fs.symlinkSync(fixture.targetSkill, fixture.exported, process.platform === 'win32' ? 'junction' : 'dir')
+    const originalLink = fs.readlinkSync(fixture.exported)
+    fsPromisesMocks.cp.mockRejectedValueOnce(new Error('retry copy failed'))
+    const { runUserDataRelocation } = await loadDomain()
+
+    await runUserDataRelocation()
+
+    expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed', error: 'retry copy failed' })
+    expect(fs.existsSync(fixture.target)).toBe(false)
+    expect(fs.lstatSync(fixture.exported).isSymbolicLink()).toBe(true)
+    expect(fs.readlinkSync(fixture.exported)).toBe(originalLink)
+    expect(fs.readFileSync(path.join(fixture.sourceSkill, 'SKILL.md'), 'utf8')).toBe('# original')
+    expectNotCommitted()
+  })
+
   it('prepares a fresh temporary sessionData directory for a pending copy', async () => {
     const root = makeRoot()
     const source = path.join(root, 'source')
@@ -465,34 +609,39 @@ describe('userDataRelocation execution', () => {
     expect(bootConfigFlushMock).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps failed state until the recovery window explicitly continues on the old path', async () => {
-    const root = makeRoot()
-    const source = path.join(root, 'source')
-    const target = path.join(root, 'target')
-    fs.mkdirSync(source)
-    relocationState['app.userdata'] = source
-    relocationState['temp.user_data_relocation'] = {
-      status: 'failed',
-      taskId: TASK_ID,
-      from: source,
-      to: target,
-      copy: true,
-      error: 'copy failed',
-      failedAt: '2026-07-13T00:00:00.000Z'
+  it.each(['outside', 'inside'])(
+    'keeps failed state until continuing on the old path (%s target)',
+    async (location) => {
+      const root = makeRoot()
+      const source = path.join(root, 'source')
+      const target = path.join(location === 'inside' ? source : root, 'target')
+      fs.mkdirSync(source)
+      relocationState['app.userdata'] = source
+      relocationState['temp.user_data_relocation'] = {
+        status: 'failed',
+        taskId: TASK_ID,
+        from: source,
+        to: target,
+        copy: true,
+        error: 'copy failed',
+        failedAt: '2026-07-13T00:00:00.000Z'
+      }
+
+      const { runUserDataRelocation } = await loadDomain()
+      await expect(runUserDataRelocation()).resolves.toBe('handled')
+
+      expect(appSetPathMock).not.toHaveBeenCalled()
+      expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed' })
+      expect(updateProgressMock).toHaveBeenCalledWith(
+        expect.objectContaining({ stage: 'failed', error: 'copy failed' })
+      )
+
+      await restartFromWindow?.()
+      expect(relocationState['temp.user_data_relocation']).toBeNull()
+      expect(bootConfigFlushMock).toHaveBeenCalledTimes(1)
+      expect(relaunchMock).toHaveBeenCalledTimes(1)
     }
-
-    const { runUserDataRelocation } = await loadDomain()
-    await expect(runUserDataRelocation()).resolves.toBe('handled')
-
-    expect(appSetPathMock).not.toHaveBeenCalled()
-    expect(relocationState['temp.user_data_relocation']).toMatchObject({ status: 'failed' })
-    expect(updateProgressMock).toHaveBeenCalledWith(expect.objectContaining({ stage: 'failed', error: 'copy failed' }))
-
-    restartFromWindow?.()
-    expect(relocationState['temp.user_data_relocation']).toBeNull()
-    expect(bootConfigFlushMock).toHaveBeenCalledTimes(1)
-    expect(relaunchMock).toHaveBeenCalledTimes(1)
-  })
+  )
 
   it('fails the relocation instead of crashing when the temporary sessionData cannot be prepared', async () => {
     const root = makeRoot()

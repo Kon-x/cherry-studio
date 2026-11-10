@@ -7,8 +7,7 @@ import {
   type FinishReason,
   isToolUIPart,
   type LanguageModelUsage,
-  type ModelMessage,
-  type UIMessageChunk
+  type ModelMessage
 } from 'ai'
 
 import { application } from '@application'
@@ -81,7 +80,7 @@ import {
   createRetryableWrap,
   readRetryPolicy
 } from './runtime/aiSdk'
-import { type MessageRuntimeTimingSink, WebContentsListener } from './streamManager'
+import type { AiStreamSource, MessageRuntimeTimingSink } from './streamManager'
 import { resolveModelTokenDialect } from './tokens/dialect'
 import { registerBuiltinTools } from './tools/adapters/aiSdk/builtin/registerBuiltinTools'
 import type {
@@ -399,7 +398,7 @@ export interface AiRerankResult {
 // ── Service ────────────────────────────────────────────────────────
 
 /**
- * Lifecycle AI service. See `docs/references/ai/core-architecture.md`.
+ * Lifecycle AI service. See `docs/dev/references/ai/core-architecture.md`.
  *
  * DO NOT mirror `@DependsOn(['AiService'])` on AiStreamManager —
  * `runExecutionLoop` looks AiService up at runtime, and every `send()`
@@ -433,14 +432,12 @@ export class AiService extends BaseService {
     payload: AiToolApprovalRespondRequest,
     senderWc: Electron.WebContents | undefined
   ): Promise<AiToolApprovalRespondResponse> {
-    // Claude-Agent path: the runtime settles any persisted interaction card, then unblocks
-    // the exact `canUseTool` invocation that issued this approval id.
     // MCP path: write decisions to DB, then dispatch continue-conversation when nothing is pending.
     if (!payload.topicId || !payload.anchorId) {
       logger.warn('Tool-approval response had no live registry entry and no anchor context', {
         approvalId: payload.approvalId
       })
-      return { ok: false }
+      return { ok: false, reason: 'rejected' }
     }
 
     // The approval card is clickable the moment the `tool-approval-request` chunk arrives (the live
@@ -461,7 +458,7 @@ export class AiService extends BaseService {
           topicId: payload.topicId
         }
       )
-      return { ok: false }
+      return { ok: false, reason: 'rejected' }
     }
 
     // Main is the single authority for the approval mutation: the
@@ -491,7 +488,7 @@ export class AiService extends BaseService {
         approvalId: payload.approvalId,
         anchorId: payload.anchorId
       })
-      return { ok: false }
+      return { ok: false, reason: 'rejected' }
     }
     const { parts: committedParts, appliedApprovalIds, alreadySettledApprovalIds } = approvalResult
     if (appliedApprovalIds.length === 0 && alreadySettledApprovalIds.includes(decision.approvalId)) {
@@ -513,13 +510,12 @@ export class AiService extends BaseService {
     // surface it on, so resolve through the result shape instead of dispatching into the void.
     if (!senderWc) {
       logger.warn('Tool-approval continuation skipped: no caller window', { approvalId: payload.approvalId })
-      return { ok: false }
+      return { ok: false, reason: 'rejected' }
     }
 
     const aiStreamManager = application.get('AiStreamManager')
-    const subscriber = new WebContentsListener(senderWc, payload.topicId)
     try {
-      await aiStreamManager.dispatch(subscriber, {
+      await aiStreamManager.dispatchCommand({
         trigger: 'continue-conversation',
         topicId: payload.topicId,
         parentAnchorId: payload.anchorId,
@@ -536,7 +532,7 @@ export class AiService extends BaseService {
         topicId: payload.topicId,
         error: error instanceof Error ? error.message : String(error)
       })
-      return { ok: false }
+      return { ok: false, reason: 'rejected' }
     }
     return { ok: true }
   }
@@ -544,15 +540,15 @@ export class AiService extends BaseService {
   // ── Streaming chat (agent.stream) ──
 
   /**
-   * Raw `UIMessageChunk` stream from `Agent.stream`. Caller (usually
-   * `AiStreamManager`) owns read/multicast/accumulation/terminal dispatch.
+   * One content source per execution: SDK chunks or authoritative message views.
+   * `AiStreamManager` owns consumption, publication and terminal dispatch.
    * Pre-stream errors reject the Promise; mid-stream errors come through
    * the stream itself.
    */
   async streamText(
     request: AsInProcessChat<AiStreamRequest>,
     extraFeatures: readonly RequestFeature[] = []
-  ): Promise<ReadableStream<UIMessageChunk>> {
+  ): Promise<AiStreamSource> {
     logger.info('streamText started', { chatId: request.conversation.topicId })
     const signal = request.requestOptions?.signal
     if (!signal) {
@@ -578,8 +574,6 @@ export class AiService extends BaseService {
       model,
       sdkModelId: sdkConfig.modelId,
       credentialReceipt,
-      // Agent turns win FIRST, `null` included — `usageContext` means "already decided", so a
-      // `??` here would attribute a deliberately-anonymous agent turn to some assistant.
       source: request.source ?? sourceSnapshotForAssistant(assistant),
       messageRef: request.messageId ? { kind: 'chat', id: request.messageId } : null
     })
@@ -614,7 +608,7 @@ export class AiService extends BaseService {
 
     // An explicit per-request `maxRetries: 0` means "no retries for this request"
     // — honor it (like embedding/rerank), overriding the global retry preference.
-    const retryDisabledForRequest = request.requestOptions?.maxRetries === 0
+    const retryDisabledForRequest = request.contextOwner === 'caller' || request.requestOptions?.maxRetries === 0
     const agentRef: { current?: Agent } = {}
     let activeRepairToolCall = options.repairToolCall
     const repairToolCall = options.repairToolCall
@@ -684,6 +678,7 @@ export class AiService extends BaseService {
     }
 
     const agent = new Agent({
+      contextOwner: request.contextOwner,
       providerId: sdkConfig.providerId,
       providerSettings: sdkConfig.providerSettings,
       modelId: sdkConfig.modelId,
@@ -714,7 +709,7 @@ export class AiService extends BaseService {
     })
     agentRef.current = agent
 
-    return agent.stream(preparedMessages, signal)
+    return { kind: 'chunks', stream: agent.stream(preparedMessages, signal) }
   }
 
   private async withRuntimeActivity<T>(reason: string, operation: () => Promise<T>): Promise<T> {
@@ -798,7 +793,7 @@ export class AiService extends BaseService {
 
     // An explicit per-request `maxRetries: 0` disables retry for this request.
     let wrapModel: ReturnType<typeof createRetryableWrap>
-    if (request.requestOptions?.maxRetries !== 0) {
+    if (request.contextOwner !== 'caller' && request.requestOptions?.maxRetries !== 0) {
       const apiKeyFallbacks = buildApiKeyFallbackModels({
         request,
         provider,
@@ -856,6 +851,7 @@ export class AiService extends BaseService {
     // be JSON/base64-encoded or rejected on OpenAI/Ollama, diverging from `stream`.
     const mediaCapabilities = resolveMediaCapabilities(model)
     const agent = new Agent({
+      contextOwner: request.contextOwner,
       providerId: sdkConfig.providerId,
       providerSettings: sdkConfig.providerSettings,
       modelId: sdkConfig.modelId,

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { dataApiService } from '@data/DataApiService'
 import { resolveTemplate } from '@renderer/data/utils/dataApiPath'
+import { useAssistantMutations } from '@renderer/hooks/useAssistant'
 import { useGroupMutations, useGroups } from '@renderer/hooks/useGroups'
 import { toast } from '@renderer/services/toast'
 import type {
@@ -12,12 +13,14 @@ import type {
   ResourceItem,
   ResourceType
 } from '@renderer/types/resourceCatalog'
-import { serializeAssistantForExport } from '@renderer/utils/assistantTransfer'
+import { serializeAssistantForExport, serializeAssistantsForExport } from '@renderer/utils/assistantTransfer'
 import { buildCreateAssistantDto } from '@renderer/utils/resourceCatalog'
 import type { ConcreteApiPaths } from '@shared/data/api/paths'
+import { ASSISTANTS_MAX_LIMIT } from '@shared/data/api/schemas/assistants'
+import type { Assistant } from '@shared/data/types/assistant'
 import type { Group } from '@shared/data/types/group'
 
-import { useAssistantMutations } from './assistantAdapter'
+import { useDuplicateAssistantMutation } from './assistantAdapter'
 import { useResourceLibrary } from './useResourceLibrary'
 
 type ResourceCreateWizardKind = 'assistant'
@@ -56,6 +59,13 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
   const [editDialogTarget, setEditDialogTarget] = useState<ResourceEditDialogTarget | null>(null)
   const [creatingResource, setCreatingResource] = useState(false)
   const [assistantImportOpen, setAssistantImportOpen] = useState(false)
+  const [assistantExportOpen, setAssistantExportOpen] = useState(false)
+  const [exportAssistants, setExportAssistants] = useState<Assistant[]>([])
+  const [assistantExportLoading, setAssistantExportLoading] = useState(false)
+  const [assistantExportComplete, setAssistantExportComplete] = useState(false)
+  const [assistantExporting, setAssistantExporting] = useState(false)
+  const assistantExportEpoch = useRef(0)
+  const assistantExportBusy = useRef(false)
   const [assistantLibraryOpen, setAssistantLibraryOpen] = useState(false)
   const isAssistantLibrary = resourceType === 'assistant'
 
@@ -76,8 +86,9 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
     setActiveGroupId(null)
   }, [resourceType])
 
-  const { createAssistant, duplicateAssistant } = useAssistantMutations()
-  const { groups } = useGroups('assistant')
+  const { createAssistant } = useAssistantMutations()
+  const { duplicateAssistant } = useDuplicateAssistantMutation()
+  const { groups, isLoading: groupsLoading, error: groupsError } = useGroups('assistant')
   const { createGroup } = useGroupMutations('assistant')
   const groupById = useMemo(() => new Map(groups.map((group) => [group.id, group] as const)), [groups])
 
@@ -137,6 +148,110 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
     [groupById, t]
   )
 
+  useEffect(
+    () => () => {
+      assistantExportEpoch.current += 1
+    },
+    []
+  )
+
+  const handleAssistantExportOpenChange = useCallback(
+    (open: boolean) => {
+      const epoch = ++assistantExportEpoch.current
+      setAssistantExportOpen(open)
+      setExportAssistants([])
+      setAssistantExportComplete(false)
+      setAssistantExportLoading(open)
+      setAssistantExporting(false)
+      assistantExportBusy.current = false
+      if (!open) return
+
+      void (async () => {
+        try {
+          const assistants: Assistant[] = []
+          for (let page = 1; ; page += 1) {
+            const result = await dataApiService.get('/assistants', { query: { page, limit: ASSISTANTS_MAX_LIMIT } })
+            if (assistantExportEpoch.current !== epoch) return
+            assistants.push(...result.items)
+            if (assistants.length >= result.total) break
+            if (result.items.length === 0) throw new Error('incomplete_assistant_list')
+          }
+          if (new Set(assistants.map(({ id }) => id)).size !== assistants.length) {
+            throw new Error('inconsistent_assistant_list')
+          }
+          setExportAssistants(assistants)
+          setAssistantExportComplete(true)
+        } catch {
+          if (assistantExportEpoch.current === epoch) toast.error(t('library.export_assistants_failed'))
+        } finally {
+          if (assistantExportEpoch.current === epoch) setAssistantExportLoading(false)
+        }
+      })()
+    },
+    [t]
+  )
+
+  const handleExportAssistants = useCallback(
+    async (assistantIds: readonly string[]) => {
+      if (!assistantExportOpen || assistantExportBusy.current || assistantExportLoading || !assistantExportComplete)
+        return
+      const epoch = assistantExportEpoch.current
+      const selectedIds = new Set(assistantIds)
+      const selected = exportAssistants.filter(({ id }) => selectedIds.has(id))
+      if (selected.length === 0) return
+      assistantExportBusy.current = true
+      setAssistantExporting(true)
+      try {
+        if (groupsLoading || groupsError) throw new Error('assistant_groups_unavailable')
+        const grouped = selected.map((assistant) => {
+          const group = assistant.groupId === null ? undefined : groupById.get(assistant.groupId)
+          if (assistant.groupId !== null && !group) throw new Error('assistant_group_unresolved')
+          return { assistant, groupName: group?.name }
+        })
+        const entries = await Promise.all(
+          grouped.map(async (entry) => {
+            const path = resolveTemplate('/prompt-bindings/:targetType/:targetId', {
+              targetType: 'assistant',
+              targetId: entry.assistant.id
+            }) as ConcreteApiPaths
+            const prompts = await dataApiService.get(path)
+            return { ...entry, prompts }
+          })
+        )
+        if (assistantExportEpoch.current !== epoch) return
+        const bytes = new TextEncoder().encode(serializeAssistantsForExport(entries))
+        if (bytes.byteLength > 5_242_880) {
+          toast.error(t('library.import_dialog.error.file_too_large'))
+          return
+        }
+        const path = await window.api.file.save('assistants.json', bytes, {
+          filters: [{ name: t('assistants.presets.import.file_filter'), extensions: ['json'] }]
+        })
+        if (assistantExportEpoch.current !== epoch || path === null) return
+        handleAssistantExportOpenChange(false)
+        toast.success(t('common.success'))
+      } catch {
+        if (assistantExportEpoch.current === epoch) toast.error(t('library.export_assistants_failed'))
+      } finally {
+        if (assistantExportEpoch.current === epoch) {
+          assistantExportBusy.current = false
+          setAssistantExporting(false)
+        }
+      }
+    },
+    [
+      assistantExportComplete,
+      assistantExportLoading,
+      assistantExportOpen,
+      exportAssistants,
+      groupById,
+      groupsError,
+      groupsLoading,
+      handleAssistantExportOpenChange,
+      t
+    ]
+  )
+
   const handleCreate = useCallback((type: ResourceType) => {
     if (type === 'assistant') {
       setCreateDialogKind('assistant')
@@ -189,6 +304,7 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
       },
       onCreate: handleCreate,
       onImportAssistant: () => setAssistantImportOpen(true),
+      onExportAssistants: () => handleAssistantExportOpenChange(true),
       onOpenAssistantLibrary: isAssistantLibrary ? () => setAssistantLibraryOpen(true) : undefined,
       groups: scopedGroups,
       activeGroupId,
@@ -200,6 +316,12 @@ export function useResourceCatalogController(resourceType: ResourceCatalogContro
     },
     dialogs: {
       assistantImportOpen,
+      assistantExportOpen,
+      exportAssistants,
+      assistantExportLoading: assistantExportLoading || groupsLoading,
+      assistantExporting,
+      handleAssistantExportOpenChange,
+      handleExportAssistants,
       assistantLibraryOpen,
       createDialogKind,
       createDialogOpen,

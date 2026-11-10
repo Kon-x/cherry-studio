@@ -6,12 +6,12 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@cherrystudio/ui'
 import { cn } from '@renderer/utils/style'
-import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
+import { SELECTION_BUILTIN_ACTION_ID, type SelectionAction } from '@shared/types/selection'
 
 interface ActionItemProps {
-  item: SelectionActionItem
+  item: SelectionAction
   isLastEnabledItem: boolean
-  onEdit: (item: SelectionActionItem) => void
+  onEdit: (item: SelectionAction) => void
   onDelete: (id: string) => void
   getSearchEngineInfo: (engine: string) => { icon: any; name: string } | null
 }
@@ -27,7 +27,7 @@ const ActionsListItem = memo(({ item, isLastEnabledItem, onEdit, onDelete, getSe
           <DynamicIcon name={item.icon as any} size={16} fallback={() => <div style={{ width: 16, height: 16 }} />} />
         </ItemIcon>
         <ItemName disabled={!isEnabled}>{item.isBuiltIn ? t(item.name) : item.name}</ItemName>
-        {item.id === 'search' && item.searchEngine && (
+        {item.isBuiltIn && item.id === SELECTION_BUILTIN_ACTION_ID.SEARCH && item.searchEngine && (
           <ItemDescription>
             {getSearchEngineInfo(item.searchEngine)?.icon}
             <span>{getSearchEngineInfo(item.searchEngine)?.name}</span>
@@ -41,8 +41,8 @@ const ActionsListItem = memo(({ item, isLastEnabledItem, onEdit, onDelete, getSe
 })
 
 interface ActionOperationsProps {
-  item: SelectionActionItem
-  onEdit: (item: SelectionActionItem) => void
+  item: SelectionAction
+  onEdit: (item: SelectionAction) => void
   onDelete: (id: string) => void
 }
 
@@ -60,7 +60,7 @@ const ActionOperations = memo(({ item, onEdit, onDelete }: ActionOperationsProps
     )
   }
 
-  if (item.isBuiltIn && item.id === 'search') {
+  if (item.id === SELECTION_BUILTIN_ACTION_ID.SEARCH) {
     return (
       <UserActionOpSection>
         <Button variant="ghost" size="icon-sm" onClick={() => onEdit(item)}>

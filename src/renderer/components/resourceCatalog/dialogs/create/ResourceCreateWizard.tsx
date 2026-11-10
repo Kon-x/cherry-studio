@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { useForm, type UseFormReturn, useFormState, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
-import { Button, Dialog, DialogContent, DialogTitle, Form, MenuItem, Scrollbar } from '@cherrystudio/ui'
+import { Button, Dialog, DialogContent, DialogTitle, Form, MenuItem, ScrollArea } from '@cherrystudio/ui'
 import { cn } from '@cherrystudio/ui/lib/utils'
 import type { ModelSelectorFilter } from '@renderer/components/ModelSelector'
 import { useDefaultModel, useModels } from '@renderer/hooks/useModel'
@@ -31,6 +31,7 @@ type ResourceCreateWizardProps = {
   isSubmitting?: boolean
   /** Seeds the name field when the caller already knows it (e.g. the picker's search query). */
   initialName?: string
+  initialValues?: Partial<Pick<ResourceCreateWizardFormValues, 'name' | 'description' | 'avatar' | 'prompt'>>
 }
 
 type StepId = 'basic' | 'system-prompt' | 'knowledge'
@@ -40,14 +41,18 @@ export function getResourceCreateDefaultAvatar() {
   return '💬'
 }
 
-function getDefaultValues(initialName = ''): ResourceCreateWizardFormValues {
+function getDefaultValues(
+  initialName = '',
+  initialValues?: ResourceCreateWizardProps['initialValues']
+): ResourceCreateWizardFormValues {
   return {
     avatar: getResourceCreateDefaultAvatar(),
     name: initialName,
     description: '',
     modelId: null,
     prompt: '',
-    knowledgeBaseIds: []
+    knowledgeBaseIds: [],
+    ...initialValues
   }
 }
 
@@ -125,10 +130,11 @@ export function ResourceCreateWizard({
   onSubmit,
   modelFilter,
   isSubmitting = false,
-  initialName
+  initialName,
+  initialValues
 }: ResourceCreateWizardProps) {
   const { t } = useTranslation()
-  const form = useForm<ResourceCreateWizardFormValues>({ defaultValues: getDefaultValues(initialName) })
+  const form = useForm<ResourceCreateWizardFormValues>({ defaultValues: getDefaultValues(initialName, initialValues) })
   const activeModelFilter = modelFilter
   const { models: availableModels } = useModels({ enabled: true }, { fetchEnabled: open })
   const { defaultModel } = useDefaultModel({ enabled: open })
@@ -173,15 +179,25 @@ export function ResourceCreateWizard({
   // user is already filling in — the shared wizard has five callers and a comment would not hold them.
   const resetForOpen = useEffectEvent(() => {
     autoSelectedDefaultModelIdRef.current = null
-    form.reset(getDefaultValues(initialName))
+    form.reset(getDefaultValues(initialName, initialValues))
     form.clearErrors()
     setStepIndex(0)
   })
 
+  /** Last `(kind, open)` pair this wizard already initialised for. <Activity> destroys the
+   * effects of a hidden tab and re-creates them when the tab is shown again, so a re-show
+   * with an unchanged pair must not be treated as a fresh open — that would wipe the draft
+   * (name / description / prompt) and jump back to step 1. */
+  const lastHandledResetKeyRef = useRef<{ kind: ResourceCreateWizardKind; open: boolean } | null>(null)
+
   useEffect(() => {
+    const previous = lastHandledResetKeyRef.current
+    if (previous?.kind === kind && previous.open === open) return
+
+    lastHandledResetKeyRef.current = { kind, open }
     if (!open) return
+
     resetForOpen()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `useEffectEvent` reads the latest initialName; this effect is keyed by the open transition.
   }, [kind, open])
 
   // Preference/model/provider hydration may finish after the dialog opens. Seed only an
@@ -332,7 +348,10 @@ export function ResourceCreateWizard({
               </ol>
 
               {/* Active step */}
-              <Scrollbar className="min-w-0 flex-1 px-6 py-5">
+              <ScrollArea
+                viewportProps={{ className: 'px-6 py-5' }}
+                contentProps={{ className: currentStep.id === 'system-prompt' ? 'h-full' : undefined }}
+                className="min-w-0 flex-1">
                 {currentStep.id === 'basic' ? (
                   <BasicInfoStep
                     form={form}
@@ -348,7 +367,7 @@ export function ResourceCreateWizard({
                 {currentStep.id === 'knowledge' ? (
                   <KnowledgeStep form={form} isSubmitting={submitting} portalContainer={dialogContentElement} />
                 ) : null}
-              </Scrollbar>
+              </ScrollArea>
             </div>
 
             <WizardFooter

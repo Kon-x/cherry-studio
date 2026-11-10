@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 
 import { cacheService } from '@data/CacheService'
 import type { Topic } from '@renderer/types/topic'
+import { parseAppRouteUrl } from '@renderer/utils/appRouteUrl'
 import type {
   EntitySearchItem,
   EntitySearchResponse,
@@ -197,8 +198,8 @@ export function createRecentRouteEntryFromTab(
   if (tab.type !== 'route') return null
   if (!lastAccessTime) return null
 
-  const pathname = new URL(tab.url, 'https://www.cherry-ai.com').pathname
-  if (isRetiredNavigationUrl(pathname)) return null
+  const pathname = parseAppRouteUrl(tab.url)?.pathname
+  if (pathname === undefined || isRetiredNavigationUrl(pathname)) return null
   if (COARSE_ENTITY_ROUTE_PATHS.has(pathname)) return null
 
   if (!INTERNAL_ROUTE_PREFIXES.some((prefix) => pathname === prefix.slice(0, -1) || pathname.startsWith(prefix))) {

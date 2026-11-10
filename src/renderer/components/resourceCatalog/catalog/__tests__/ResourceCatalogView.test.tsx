@@ -28,13 +28,15 @@ vi.mock('react-i18next', () => ({
       (
         ({
           'common.error': 'Error',
-          'common.retry': 'Retry'
+          'common.retry': 'Retry',
+          'assistants.presets.export.title': 'Export Assistants'
         }) satisfies Record<string, string>
       )[key] ?? key
   })
 }))
 
-vi.mock('@cherrystudio/ui', () => ({
+vi.mock('@cherrystudio/ui', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   Alert: ({ action, description, message }: { action?: ReactNode; description?: ReactNode; message?: ReactNode }) => (
     <div role="alert">
       {message}
@@ -97,10 +99,17 @@ vi.mock('../AssistantLibraryDialog', () => {
 })
 
 vi.mock('../ResourceGrid', () => ({
-  ResourceGrid: (props: { toolbarLeading?: ReactNode }) => {
+  ResourceGrid: (props: { toolbarLeading?: ReactNode; onExportAssistants?: () => void }) => {
     resourceGridMock(props)
 
-    return <div data-testid="resource-grid">{props.toolbarLeading}</div>
+    return (
+      <div data-testid="resource-grid">
+        {props.toolbarLeading}
+        <button type="button" onClick={props.onExportAssistants}>
+          Export
+        </button>
+      </div>
+    )
   }
 }))
 
@@ -121,6 +130,7 @@ function createController(resourceError?: Error, resources: ResourceItem[] = [])
       onEdit: vi.fn(),
       onExport: vi.fn(),
       onImportAssistant: vi.fn(),
+      onExportAssistants: vi.fn(),
       onOpenAssistantLibrary: vi.fn(),
       onOpenSkillMarketplace: vi.fn(),
       onOpenSystemSkills: vi.fn(),
@@ -131,6 +141,12 @@ function createController(resourceError?: Error, resources: ResourceItem[] = [])
     },
     dialogs: {
       assistantImportOpen: false,
+      assistantExportOpen: false,
+      exportAssistants: [],
+      assistantExportLoading: false,
+      assistantExporting: false,
+      handleAssistantExportOpenChange: vi.fn(),
+      handleExportAssistants: vi.fn(),
       assistantLibraryOpen: false,
       createDialogKind: null,
       createDialogOpen: false,

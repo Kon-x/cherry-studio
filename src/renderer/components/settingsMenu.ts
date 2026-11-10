@@ -24,12 +24,14 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 
 import { McpLogo } from '@renderer/components/icons/SvgIcon'
+import { parseAppRouteUrl } from '@renderer/utils/appRouteUrl'
 import { isSettingsPath } from '@shared/data/types/settingsPath'
 
 /** Resolve the section label without changing the default settings tab title. */
 export function getSettingsSectionTitleKey(url: string): string | undefined {
   if (!isSettingsPath(url)) return undefined
-  const pathname = new URL(url, 'https://www.cherry-ai.com').pathname
+  const pathname = parseAppRouteUrl(url)?.pathname
+  if (pathname === undefined) return undefined
   return (
     settingsMenu.find(({ route }) => pathname === route || pathname.startsWith(`${route}/`))?.titleKey ??
     (pathname === '/settings/search' ? 'common.search' : undefined)
@@ -44,6 +46,8 @@ export interface SettingsMenuEntry {
   /** Group title key (`settings.menuGroups.*`); omitted for the ungrouped head section */
   groupKey?: string
 }
+
+export const BUILTIN_TOOLS_GROUP_KEY = 'settings.menuGroups.builtinTools'
 
 /**
  * Single source of truth for the settings sidebar menu.
@@ -69,25 +73,25 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     route: '/settings/prompts',
     titleKey: 'settings.prompts.title',
     icon: createElement(Zap),
-    groupKey: 'settings.menuGroups.capabilities'
+    groupKey: BUILTIN_TOOLS_GROUP_KEY
   },
   {
     route: '/settings/websearch',
     titleKey: 'settings.tool.websearch.title',
     icon: createElement(Search),
-    groupKey: 'settings.menuGroups.capabilities'
+    groupKey: BUILTIN_TOOLS_GROUP_KEY
   },
   {
     route: '/settings/file-processing',
     titleKey: 'settings.tool.file_processing.features.document_to_markdown.title',
     icon: createElement(FileCode),
-    groupKey: 'settings.menuGroups.capabilities'
+    groupKey: BUILTIN_TOOLS_GROUP_KEY
   },
   {
     route: '/settings/ocr',
     titleKey: 'settings.tool.file_processing.features.image_to_text.title',
     icon: createElement(ScanText),
-    groupKey: 'settings.menuGroups.capabilities'
+    groupKey: BUILTIN_TOOLS_GROUP_KEY
   },
   {
     route: '/settings/general',

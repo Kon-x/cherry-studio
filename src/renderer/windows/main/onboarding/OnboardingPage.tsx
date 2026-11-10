@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Button,
   Checkbox,
-  Scrollbar,
+  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
@@ -437,7 +437,10 @@ export default function OnboardingPage({
                   onBack={() => setStep('provider')}
                   padded
                 />
-                <Scrollbar className="flex min-h-0 flex-1 justify-center border-border border-t px-6 py-8">
+                <ScrollArea
+                  viewportProps={{ className: 'px-6 py-8' }}
+                  contentProps={{ className: 'flex justify-center' }}
+                  className="min-h-0 flex-1 border-border border-t">
                   <div className="my-auto w-full max-w-[440px]">
                     <div className="w-full">
                       <ModelSettings
@@ -468,7 +471,7 @@ export default function OnboardingPage({
                       </div>
                     </div>
                   </div>
-                </Scrollbar>
+                </ScrollArea>
               </div>
             )}
           </div>

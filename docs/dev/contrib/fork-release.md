@@ -1,0 +1,179 @@
+---
+description: Stable upstream sync, fork invariants, and the Windows x64 release flow for the Kon-x fork
+---
+
+# Fork Release Guide
+
+This repository follows only official stable Cherry Studio tags and publishes Windows x64 builds from the fork.
+Do not merge `upstream/main`, beta tags, or RC tags into `main`.
+
+## Fork Customizations
+
+- Work/Agents, Mini Apps (web and local), Code Mate, DSH, Agent skills/tasks, and the built-in assistant/support
+  Agents remain removed. The launchpad contains Chat, Paintings, Translate, Knowledge, Files, and Notes.
+- The API Gateway, all channel adapters, and their runtime/lifecycle registration remain removed.
+- Normal Cherry chat, custom assistants, MCP, knowledge retrieval, tool approvals, generic background jobs,
+  and dependency management remain supported. Claude and DeepSeek API providers and Codex/Grok chat login remain.
+- Historical Agent/mini-app tables, shipped migrations, file references, usage rows, user files, working directories,
+  and external CLI installations/configuration are retained. No upgrade cleanup may delete them.
+- Retired favorites, tab URLs, launchpad entries, and search recents are filtered during restoration. Fresh installs
+  open Chat; upgrades with no surviving tabs open Launchpad. Schedules without a registered handler stay dormant.
+- Provider login windows retain proxy, language, and UA configuration. Chat HTML previews remain available.
+  Help and release notes open in the system browser; feedback offers diagnostics and GitHub.
+- Cache inspection uses browser storage estimates instead of loading leftover v1 records. Unattributable sizes
+  remain partially unknown; opening the cleanup dialog never deletes data.
+- Preset providers can be deleted, deleted presets stay tombstoned until recreated manually, and providers support
+  batch deletion.
+- Selection Assistant explanations always use web grounding.
+- PDF (BabelDOC) translation talks to the selected provider's own OpenAI-compatible endpoint instead of the removed
+  gateway, and rejects providers that do not expose one.
+- `.github/workflows` contains only the fork checks and Windows x64 build/release workflows.
+
+Run `pnpm fork:check` after every upstream merge. It fails if any protected deletion or dependency returns.
+
+## Recurring Merge Conflicts
+
+Each upstream sync hits the same shapes:
+
+- Deleted-by-us gateway/channel/Agent/mini-app/CLI files reappear as `DU` conflicts — `git rm` them all.
+- Any new upstream code that calls `application.get('ApiGatewayService')` must be rerouted to a direct provider
+  connection or made to reject; `pnpm fork:check` catches every call site.
+- `docs/dev/README.md` is generated — resolve with the upstream side and re-run `pnpm docs:index`. Removing a docs
+  domain also means removing it from `REFERENCE_DOMAINS` in `scripts/docsGovernance/verify-doc-structure.ts` and the label map in
+  `scripts/docsGovernance/gen-doc-index.ts`.
+- Locale catalogs lose the fork's own keys during the merge: run `pnpm i18n:sync`, then translate every
+  `[to be translated]:` marker — `pnpm i18n:check` rejects the markers.
+- `pnpm-lock.yaml`: resolve with the upstream side, then regenerate with `pnpm install --lockfile-only`.
+
+## Signing Setup
+
+Commits must use a repository-specific SSH signing key and include a DCO trailer:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/cherry-studio-signing -C '<github-email>'
+git config --local gpg.format ssh
+git config --local user.signingkey ~/.ssh/cherry-studio-signing.pub
+git config --local commit.gpgsign true
+git commit -S --signoff
+```
+
+Register the public key as a GitHub **Signing key**, then verify both locally and on GitHub:
+
+```bash
+git cat-file commit HEAD | rg 'gpgsig|Signed-off-by'
+```
+
+## Stable Upstream Sync
+
+Resolve the latest non-draft, non-prerelease upstream release and inspect its tag before changing the worktree:
+
+```bash
+stable_tag=$(gh api repos/CherryHQ/cherry-studio/releases/latest --jq .tag_name)
+case "$stable_tag" in *-beta.*|*-rc.*) exit 1;; esac
+git fetch upstream "refs/tags/$stable_tag:refs/remotes/upstream-tags/$stable_tag" --no-tags
+git switch -c "sync/upstream-$stable_tag" origin/main
+git merge --no-ff --no-commit "refs/remotes/upstream-tags/$stable_tag"
+```
+
+Never create the unmodified upstream tag in the fork. Resolve conflicts using the tagged upstream structure as the
+baseline, then restore the fork behavior listed above. Regenerate `pnpm-lock.yaml` with the pinned Node and pnpm
+versions; do not hand-edit it. Preserve upstream dependency and patch changes except the removed channel, Claude Agent SDK, Pi, and DSH stacks and their patches.
+
+Regenerate the provider catalog from the release snapshot, not live models.dev/OpenRouter data: export the tag's
+`packages/provider-registry/data/{models,providers,provider-models}.json` into a temporary directory, then run
+`CATALOG_SNAPSHOT=<directory> pnpm --filter @cherrystudio/provider-registry generate`. This retains released
+metadata and applies the fork's provider removals plus authored overrides.
+
+Commit the merge without flattening its two parents:
+
+```bash
+git add -A
+git commit -S --signoff -m "chore(upstream-sync): merge $stable_tag"
+git show -s --format=raw HEAD
+```
+
+Prepare the fork version in a second signed commit. For upstream `x.y.z`, use `x.y.z-kx.n`, update bilingual notes,
+and open a PR to `main` for the CI verification below. Merge it with a merge commit;
+squash and rebase merges destroy the upstream ancestry used by the next sync.
+
+## Verification
+
+Use the existing **Checks** and **Build Windows x64** PR workflows as the completion gate. Require both to succeed
+for the latest PR commit; an earlier successful run does not validate follow-up changes. A draft PR runs the same
+checks and build without publishing a release.
+
+- **Checks** retains the full test suite, formatting, types, translations, docs, strict lint, and fork invariants.
+  It checks the migration chain, protects the SQL, snapshots, and existing journal entries shipped in
+  `v2.0.14-kx.1`, then generates migrations and rejects tracked or untracked schema drift.
+- **Build Windows x64** builds natively on Windows and inspects `app.asar` plus its external resources for retired
+  SDKs, compiled runtimes, preloads, and bundled assets. Generic provider icons and historical data types are valid.
+  Playwright then exercises Chat/Launchpad, persisted streaming chat, MCP allow/deny, knowledge indexing and recall,
+  provider login session settings, HTML previews, system-browser help links, and repeated cache-dialog inspection
+  with a 32 MiB legacy binary record under a 512 MiB V8 heap limit. Each Electron instance has a temporary profile;
+  model, embedding, MCP, and login traffic use local test services.
+- Failed Electron runs upload logs, screenshots, and traces as `electron-verification-<run-id>`. Windows builds
+  upload the validated installers and checksums. Setup and portable sizes are compared with `v2.0.14-kx.1` in
+  the Actions summary and `windows-x64-size-comparison-<run-id>` artifact, using release asset metadata.
+
+For local validation, use the pinned Node and pnpm versions, inspect the explicit scope, and run
+relevant tests with file filters. Full-suite and Windows package validation run in CI:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm fork:check
+pnpm change:scope --base origin/main
+pnpm check --plan
+pnpm typecheck
+pnpm exec vitest run <affected-test-file>
+pnpm docs:check
+pnpm exec eslint <changed-code-files>
+pnpm exec oxlint --deny-warnings <changed-code-files>
+pnpm exec oxfmt --check <changed-files>
+pnpm db:migrations:check
+pnpm db:migrations:generate
+git status --short -- migrations/sqlite-drizzle
+pnpm build
+```
+
+Confirm the focused contracts: provider tombstones and manual recreation, batch deletion, web-grounded explanation,
+gateway rejection, retired navigation filtering, historical data retention, and dormant retired schedules. The PR
+`Build Windows x64` artifact must contain exactly one setup installer, one portable executable, and one valid
+`latest.yml`. Passing verification does not authorize merging or releasing; those are separate steps.
+
+## Release
+
+For a fork-only update on the same upstream base, increment `x.y.z-kx.n` to `x.y.z-kx.(n+1)`. Prepare the version
+and documentation in the feature or synchronization PR before merging:
+
+1. Update `package.json`, write bilingual notes in `docs/releases/v<version>.md`, and copy the exact text into
+   `electron-builder.yml` under `releaseInfo.releaseNotes`. Keep one English, Chinese, and end marker in order.
+2. Run `node scripts/release/sync-release-history.js --target-version <version>`. It records both plain upstream
+   stable versions and the fork's normal `kx.n` releases, while skipping beta and RC versions. Never edit the
+   generated history by hand or rewrite already published release documents.
+3. Run `pnpm docs:check` and require the PR's latest **Checks** and **Build Windows x64** runs to pass. Merge with
+   a merge commit and retain signing plus DCO signoff.
+4. Wait for **Checks** on the resulting `main` SHA, then dispatch **Build Windows x64** on `main` with the exact
+   version. This fork does not use the upstream release-branch, built-in knowledge, or metadata-sync PR workflow.
+
+The workflow rejects any other ref/version and requires a successful `Checks` run for the same SHA. Its protected
+`release` environment creates `v<version>` as a normal Latest Release and uploads:
+
+- Windows x64 setup and portable executables
+- `latest.yml`
+- `release-history.json`
+- `SHA256SUMS.txt`
+
+The first fork build must be installed manually because older packages still use the upstream feed. Setup builds
+from `kx.1` onward update from the fork; portable builds remain manual. Windows binaries are not Authenticode-signed
+and may trigger SmartScreen. Commit signing and Windows code signing are separate mechanisms.
+
+After publishing, verify that the tag points to the merged `main` SHA, all assets download, checksums match, and
+`https://github.com/Kon-x/cherry-studio/releases/latest/download/latest.yml` plus its setup URL return successfully.
+The published history must contain the new fork version with notes identical to the release document and builder
+configuration. Fork revisions appear before their upstream base in the client history.
+
+## Rollback
+
+Before publishing, close the PR or revert the merge commit with `git revert -m 1 <merge-sha>`. After publishing,
+never move, replace, or delete the old tag. Fix the issue on `main` and publish the next `kx` revision, for example
+`2.0.7-kx.2` / `v2.0.7-kx.2`. Do not change `appId`, product name, or the user data directory.

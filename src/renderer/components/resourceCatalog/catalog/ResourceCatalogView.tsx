@@ -45,6 +45,7 @@ export function ResourceCatalogView({
   const { resourceError, refetch, gridProps, dialogs } = useResourceCatalogController(resourceType)
   const hasActiveDialog = Boolean(
     dialogs.assistantImportOpen ||
+    (resourceType === 'assistant' && dialogs.assistantExportOpen) ||
     (resourceType === 'assistant' && dialogs.assistantLibraryOpen) ||
     dialogs.createDialogOpen ||
     dialogs.createDialogKind ||

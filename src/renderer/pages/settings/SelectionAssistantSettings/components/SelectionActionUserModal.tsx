@@ -28,12 +28,13 @@ import CopyButton from '@renderer/components/CopyButton'
 import { useAssistants } from '@renderer/hooks/useAssistant'
 import { useDefaultModel } from '@renderer/hooks/useModel'
 import { cn } from '@renderer/utils/style'
-import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
+import { SELECTION_ACTION_RUNNER, type SelectionActionRunner } from '@shared/data/preference/preferenceTypes'
+import type { CustomSelectionAction } from '@shared/types/selection'
 
 interface SelectionActionUserModalProps {
   isModalOpen: boolean
-  editingAction: SelectionActionItem | null
-  onOk: (data: SelectionActionItem) => void
+  editingAction: CustomSelectionAction | null
+  onOk: (data: CustomSelectionAction) => void
   onCancel: () => void
 }
 
@@ -49,8 +50,9 @@ const SelectionActionUserModal: FC<SelectionActionUserModalProps> = ({
   const assistantOptions = userPredefinedAssistants
   const firstAssistantId = assistantOptions[0]?.id
 
-  const [formData, setFormData] = useState<Partial<SelectionActionItem>>({})
-  const [errors, setErrors] = useState<Partial<Record<keyof SelectionActionItem, string>>>({})
+  const [formData, setFormData] = useState<Partial<CustomSelectionAction>>({})
+  const [errors, setErrors] = useState<Partial<Record<keyof CustomSelectionAction, string>>>({})
+  const runner = formData.runner ?? SELECTION_ACTION_RUNNER.DEFAULT
 
   useEffect(() => {
     if (isModalOpen) {
@@ -60,7 +62,8 @@ const SelectionActionUserModal: FC<SelectionActionUserModalProps> = ({
           name: '',
           prompt: '',
           icon: '',
-          assistantId: ''
+          assistantId: '',
+          runner: SELECTION_ACTION_RUNNER.DEFAULT
         }
       )
       setErrors({})
@@ -68,7 +71,7 @@ const SelectionActionUserModal: FC<SelectionActionUserModalProps> = ({
   }, [isModalOpen, editingAction])
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof SelectionActionItem, string>> = {}
+    const newErrors: Partial<Record<keyof CustomSelectionAction, string>> = {}
 
     if (!formData.name?.trim()) {
       newErrors.name = t('selection.settings.user_modal.name.hint')
@@ -88,20 +91,21 @@ const SelectionActionUserModal: FC<SelectionActionUserModalProps> = ({
     }
 
     // 构建完整的 ActionItem
-    const actionItem: SelectionActionItem = {
+    const actionItem: CustomSelectionAction = {
       id: editingAction?.id || `user-${Date.now()}`,
       name: formData.name || 'USER',
       enabled: editingAction?.enabled || false,
-      isBuiltIn: editingAction?.isBuiltIn || false,
+      isBuiltIn: false,
       icon: formData.icon,
       prompt: formData.prompt,
+      runner,
       assistantId: formData.assistantId
     }
 
     onOk(actionItem)
   }
 
-  const handleInputChange = (field: keyof SelectionActionItem, value: string) => {
+  const handleInputChange = (field: keyof CustomSelectionAction, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
@@ -196,24 +200,27 @@ const SelectionActionUserModal: FC<SelectionActionUserModalProps> = ({
                 </ModalSectionTitle>
               </div>
               <RadioGroup
-                value={formData.assistantId ? 'assistant' : 'default'}
-                onValueChange={(value) =>
-                  handleInputChange('assistantId', value === 'default' ? '' : (firstAssistantId ?? ''))
-                }
+                value={runner}
+                onValueChange={(value) => {
+                  setFormData((prev) => ({ ...prev, runner: value as SelectionActionRunner }))
+                  if (value === SELECTION_ACTION_RUNNER.ASSISTANT && !formData.assistantId) {
+                    handleInputChange('assistantId', firstAssistantId ?? '')
+                  }
+                }}
                 className="flex flex-row gap-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem value="default" />
+                  <RadioGroupItem value={SELECTION_ACTION_RUNNER.DEFAULT} />
                   {t('selection.settings.user_modal.model.default')}
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem value="assistant" />
+                  <RadioGroupItem value={SELECTION_ACTION_RUNNER.ASSISTANT} />
                   {t('selection.settings.user_modal.model.assistant')}
                 </label>
               </RadioGroup>
             </div>
           </ModalSection>
 
-          {formData.assistantId && (
+          {runner === SELECTION_ACTION_RUNNER.ASSISTANT && (
             <ModalSection>
               <ModalSectionTitle>
                 <ModalSectionTitleLabel>{t('selection.settings.user_modal.assistant.label')}</ModalSectionTitleLabel>

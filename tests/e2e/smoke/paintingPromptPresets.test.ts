@@ -6,7 +6,7 @@ import en from '../../../src/renderer/i18n/locales/en-us.json'
 import { uiSelector } from '../../../src/renderer/utils/uiContract'
 import type { Prompt } from '../../../src/shared/data/types/prompt'
 import { LATEST_PRIVACY_POLICY_VERSION } from '../../../src/shared/utils/constants'
-import { selectSidebarApp } from '../regression/navigation'
+import { selectSidebarApp } from '../regression/helpers/navigation'
 import { expect, test as base } from './fixtures/electron.fixture'
 import { uiLocator } from './utils/uiLocator'
 

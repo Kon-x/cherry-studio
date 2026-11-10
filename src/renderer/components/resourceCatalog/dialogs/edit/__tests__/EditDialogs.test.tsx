@@ -1,3 +1,10 @@
+vi.mock('@renderer/components/cherryCloud/CherryCloudModelSelector', async () => {
+  const selector = await import('@renderer/components/ModelSelector')
+  return {
+    CherryCloudModelSelector: selector.ModelSelector
+  }
+})
+
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
@@ -301,9 +308,14 @@ vi.mock('@renderer/services/mainWindowNavigation', () => ({
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactI18next>()
+  const { createInstance } = await import('i18next')
+  const { default: translations } = await import('@renderer/i18n/locales/en-us.json')
+  const memoryI18n = createInstance()
+  await memoryI18n.init({ lng: 'en', resources: { en: { translation: translations } }, keySeparator: false })
   return {
     ...actual,
     useTranslation: () => ({
+      i18n: memoryI18n,
       // Second arg is a fallback string OR an interpolation options object;
       // an object resolves to the mapped value / key, never to itself.
       t: (key: string, fallbackOrOptions?: string | Record<string, unknown>) =>
@@ -316,6 +328,7 @@ vi.mock('react-i18next', async (importOriginal) => {
           'common.avatar': 'Avatar',
           'common.add': 'Add',
           'common.cancel': 'Cancel',
+          'common.more': 'More',
           'common.clear': 'Clear',
           'common.close': 'Close',
           'common.confirm': 'Confirm',
@@ -517,6 +530,9 @@ vi.mock('react-i18next', async (importOriginal) => {
           'settings.prompts.visibility.global.label': 'Use globally',
           'settings.title': 'Settings'
         })[key] ??
+        (key.startsWith('agent.memory.')
+          ? memoryI18n.t(key, typeof fallbackOrOptions === 'object' ? fallbackOrOptions : {})
+          : undefined) ??
         (typeof fallbackOrOptions === 'string' ? fallbackOrOptions : undefined) ??
         key
     })
@@ -655,7 +671,11 @@ beforeEach(() => {
       return { trigger: createPromptMock, isLoading: false, error: undefined }
     }
     if (method === 'PATCH' && path.startsWith('/assistants/')) {
-      return { trigger: updateAssistantMock, isLoading: false, error: undefined }
+      return {
+        trigger: ({ body }: { body: unknown }) => updateAssistantMock({ body }),
+        isLoading: false,
+        error: undefined
+      }
     }
     if (method === 'PATCH' && path.startsWith('/agents/')) {
       return { trigger: updateAgentMock, isLoading: false, error: undefined }

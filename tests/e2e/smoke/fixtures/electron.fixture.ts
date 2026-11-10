@@ -17,7 +17,7 @@ export type ElectronFixtures = {
 
 export const test = base.extend<ElectronFixtures>({
   extraElectronArgs: [[], { option: true }],
-  electronApp: async ({ extraElectronArgs }, use, testInfo) => {
+  electronApp: async ({ extraElectronArgs, trace }, use, testInfo) => {
     const profile = await mkdtemp(path.join(os.tmpdir(), 'cherry-e2e-'))
     const roaming = path.join(profile, 'AppData', 'Roaming')
     const local = path.join(profile, 'AppData', 'Local')
@@ -36,6 +36,7 @@ export const test = base.extend<ElectronFixtures>({
       APPDATA: roaming,
       LOCALAPPDATA: local,
       XDG_CONFIG_HOME: profile,
+      CS_DEV_PROFILE_ROOT: profile,
       CS_DEV_USER_DATA_SUFFIX: profileSuffix
     }
     delete env.ELECTRON_RUN_AS_NODE
@@ -46,13 +47,14 @@ export const test = base.extend<ElectronFixtures>({
     })
     const userData = await electronApp.evaluate(({ app }) => app.getPath('userData'))
     const logsPath = await electronApp.evaluate(({ app }) => app.getPath('logs'))
-    expect(path.basename(userData)).toContain(profileSuffix)
+    expect(userData).toBe(path.join(profile, 'userData'))
     electronApp.process().stdout?.on('data', (chunk) => appendFileSync(logPath, chunk))
     electronApp.process().stderr?.on('data', (chunk) => appendFileSync(logPath, chunk))
     electronApp.on('window', (page) => {
       page.on('pageerror', (error) => appendFileSync(logPath, `Renderer error: ${error.stack}\n`))
     })
-    await electronApp.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
+    const recordTrace = trace !== 'off' && (typeof trace === 'string' || trace.mode !== 'off')
+    if (recordTrace) await electronApp.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
 
     try {
       await use(electronApp)
@@ -70,7 +72,8 @@ export const test = base.extend<ElectronFixtures>({
           appendFileSync(logPath, `\n${page.url()}\n${body}\n`)
         }
       }
-      await electronApp.context().tracing.stop(failed ? { path: testInfo.outputPath('trace.zip') } : undefined)
+      if (recordTrace)
+        await electronApp.context().tracing.stop(failed ? { path: testInfo.outputPath('trace.zip') } : undefined)
       await electronApp.close()
       if (failed) await cp(logsPath, testInfo.outputPath('main-logs'), { recursive: true })
       await rm(userData, { recursive: true, force: true, maxRetries: 3 })

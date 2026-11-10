@@ -29,7 +29,7 @@ const aiService = {
 }
 
 const aiStreamManager = {
-  dispatch: vi.fn(),
+  dispatchCommand: vi.fn(),
   attach: vi.fn(),
   detach: vi.fn(),
   abort: vi.fn(),
@@ -258,27 +258,26 @@ describe('aiHandlers', () => {
 describe('aiHandlers — streaming', () => {
   it('stream_open resolves the sender WebContents and dispatches to AiStreamManager', async () => {
     const req = { trigger: 'submit-message', topicId: 't', userMessageParts: [] }
-    aiStreamManager.dispatch.mockResolvedValue({ mode: 'started' })
+    aiStreamManager.dispatchCommand.mockResolvedValue({ mode: 'started' })
 
     const result = await aiHandlers['ai.stream.open'](req as never, { senderId: 'w1' })
 
-    expect(windowManager.getWindow).toHaveBeenCalledWith('w1')
-    expect(aiStreamManager.dispatch).toHaveBeenCalledTimes(1)
-    // Second arg is the parsed request; first is the freshly built WebContentsListener.
-    expect(aiStreamManager.dispatch.mock.calls[0][1]).toEqual({ ...req, interactionWindowId: 'w1' })
+    expect(aiStreamManager.dispatchCommand.mock.calls.map(([request]) => request)).toEqual([
+      { ...req, interactionWindowId: 'w1' }
+    ])
     expect(result).toEqual({ mode: 'started' })
   })
 
-  it('stream_open throws when the sender is not a managed window', async () => {
+  it.each(['ai.stream.open'] as const)('%s rejects input from an unmanaged sender window', async (route) => {
     windowManager.getWindow.mockReturnValue(undefined)
-    await expect(aiHandlers['ai.stream.open']({ topicId: 't' } as never, { senderId: null })).rejects.toThrow(
-      'requires a managed window'
-    )
-    expect(aiStreamManager.dispatch).not.toHaveBeenCalled()
+    await expect(
+      aiHandlers[route]({ topicId: 't', sessionId: 'session-1' } as never, { senderId: null })
+    ).rejects.toThrow('requires a managed window')
+    expect(aiStreamManager.dispatchCommand).not.toHaveBeenCalled()
   })
 
   it('stream_open exposes a branchable admission reason without leaking a hardcoded message', async () => {
-    aiStreamManager.dispatch.mockRejectedValue(
+    aiStreamManager.dispatchCommand.mockRejectedValue(
       new AiStreamAdmissionError(aiStreamAdmissionReasons.MODEL_ALREADY_IN_LIVE_GROUP)
     )
 

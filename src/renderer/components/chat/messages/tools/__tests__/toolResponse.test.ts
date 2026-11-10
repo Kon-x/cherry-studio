@@ -5,6 +5,24 @@ import type { CherryMessagePart } from '@shared/data/types/message'
 import { buildToolResponseFromPart } from '../toolResponse'
 
 describe('toolResponse adapter', () => {
+  it('keeps preliminary tool output visible as running until the final result arrives', () => {
+    const part: CherryMessagePart = {
+      type: 'dynamic-tool',
+      toolCallId: 'search-progress',
+      toolName: 'search_docs',
+      state: 'output-available',
+      preliminary: true,
+      input: { query: 'project documentation' },
+      output: { content: [{ type: 'text', text: 'first output' }] }
+    }
+    expect(buildToolResponseFromPart(part)).toMatchObject({
+      status: 'invoking',
+      tool: { type: 'mcp', name: 'search_docs' },
+      response: [{ type: 'text', text: 'first output' }]
+    })
+    expect(buildToolResponseFromPart({ ...part, preliminary: false })).toMatchObject({ status: 'done' })
+  })
+
   it('maps structured dynamic-tool output metadata to MCP tool fields', () => {
     const part = {
       type: 'dynamic-tool',

@@ -37,6 +37,8 @@ export type MenuPresentationMode = 'native' | 'cherry'
 /** Side of a wide Agent file pane that holds the file tree. */
 export type AgentFilePaneTreePosition = 'left' | 'right'
 
+export type AgentDetailsSectionConfig = { id: string; visible: boolean }
+
 export type OnboardingProviderSetupStatus = 'pending' | 'completed' | 'skipped'
 
 export type RetryFallbackModelId = UniqueModelId
@@ -53,6 +55,17 @@ export enum SelectionFilterMode {
   Blacklist = 'blacklist'
 }
 
+export const SELECTION_ACTION_RUNNERS = ['default', 'assistant'] as const
+export type SelectionActionRunner = (typeof SELECTION_ACTION_RUNNERS)[number]
+export const SELECTION_ACTION_RUNNER = {
+  DEFAULT: 'default',
+  ASSISTANT: 'assistant'
+} as const satisfies Record<string, SelectionActionRunner>
+
+/**
+ * Stored shape of a selection action. Readers narrow it through `SelectionActionSchema`
+ * (`@shared/types/selection`), which fixes the fields each built-in and custom action carries.
+ */
 export type SelectionActionItem = {
   id: string
   name: string
@@ -60,8 +73,14 @@ export type SelectionActionItem = {
   isBuiltIn: boolean
   icon?: string
   prompt?: string
+  runner?: SelectionActionRunner
   assistantId?: string
   selectedText?: string
+  /**
+   * Platform identifier of the selection's source application: the executable name on Windows,
+   * the bundle ID on macOS, `WM_CLASS` on X11, and empty on Wayland. Runtime-only like `selectedText`.
+   */
+  programName?: string
   searchEngine?: string
 }
 
@@ -352,6 +371,8 @@ export type FileProcessorOptions = {
 export type FileProcessorCapabilityOverride = {
   apiHost?: string
   modelId?: string
+  formulaLevel?: 0 | 1 | 2
+  mergeCrossPageForms?: boolean
 }
 
 export type FileProcessorCapabilityOverrides = Partial<Record<FileProcessorFeature, FileProcessorCapabilityOverride>>

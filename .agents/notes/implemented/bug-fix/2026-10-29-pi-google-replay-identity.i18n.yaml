@@ -1,5 +1,5 @@
-# Bilingual-pair consistency record (docs/i18n/README.md).
+# Bilingual-pair consistency record (docs/dev/i18n/README.md).
 # After editing either side, update its counterpart and re-record with:
 #   pnpm docs:check-pairing --write .agents/notes/implemented/bug-fix/2026-10-29-pi-google-replay-identity.md
-2026-10-29-pi-google-replay-identity.md: 0e95963eb6ce783575831b0c6561540649187278
-2026-10-29-pi-google-replay-identity.zh.md: 4634f9f1eaf227b032f7f1d89d67c0d17a990572
+2026-10-29-pi-google-replay-identity.md: 024ab35ae054998d2fd240adff54c913703785a2
+2026-10-29-pi-google-replay-identity.zh.md: bb786f9f9f213d0b054e584a97ba662883ebb3e6
